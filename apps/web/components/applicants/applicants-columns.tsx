@@ -3,6 +3,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "../ui/badge";
 import type { ApplicantItem, FormFieldSummary } from "../../schema/applicants.types";
+import { ApplicantImage } from "./applicant-image";
 import { ApplicantUserIdCell } from "./applicant-user-id-cell";
 import { formatFieldValue } from "./applicants-utils";
 
@@ -115,6 +116,9 @@ export function getApplicantsColumns(
             const val = row.original.data?.[field.key];
             if (val === undefined || val === null || val === "") {
                 return <span className="text-xs text-muted-foreground/50">-</span>;
+            }
+            if ((field.type === "photo" || field.type === "signature") && eventId) {
+                return <ApplicantImage eventId={eventId} applicantId={row.original.user_id} fieldKey={field.key} type={field.type} />;
             }
 
             if (typeof val === "boolean") {

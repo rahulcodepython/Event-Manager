@@ -44,7 +44,7 @@ func (r *SitesRouter) SetUp() {
     r.App.Use(middlewares.LoggerMiddleware())
     r.App.Use(recover.New())
     r.App.Use(compress.New())
-    r.App.Use(middlewares.RateLimiterMiddleware(r.Redis))
+    r.App.Use(middlewares.RateLimiterMiddleware(r.Redis, r.CFG.RateLimitPerMinute, r.CFG.RateLimitBurst))
 
     r.App.Get(generic.RouteHealth, func(c *fiber.Ctx) error {
         return utils.OK(c, generic.MsgStatusOk, fiber.Map{"status": generic.MsgStatusOk})

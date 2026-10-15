@@ -51,7 +51,8 @@ export function CreateApplicantDialog({
     const createMutation = useCreateApplicantMutation(eventId);
 
     const customFields = React.useMemo(() => {
-        return formFields.map(
+        // Photos and signatures are uploaded by applicants on the public form.
+        return formFields.filter((f) => f.type !== "photo" && f.type !== "signature").map(
             (f) =>
                 ({
                     id: f.id || f.key,

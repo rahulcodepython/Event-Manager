@@ -93,6 +93,14 @@ export function buildPublicApplyFormSchema(
         let fieldSchema: z.ZodTypeAny;
 
         switch (field.type) {
+            case "photo":
+            case "signature": {
+                // The value is the upload token.
+                fieldSchema = field.required
+                    ? z.string().min(1, `${field.label} is required`)
+                    : z.string().default("");
+                break;
+            }
             case "phone": {
                 const pStr = z.string();
                 fieldSchema = field.required

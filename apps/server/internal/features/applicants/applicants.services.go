@@ -244,8 +244,14 @@ func (s *App) DeleteApplicantService(ctx context.Context, eventID, userID string
         return nil, err
     }
 
+    var data map[string]any
+    _ = s.DB.QueryRow(ctx, `SELECT data FROM applicants WHERE id = $1`, userID).Scan(&data)
+
     if err := s.DeleteApplicantRepository(ctx, eventID, userID); err != nil {
         return nil, err
+    }
+    for _, hook := range s.OnDelete {
+        hook(ctx, eventID, data)
     }
 
     s.InvalidateCaches(ctx, eventID)

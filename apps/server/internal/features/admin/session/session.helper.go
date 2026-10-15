@@ -3,14 +3,9 @@ package session
 import (
     "crypto/sha256"
     "crypto/subtle"
-    "time"
 )
 
 const (
-    // Failed logins allowed per client IP within failWindow.
-    maxFailedLogins = 5
-    failWindow      = 15 * time.Minute
-
     redisKeyFailedLogins = "admin_auth:failed:%s" // ip -> failed attempts
 )
 

@@ -28,7 +28,7 @@ func NewApp(db *pgxpool.Pool, rdb *redis.Client, cfg *config.Config) *App {
         Google: &oauth2.Config{
             ClientID:     cfg.GoogleClientID,
             ClientSecret: cfg.GoogleClientSecret,
-            RedirectURL:  cfg.APIURL + "/api/v1/auth/google/callback",
+            RedirectURL:  cfg.GoogleRedirectURL,
             Scopes:       []string{"openid", "email", "profile"},
             Endpoint:     endpoints.Google,
         },

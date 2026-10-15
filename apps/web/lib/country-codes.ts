@@ -88,7 +88,7 @@ export async function fetchCountryCodes(): Promise<CountryCode[]> {
         const timeoutId = setTimeout(() => controller.abort(), 4000);
 
         const res = await fetch(
-            "https://restcountries.com/v3.1/all?fields=name,cca2,idd,flag",
+            `${process.env.NEXT_PUBLIC_COUNTRIES_API_URL || "https://restcountries.com/v3.1"}/all?fields=name,cca2,idd,flag`,
             { signal: controller.signal }
         );
         clearTimeout(timeoutId);

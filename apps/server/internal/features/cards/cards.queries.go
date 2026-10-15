@@ -116,6 +116,14 @@ const (
             'organizer', COALESCE(em.organizer, ''),
             'logo', COALESCE(em.logo, ''),
             'branding', ce.has_branding,
+            'photo_key', (
+                SELECT a.data->>(f->>'key') FROM event_forms ef, jsonb_array_elements(ef.fields) f
+                WHERE ef.event_id = e.id AND f->>'type' = 'photo' LIMIT 1
+            ),
+            'signature_key', (
+                SELECT a.data->>(f->>'key') FROM event_forms ef, jsonb_array_elements(ef.fields) f
+                WHERE ef.event_id = e.id AND f->>'type' = 'signature' LIMIT 1
+            ),
             'sub_events', COALESCE((
                 SELECT jsonb_agg(jsonb_build_object(
                     'name', se.name,

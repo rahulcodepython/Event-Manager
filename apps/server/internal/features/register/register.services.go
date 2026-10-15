@@ -85,6 +85,14 @@ func (s *App) SubmitApplicationService(ctx context.Context, eventFormID string, 
     if req.SubEventLink != "" && !linkEnabled(cfg, req.SubEventLink) {
         return nil, ErrSubEventLinkClosed
     }
+    if req.Data == nil {
+        req.Data = map[string]interface{}{}
+    }
+    // Swap image tokens for the stored images (deleted again on failure).
+    claim, err := s.Uploads.ClaimImages(ctx, eventFormID, req.Data)
+    if err != nil {
+        return nil, err
+    }
 
     var (
         applicantID  string
@@ -122,6 +130,10 @@ func (s *App) SubmitApplicationService(ctx context.Context, eventFormID string, 
             Fixed:    req.SubEventLink != "",
         })
     })
+    if err != nil || enrolledOnly {
+        // An existing applicant keeps their data; new images are unused.
+        s.Uploads.Discard(ctx, claim)
+    }
     if err != nil {
         switch {
         case errors.Is(err, applicants.ErrLimitReached):

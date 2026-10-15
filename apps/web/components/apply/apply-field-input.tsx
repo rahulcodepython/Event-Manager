@@ -25,15 +25,18 @@ import {
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
 import { TimePicker } from "../ui/time-picker";
+import { ImageFieldInput } from "./image-field-input";
 import type { FormField as FormFieldType } from "../../schema/forms.types";
 import type { PublicApplyFormValues } from "../../schema/publicapply.types";
 
 interface ApplyFieldInputProps {
     control: Control<PublicApplyFormValues>;
     field: FormFieldType;
+    /** Needed for photo and signature fields (they upload to the form). */
+    eventFormId?: string;
 }
 
-export function ApplyFieldInput({ control, field }: ApplyFieldInputProps) {
+export function ApplyFieldInput({ control, field, eventFormId }: ApplyFieldInputProps) {
     const fieldKey = field.key;
 
     return (
@@ -296,6 +299,17 @@ export function ApplyFieldInput({ control, field }: ApplyFieldInputProps) {
                                     />
                                 </div>
                             )}
+
+                            {
+                                (field.type === "photo" || field.type === "signature") && (
+                                    eventFormId ? <ImageFieldInput
+                                        eventFormId={eventFormId}
+                                        field={field}
+                                        value={typeof formField.value === "string" ? formField.value : ""}
+                                        onChange={formField.onChange}
+                                    /> : <p className="text-xs text-muted-foreground">Applicants upload this on the public form.</p>
+                                )
+                            }
 
                             {/* File Upload Field */}
                             {field.type === "file" && (

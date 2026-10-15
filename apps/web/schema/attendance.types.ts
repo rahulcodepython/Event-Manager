@@ -32,6 +32,8 @@ export const ScanApplicantInfoSchema = z.object({
     phone: z.string().optional().default(""),
     data: z.record(z.string(), z.any()).nullish().default({}),
     registered_at: z.string(),
+    /** The applicant's photo as a data URL, for matching the face. */
+    photo: z.string().optional(),
 });
 
 export type ScanApplicantInfo = z.infer<typeof ScanApplicantInfoSchema>;

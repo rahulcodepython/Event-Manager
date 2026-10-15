@@ -6,6 +6,7 @@ import (
     "github.com/gofiber/fiber/v2"
     "identitycard-server/internal/features/applicants"
     "identitycard-server/internal/features/subevents"
+    "identitycard-server/internal/features/uploads"
     "identitycard-server/internal/utils"
 )
 
@@ -47,6 +48,9 @@ func (h *App) SubmitApplicationHandler(c *fiber.Ctx) error {
         }
         if errors.Is(err, applicants.ErrAlreadyRegistered) {
             return utils.ErrConflict(c, err.Error(), err)
+        }
+        if errors.Is(err, uploads.ErrImageRequired) || errors.Is(err, uploads.ErrBadToken) {
+            return utils.ErrBadRequest(c, err.Error(), err)
         }
         if errors.Is(err, ErrSubEventLinkClosed) {
             return utils.ErrForbidden(c, err.Error(), err)

@@ -1,6 +1,6 @@
 import type { CreateOrderResponse, RazorpayPaymentResult } from "../schema/credits.types"
 
-const CHECKOUT_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js"
+const CHECKOUT_SCRIPT = process.env.NEXT_PUBLIC_RAZORPAY_CHECKOUT_URL || "https://checkout.razorpay.com/v1/checkout.js"
 
 interface RazorpayInstance {
     open: () => void

@@ -82,7 +82,7 @@ func (s *App) sendCard(ctx context.Context, job jobqueue.Job) error {
         return nil // already sent, or a duplicate job
     }
 
-    card := s.card(data)
+    card := s.card(ctx, data)
     pdf, err := idcard.Render(ctx, card)
     if err != nil {
         return jobqueue.Permanent(err)

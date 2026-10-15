@@ -37,6 +37,20 @@ type Config struct {
 	RefreshTokenTTL    time.Duration
 	GoogleClientID     string
 	GoogleClientSecret string
+	// GoogleRedirectURL is the client login callback registered on the
+	// Google OAuth client (GOOGLE_REDIRECT_URL).
+	GoogleRedirectURL string
+	GoogleUserInfoURL string
+
+	// Abuse limits.
+	RateLimitPerMinute    int           // sustained requests per IP
+	RateLimitBurst        int           // bucket size per IP
+	AdminLoginMaxAttempts int           // failed admin logins per IP per window
+	AdminLoginWindow      time.Duration //
+	ContactMaxPerHour     int           // contact form messages per IP
+	UploadMaxPerHour      int           // public image uploads per IP
+	UploadPendingTTL      time.Duration // unclaimed uploads are deleted after this
+	DevicePINTTL          time.Duration // scanner pairing PIN lifetime
 
 	// Platform admin (admin API only). Single account from the environment;
 	// checked by RequireAdmin at admin startup, not here, so the client API
@@ -50,14 +64,18 @@ type Config struct {
 	RazorpayKeyID         string
 	RazorpayKeySecret     string
 	RazorpayWebhookSecret string
+	RazorpayBaseURL       string // REST API base, e.g. https://api.razorpay.com/v1
 
 	// ID cards: HMAC key for QR payloads. Changing it invalidates every
 	// issued card.
 	QRSigningSecret string
 
 	// Email (Resend). Empty key: emails fail with "not configured".
-	ResendAPIKey string
-	EmailFrom    string
+	ResendAPIKey  string
+	ResendBaseURL string
+	EmailFrom     string
+	// EmailSendInterval paces the email queue (Resend allows 2 requests/s).
+	EmailSendInterval time.Duration
 
 	// Event sites (cmd/sites). URL template has a {slug} placeholder.
 	SitesPort        string
@@ -135,10 +153,21 @@ func Load() (*Config, error) {
 
 		JWTAccessSecret:    require("JWT_ACCESS_SECRET"),
 		JWTRefreshSecret:   require("JWT_REFRESH_SECRET"),
-		AccessTokenTTL:     15 * time.Minute,
-		RefreshTokenTTL:    7 * 24 * time.Hour,
+		AccessTokenTTL:     getDuration("ACCESS_TOKEN_TTL", 15*time.Minute),
+		RefreshTokenTTL:    getDuration("REFRESH_TOKEN_TTL", 7*24*time.Hour),
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		GoogleRedirectURL:  getOr("GOOGLE_REDIRECT_URL", getOr("API_URL", "http://localhost:8000")+"/api/v1/auth/google/callback"),
+		GoogleUserInfoURL:  getOr("GOOGLE_USERINFO_URL", "https://openidconnect.googleapis.com/v1/userinfo"),
+
+		RateLimitPerMinute:    getInt("RATE_LIMIT_PER_MINUTE", 100),
+		RateLimitBurst:        getInt("RATE_LIMIT_BURST", 100),
+		AdminLoginMaxAttempts: getInt("ADMIN_LOGIN_MAX_ATTEMPTS", 5),
+		AdminLoginWindow:      getDuration("ADMIN_LOGIN_WINDOW", 15*time.Minute),
+		ContactMaxPerHour:     getInt("CONTACT_MAX_PER_HOUR", 5),
+		UploadMaxPerHour:      getInt("UPLOAD_MAX_PER_HOUR", 30),
+		UploadPendingTTL:      getDuration("UPLOAD_PENDING_TTL", 24*time.Hour),
+		DevicePINTTL:          getDuration("DEVICE_PIN_TTL", 5*time.Minute),
 
 		AdminUsername:         os.Getenv("ADMIN_USERNAME"),
 		AdminPassword:         os.Getenv("ADMIN_PASSWORD"),
@@ -148,10 +177,13 @@ func Load() (*Config, error) {
 		RazorpayKeyID:         os.Getenv("RAZORPAY_KEY_ID"),
 		RazorpayKeySecret:     os.Getenv("RAZORPAY_KEY_SECRET"),
 		RazorpayWebhookSecret: os.Getenv("RAZORPAY_WEBHOOK_SECRET"),
+		RazorpayBaseURL:       strings.TrimRight(getOr("RAZORPAY_BASE_URL", "https://api.razorpay.com/v1"), "/"),
 
 		QRSigningSecret: require("QR_SIGNING_SECRET"),
-		ResendAPIKey:    os.Getenv("RESEND_API_KEY"),
-		EmailFrom:       getOr("EMAIL_FROM", "IdentityCard <no-reply@example.com>"),
+		ResendAPIKey:      os.Getenv("RESEND_API_KEY"),
+		ResendBaseURL:     strings.TrimRight(getOr("RESEND_BASE_URL", "https://api.resend.com"), "/"),
+		EmailFrom:         getOr("EMAIL_FROM", "IdentityCard <no-reply@example.com>"),
+		EmailSendInterval: getDuration("EMAIL_SEND_INTERVAL", 600*time.Millisecond),
 
 		SitesPort:        getOr("SITES_PORT", "8002"),
 		SitesDomain:      getOr("SITES_DOMAIN", "sites.localhost"),
@@ -269,4 +301,17 @@ func getInt(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+// getDuration reads a Go duration ("15m", "24h", "600ms").
+func getDuration(key string, fallback time.Duration) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		return fallback
+	}
+	return d
 }

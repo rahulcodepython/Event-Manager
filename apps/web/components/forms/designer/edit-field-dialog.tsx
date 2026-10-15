@@ -51,6 +51,10 @@ function EditFieldDialogBody({
         field.type === "number" ||
         field.type === "phone";
     const isFileType = field.type === "file";
+    const isImageType = field.type === "photo" || field.type === "signature";
+    const defaultMin = field.type === "signature" ? { w: 300, h: 100 } : { w: 300, h: 300 };
+    const [minWidth, setMinWidth] = React.useState(String(field.validation?.min_width ?? defaultMin.w));
+    const [minHeight, setMinHeight] = React.useState(String(field.validation?.min_height ?? defaultMin.h));
 
     const [options, setOptions] = React.useState<FieldOption[]>(
         field.options && field.options.length > 0
@@ -168,6 +172,8 @@ function EditFieldDialogBody({
                 accept: isFileType && acceptVal !== "" ? acceptVal.trim() : null,
                 max_file_size_mb: isFileType ? maxFileSizeMB : null,
                 multiple: isFileType ? allowMultiple : null,
+                min_width: isImageType ? Math.max(1, parseInt(minWidth, 10) || defaultMin.w) : null,
+                min_height: isImageType ? Math.max(1, parseInt(minHeight, 10) || defaultMin.h) : null,
             },
         };
 
@@ -403,6 +409,34 @@ function EditFieldDialogBody({
                         </div>
                     </div>
                 )}
+
+                {
+                    isImageType && <div className="space-y-2">
+                        <Label className="text-xs font-medium">Minimum image size (pixels)</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Input
+                                type="number"
+                                min="1"
+                                value={minWidth}
+                                onChange={(e) => setMinWidth(e.target.value)}
+                                aria-label="Minimum width"
+                                className="h-10 text-sm"
+                            />
+                            <Input
+                                type="number"
+                                min="1"
+                                value={minHeight}
+                                onChange={(e) => setMinHeight(e.target.value)}
+                                aria-label="Minimum height"
+                                className="h-10 text-sm"
+                            />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                            Width × height. JPEG, PNG or WebP up to 2 MB.
+                            {field.type === "photo" ? " Applicants crop the photo to a square." : ""}
+                        </p>
+                    </div>
+                }
 
                 {/* File Upload Accept & Max File Size Range */}
                 {isFileType && (

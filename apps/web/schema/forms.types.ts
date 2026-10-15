@@ -22,7 +22,13 @@ export const FORM_FIELD_TYPES = [
     "month",
     "week",
     "file",
+    "photo",
+    "signature",
 ] as const;
+
+/** Image fields uploaded on the public form; at most one of each per form. */
+export const IMAGE_FIELD_TYPES = ["photo", "signature"] as const;
+export const isImageField = (type: string) => (IMAGE_FIELD_TYPES as readonly string[]).includes(type);
 
 export type FormFieldType = (typeof FORM_FIELD_TYPES)[number];
 
@@ -47,6 +53,9 @@ export const FieldValidationSchema = z.object({
     accept: z.string().nullish(),
     max_file_size_mb: z.number().nullish(),
     multiple: z.boolean().nullish(),
+    /** Smallest accepted image in pixels (photo and signature fields). */
+    min_width: z.number().nullish(),
+    min_height: z.number().nullish(),
 });
 
 export type FieldValidation = z.infer<typeof FieldValidationSchema>;

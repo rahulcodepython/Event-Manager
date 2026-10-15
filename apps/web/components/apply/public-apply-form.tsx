@@ -210,6 +210,7 @@ export function PublicApplyForm({
                                 <ApplyFieldInput
                                     key={field.id}
                                     field={field}
+                                    eventFormId={eventFormId}
                                     control={form.control}
                                 />
                             );

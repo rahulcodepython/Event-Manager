@@ -11,7 +11,6 @@ import (
     "net/http"
 )
 
-const razorpayOrdersURL = "https://api.razorpay.com/v1/orders"
 
 type razorpayOrder struct {
     ID string `json:"id"`
@@ -25,7 +24,7 @@ func (s *App) createRazorpayOrder(ctx context.Context, amount int64, currency, r
         return "", err
     }
 
-    req, err := http.NewRequestWithContext(ctx, http.MethodPost, razorpayOrdersURL, bytes.NewReader(body))
+    req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.Cfg.RazorpayBaseURL+"/orders", bytes.NewReader(body))
     if err != nil {
         return "", err
     }

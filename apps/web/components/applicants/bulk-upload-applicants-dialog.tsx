@@ -87,7 +87,7 @@ function buildColumns(formFields: FormFieldSummary[]): Column[] {
                   : "text",
     }))
     const custom: Column[] = formFields
-        .filter((f) => !BUILT_IN_KEYS.has(f.key))
+        .filter((f) => !BUILT_IN_KEYS.has(f.key) && f.type !== "photo" && f.type !== "signature")
         .map((f) => ({
             key: f.key,
             label: f.label,

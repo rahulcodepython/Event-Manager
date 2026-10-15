@@ -22,7 +22,13 @@ var SupportedFieldTypes = map[string]bool{
     "month":    true,
     "week":     true,
     "file":     true,
+    // Image uploads (see uploads): at most one of each per form.
+    "photo":     true,
+    "signature": true,
 }
+
+// ImageFieldTypes are uploaded through /public/apply/:id/uploads.
+var ImageFieldTypes = map[string]bool{"photo": true, "signature": true}
 
 // FieldOption represents a selectable option for radio, checkbox, etc.
 type FieldOption struct {
@@ -41,6 +47,9 @@ type FieldValidation struct {
     Accept        *string  `json:"accept,omitempty"`
     MaxFileSizeMB *int     `json:"max_file_size_mb,omitempty"`
     Multiple      *bool    `json:"multiple,omitempty"`
+    // Smallest accepted image, in pixels (photo and signature fields).
+    MinWidth  *int `json:"min_width,omitempty"`
+    MinHeight *int `json:"min_height,omitempty"`
 }
 
 // FormField defines the structure of each individual form field stored in JSONB.

@@ -18,13 +18,15 @@ import {
     FIELD_TYPE_METAS,
     type FieldTypeMeta,
 } from "./field-type-config";
-import { FORM_FIELD_TYPES, type FormFieldType } from "../../../schema/forms.types";
+import { FORM_FIELD_TYPES, isImageField, type FormFieldType } from "../../../schema/forms.types";
 
 interface AddFieldDialogProps {
     onAddField: (type: FormFieldType) => void;
+    /** Types already on the form; photo and signature can be added once. */
+    existingTypes?: FormFieldType[];
 }
 
-export function AddFieldDialog({ onAddField }: AddFieldDialogProps) {
+export function AddFieldDialog({ onAddField, existingTypes = [] }: AddFieldDialogProps) {
     const [open, setOpen] = React.useState(false);
 
     const handleSelectType = (type: FormFieldType) => {
@@ -61,12 +63,15 @@ export function AddFieldDialog({ onAddField }: AddFieldDialogProps) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                         {typesList.map((meta) => {
                             const Icon = meta.icon;
+                            const taken = isImageField(meta.type) && existingTypes.includes(meta.type);
                             return (
                                 <button
                                     key={meta.type}
                                     type="button"
+                                    disabled={taken}
+                                    title={taken ? "Already on this form" : undefined}
                                     onClick={() => handleSelectType(meta.type)}
-                                    className="flex items-start gap-3 rounded-lg border bg-card/60 p-3 text-left transition-all hover:bg-muted/70 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer group"
+                                    className="flex items-start gap-3 rounded-lg border bg-card/60 p-3 text-left transition-all hover:bg-muted/70 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer group disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     <div className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-muted group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                                         <Icon className="size-4" />

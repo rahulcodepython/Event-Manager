@@ -37,7 +37,7 @@ func (s *App) CreateDeviceService(ctx context.Context, orgID string, req CreateD
         return nil, fmt.Errorf("failed to generate pin: %w", err)
     }
 
-    pinExpiresAt := time.Now().Add(5 * time.Minute)
+    pinExpiresAt := time.Now().Add(s.PINTTL)
     return s.CreateDeviceRepository(ctx, orgID, name, pin, pinExpiresAt, req.ExpiresAt)
 }
 
@@ -86,7 +86,7 @@ func (s *App) RegeneratePINService(ctx context.Context, id string) (*Device, err
         return nil, fmt.Errorf("failed to generate pin: %w", err)
     }
 
-    pinExpiresAt := time.Now().Add(5 * time.Minute)
+    pinExpiresAt := time.Now().Add(s.PINTTL)
     device, err := s.UpdateDevicePINRepository(ctx, id, pin, pinExpiresAt)
     if err != nil {
         if errors.Is(err, postgres.ErrNotFound) {

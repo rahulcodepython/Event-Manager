@@ -2,7 +2,6 @@ package router
 
 import (
     "context"
-    "time"
 
     "github.com/go-webauthn/webauthn/webauthn"
     "github.com/gofiber/fiber/v2"
@@ -25,6 +24,7 @@ import (
     "identitycard-server/internal/features/reminders"
     "identitycard-server/internal/features/retention"
     "identitycard-server/internal/features/sites"
+    "identitycard-server/internal/features/uploads"
     "identitycard-server/internal/features/subevents"
     "identitycard-server/internal/generic"
     "identitycard-server/internal/middlewares"
@@ -57,6 +57,7 @@ type AppRouter struct {
     SubEvents  *subevents.App
     Sites      *sites.App
     Contact    *contact.App
+    Uploads    *uploads.App
 }
 
 func NewAppRouter(
@@ -72,19 +73,23 @@ func NewAppRouter(
 
     applicantsApp := applicants.NewApp(pool, cch)
     eventsApp := events.NewApp(pool, cch)
-    sitesApp := sites.NewApp(pool, cch, storage.Connect(rootCtx, cfg), cfg)
-    eventsApp.OnDelete = append(eventsApp.OnDelete, sitesApp.OnEventDeleted)
+    store := storage.Connect(rootCtx, cfg)
+    sitesApp := sites.NewApp(pool, cch, store, cfg)
+    uploadsApp := uploads.NewApp(pool, rdb, store, cfg.QRSigningSecret, cfg.UploadMaxPerHour, cfg.UploadPendingTTL)
+    uploadsApp.StartSweeper(rootCtx)
+    eventsApp.OnDelete = append(eventsApp.OnDelete, sitesApp.OnEventDeleted, uploadsApp.OnEventDeleted)
+    applicantsApp.OnDelete = append(applicantsApp.OnDelete, uploadsApp.DeleteFiles)
     retention.NewApp(pool, rdb, eventsApp).StartWorker(rootCtx)
 
     // Emails (ID cards, client reminders) go through one Redis-stream queue,
     // sent one at a time to stay under Resend's 2 requests/second.
     signer := qrsign.New(cfg.QRSigningSecret)
-    mail := mailer.New(cfg.ResendAPIKey, cfg.EmailFrom)
+    mail := mailer.New(cfg.ResendAPIKey, cfg.EmailFrom, cfg.ResendBaseURL)
     emailQueue := jobqueue.New(rdb, "email")
     subEventsApp := subevents.NewApp(pool, cch)
-    cardsApp := cards.NewApp(pool, rdb, cch, emailQueue, mail, signer)
+    cardsApp := cards.NewApp(pool, rdb, cch, emailQueue, mail, signer, store)
     remindersApp := reminders.NewApp(pool, rdb, emailQueue, mail, cfg.WebURL)
-    contactApp := contact.NewApp(pool, rdb, emailQueue, mail, cfg.ContactEmail)
+    contactApp := contact.NewApp(pool, rdb, emailQueue, mail, cfg.ContactEmail, cfg.ContactMaxPerHour)
     creditsApp := credits.NewApp(pool, cfg, pricingApp)
     creditsApp.Queue, creditsApp.Mailer = emailQueue, mail
     cardsApp.StartScheduler(rootCtx)
@@ -94,7 +99,7 @@ func NewAppRouter(
         reminders.JobType:      remindersApp.JobHandler(),
         contact.JobType:        contactApp.JobHandler(),
         credits.ReceiptJobType: creditsApp.ReceiptJobHandler(),
-    }, 600*time.Millisecond)
+    }, cfg.EmailSendInterval)
 
     return &AppRouter{
         App:     app,
@@ -108,15 +113,16 @@ func NewAppRouter(
         Events:     eventsApp,
         Dates:      dates.NewApp(pool, cch),
         Forms:      forms.NewApp(pool, cch),
-        Register:   register.NewApp(pool, cch, applicantsApp),
+        Register:   register.NewApp(pool, cch, applicantsApp, uploadsApp),
         Applicants: applicantsApp,
-        Devices:    devices.NewApp(pool, rdb, wa, cfg.RPID, cfg.CanonicalOrigin),
-        Attendance: attendance.NewApp(pool, cch, signer),
+        Devices:    devices.NewApp(pool, rdb, wa, cfg.RPID, cfg.CanonicalOrigin, cfg.DevicePINTTL),
+        Attendance: attendance.NewApp(pool, cch, signer, store),
         Pricing:    pricingApp,
         Cards:      cardsApp,
         SubEvents:  subEventsApp,
         Sites:      sitesApp,
         Contact:    contactApp,
+        Uploads:    uploadsApp,
     }
 }
 
@@ -131,6 +137,7 @@ func (r *AppRouter) SetUp() {
     r.Auth.RegisterPublicRoutes(api)
     r.Pricing.RegisterPublicRoutes(api)
     r.Contact.RegisterPublicRoutes(api)
+    r.Uploads.RegisterPublicRoutes(api)
     r.Credits.RegisterPublicRoutes(api)
     r.Register.RegisterRoutes(api)
     r.Devices.RegisterPublicRoutes(api)
@@ -159,4 +166,5 @@ func (r *AppRouter) SetUp() {
     r.Attendance.RegisterRoutes(org)
     r.Cards.RegisterRoutes(org)
     r.Sites.RegisterRoutes(org)
+    r.Uploads.RegisterRoutes(org)
 }

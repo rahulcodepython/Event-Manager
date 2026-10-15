@@ -24,6 +24,10 @@ type ScanApplicantInfo struct {
     Phone        string                 `json:"phone"`
     Data         map[string]interface{} `json:"data"`
     RegisteredAt time.Time              `json:"registered_at"`
+    // PhotoKey is read from the database; Photo is what the scanner gets:
+    // the applicant's photo as a data URL, so the operator can match faces.
+    PhotoKey *string `json:"photo_key,omitempty"`
+    Photo    string  `json:"photo,omitempty"`
 }
 
 type ScanEventInfo struct {

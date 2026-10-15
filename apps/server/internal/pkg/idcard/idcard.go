@@ -35,6 +35,9 @@ type Card struct {
     LogoURL  string
     // SubEvents the applicant is enrolled in, listed under the QR code.
     SubEvents []SubEvent
+    // Photo (square JPEG) and Signature (PNG/JPEG) image bytes, if any.
+    Photo     []byte
+    Signature []byte
 }
 
 type SubEvent struct {
@@ -45,6 +48,13 @@ type SubEvent struct {
 
 // maxSubEventLines: sub-events listed before "+N more".
 const maxSubEventLines = 3
+
+// Photo and signature boxes on the card, in mm.
+const (
+    photoMM    = 24.0
+    signatureW = 34.0
+    signatureH = 10.0
+)
 
 const (
     pageW   = 105.0 // A6 portrait, mm
@@ -88,14 +98,35 @@ func Render(ctx context.Context, c Card) ([]byte, error) {
     pdf.SetX(textX)
     pdf.CellFormat(pageW-textX-margin, 5, dateRange(c.StartDate, c.EndDate), "", 1, "L", false, 0, "")
 
-    // Applicant.
-    pdf.SetTextColor(24, 24, 27)
-    pdf.SetFont("go", "B", 16)
-    pdf.SetXY(margin, bandH+7)
-    pdf.CellFormat(pageW-2*margin, 8, fit(pdf, c.ApplicantName, pageW-2*margin, 1), "", 1, "C", false, 0, "")
-    pdf.SetFont("gomono", "", 9)
-    pdf.SetTextColor(82, 82, 91)
-    pdf.CellFormat(pageW-2*margin, 5, c.ApplicantID, "", 1, "C", false, 0, "")
+    // Applicant: with a photo, photo on the left and text on the right;
+    // otherwise centred text. The signature goes under the applicant id.
+    qrY := bandH + 26
+    hasPhoto := placeImage(pdf, "photo", c.Photo, margin, bandH+5, photoMM, photoMM)
+    if hasPhoto {
+        textX := margin + photoMM + 4
+        textW := pageW - textX - margin
+        pdf.SetTextColor(24, 24, 27)
+        pdf.SetFont("go", "B", 14)
+        pdf.SetXY(textX, bandH+6)
+        pdf.MultiCell(textW, 6, fit(pdf, c.ApplicantName, textW, 2), "", "L", false)
+        pdf.SetFont("gomono", "", 8.5)
+        pdf.SetTextColor(82, 82, 91)
+        pdf.SetX(textX)
+        pdf.CellFormat(textW, 5, c.ApplicantID, "", 1, "L", false, 0, "")
+        placeImage(pdf, "signature", c.Signature, textX, pdf.GetY()+1, signatureW, signatureH)
+        qrY = bandH + 5 + photoMM + 4
+    } else {
+        pdf.SetTextColor(24, 24, 27)
+        pdf.SetFont("go", "B", 16)
+        pdf.SetXY(margin, bandH+7)
+        pdf.CellFormat(pageW-2*margin, 8, fit(pdf, c.ApplicantName, pageW-2*margin, 1), "", 1, "C", false, 0, "")
+        pdf.SetFont("gomono", "", 9)
+        pdf.SetTextColor(82, 82, 91)
+        pdf.CellFormat(pageW-2*margin, 5, c.ApplicantID, "", 1, "C", false, 0, "")
+        if placeImage(pdf, "signature", c.Signature, (pageW-signatureW)/2, pdf.GetY()+1, signatureW, signatureH) {
+            qrY += signatureH + 2
+        }
+    }
 
     // QR code.
     png, err := qrcode.Encode(c.QR, qrcode.Medium, 512)
@@ -103,8 +134,7 @@ func Render(ctx context.Context, c Card) ([]byte, error) {
         return nil, fmt.Errorf("idcard: qr: %w", err)
     }
     pdf.RegisterImageOptionsReader("qr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(png))
-    qrY := bandH + 26
-    size := qrSizeFor(c)
+    size := qrSizeFor(c, qrY)
     pdf.ImageOptions("qr", (pageW-size)/2, qrY, size, size, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
 
     // Event details.
@@ -240,18 +270,45 @@ func organizerLine(organizer string) string {
     return "Organized by " + organizer
 }
 
-// qrSizeFor shrinks the QR code so the sub-event list still fits above
-// the footer.
-func qrSizeFor(c Card) float64 {
-    if len(c.SubEvents) == 0 {
-        return qrSize
-    }
-    lines := min(len(c.SubEvents), maxSubEventLines)
-    if len(c.SubEvents) > maxSubEventLines {
-        lines++
+// qrSizeFor shrinks the QR code so everything below it (event details,
+// sub-events) still fits above the footer.
+func qrSizeFor(c Card, qrY float64) float64 {
+    subBlock := 0.0
+    if len(c.SubEvents) > 0 {
+        lines := min(len(c.SubEvents), maxSubEventLines)
+        if len(c.SubEvents) > maxSubEventLines {
+            lines++
+        }
+        subBlock = 5 + 3.8*float64(lines)
     }
     const footerTop = pageH - margin - 8
     const detailLines = 2 * 4.5
-    free := footerTop - (bandH + 26) - 3 - detailLines - (5 + 3.8*float64(lines))
+    free := footerTop - qrY - 3 - detailLines - subBlock
     return min(qrSize, free)
+}
+
+// placeImage draws JPEG/PNG bytes fitted into a w×h box (aspect kept, top
+// left aligned) and reports whether it drew anything.
+func placeImage(pdf *fpdf.Fpdf, name string, data []byte, x, y, w, h float64) bool {
+    if len(data) == 0 {
+        return false
+    }
+    var imageType string
+    switch http.DetectContentType(data) {
+    case "image/png":
+        imageType = "PNG"
+    case "image/jpeg":
+        imageType = "JPG"
+    default:
+        return false
+    }
+    opts := fpdf.ImageOptions{ImageType: imageType}
+    info := pdf.RegisterImageOptionsReader(name, opts, bytes.NewReader(data))
+    if !pdf.Ok() || info == nil || info.Width() <= 0 || info.Height() <= 0 {
+        pdf.ClearError()
+        return false
+    }
+    scale := min(w/info.Width(), h/info.Height())
+    pdf.ImageOptions(name, x, y, info.Width()*scale, info.Height()*scale, false, opts, 0, "")
+    return true
 }

@@ -104,7 +104,11 @@ const (
                 ELSE 'ok'
             END,
             'device', (SELECT jsonb_build_object('id', id, 'name', name, 'actual_name', actual_name) FROM device_check),
-            'applicant', (SELECT jsonb_build_object('user_id', id, 'name', name, 'email', email, 'phone', phone, 'data', data, 'registered_at', registered_at) FROM applicant_check),
+            'applicant', (SELECT jsonb_build_object('user_id', id, 'name', name, 'email', email, 'phone', phone, 'data', data, 'registered_at', registered_at,
+                'photo_key', (
+                    SELECT ac.data->>(f->>'key') FROM event_forms ef, jsonb_array_elements(ef.fields) f
+                    WHERE ef.event_id = $1::uuid AND f->>'type' = 'photo' LIMIT 1
+                )) FROM applicant_check ac),
             'event', (SELECT jsonb_build_object('id', id, 'name', name, 'start_date', start_date, 'end_date', end_date, 'venue', venue) FROM event_check),
             'sub_event', (SELECT jsonb_build_object('id', id, 'name', name, 'venue', venue) FROM sub_event_check),
             'event_date', (SELECT jsonb_build_object('id', id, 'date', date, 'start_time', start_time, 'end_time', end_time) FROM event_date_check),

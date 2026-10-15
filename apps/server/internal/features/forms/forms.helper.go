@@ -2,6 +2,7 @@ package forms
 
 import (
     "encoding/json"
+    "fmt"
 )
 
 type rawFieldCheck struct {
@@ -72,6 +73,14 @@ func validateEventFieldsJSON(raw []byte) error {
     if err := json.Unmarshal(raw, &fields); err != nil {
         return err
     }
+    types := make([]string, len(fields))
+    for i, f := range fields {
+        types[i] = f.Type
+    }
+    if err := checkImageFields(types); err != nil {
+        return err
+    }
+
     var hasName, hasEmail, hasPhone bool
     for _, f := range fields {
         if !SupportedFieldTypes[f.Type] {
@@ -89,6 +98,21 @@ func validateEventFieldsJSON(raw []byte) error {
     }
     if !hasName || !hasEmail || !hasPhone {
         return ErrMissingMandatoryFields
+    }
+    return nil
+}
+
+// checkImageFields allows at most one photo and one signature field.
+func checkImageFields(types []string) error {
+    seen := map[string]bool{}
+    for _, t := range types {
+        if !ImageFieldTypes[t] {
+            continue
+        }
+        if seen[t] {
+            return fmt.Errorf("%w: a form can have only one %s field", ErrInvalidFieldType, t)
+        }
+        seen[t] = true
     }
     return nil
 }

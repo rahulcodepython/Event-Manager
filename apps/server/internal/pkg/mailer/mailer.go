@@ -13,8 +13,6 @@ import (
     "time"
 )
 
-const resendURL = "https://api.resend.com/emails"
-
 var ErrNotConfigured = errors.New("email is not configured (RESEND_API_KEY)")
 
 type Attachment struct {
@@ -31,13 +29,14 @@ type Message struct {
 }
 
 type Mailer struct {
-    apiKey string
-    from   string
-    http   *http.Client
+    apiKey  string
+    from    string
+    baseURL string // RESEND_BASE_URL, e.g. https://api.resend.com
+    http    *http.Client
 }
 
-func New(apiKey, from string) *Mailer {
-    return &Mailer{apiKey: apiKey, from: from, http: &http.Client{Timeout: 30 * time.Second}}
+func New(apiKey, from, baseURL string) *Mailer {
+    return &Mailer{apiKey: apiKey, from: from, baseURL: baseURL, http: &http.Client{Timeout: 30 * time.Second}}
 }
 
 type resendAttachment struct {
@@ -73,7 +72,7 @@ func (m *Mailer) Send(ctx context.Context, msg Message) error {
         return err
     }
 
-    req, err := http.NewRequestWithContext(ctx, http.MethodPost, resendURL, bytes.NewReader(raw))
+    req, err := http.NewRequestWithContext(ctx, http.MethodPost, m.baseURL+"/emails", bytes.NewReader(raw))
     if err != nil {
         return err
     }

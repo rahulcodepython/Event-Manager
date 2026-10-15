@@ -14,8 +14,6 @@ import (
     "identitycard-server/internal/pkg/postgres"
 )
 
-const googleUserInfoURL = "https://openidconnect.googleapis.com/v1/userinfo"
-
 var (
     ErrGoogleNotConfigured = errors.New("google login is not configured")
     ErrEmailNotVerified    = errors.New("google account email is not verified")
@@ -32,7 +30,7 @@ func (s *App) GoogleLoginService(ctx context.Context, code, verifier string) (*j
         return nil, jwtauth.Identity{}, fmt.Errorf("google code exchange: %w", err)
     }
 
-    resp, err := s.Google.Client(ctx, token).Get(googleUserInfoURL)
+    resp, err := s.Google.Client(ctx, token).Get(s.Cfg.GoogleUserInfoURL)
     if err != nil {
         return nil, jwtauth.Identity{}, fmt.Errorf("google userinfo: %w", err)
     }

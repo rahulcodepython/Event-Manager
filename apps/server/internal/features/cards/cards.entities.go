@@ -48,6 +48,8 @@ type cardData struct {
     Organizer        string `json:"organizer"`
     Logo             string `json:"logo"`
     Branding         bool   `json:"branding"`
+    PhotoKey         *string `json:"photo_key"`
+    SignatureKey     *string `json:"signature_key"`
     SubEvents        []struct {
         Name     string  `json:"name"`
         FirstDay *string `json:"first_day"`

@@ -62,7 +62,7 @@ func useCommonMiddlewares(app *fiber.App, cfg *config.Config, rdb *redis.Client,
         AllowCredentials: true,
     }))
     // 7. Rate limiting: Redis token bucket per client IP
-    app.Use(middlewares.RateLimiterMiddleware(rdb))
+    app.Use(middlewares.RateLimiterMiddleware(rdb, cfg.RateLimitPerMinute, cfg.RateLimitBurst))
 
     app.Get(generic.RouteHealth, func(c *fiber.Ctx) error {
         return utils.OK(c, generic.MsgStatusOk, fiber.Map{"status": generic.MsgStatusOk})

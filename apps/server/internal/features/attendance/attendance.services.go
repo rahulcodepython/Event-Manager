@@ -2,13 +2,16 @@ package attendance
 
 import (
     "context"
+    "encoding/base64"
     "errors"
     "fmt"
+    "io"
     "strings"
     "time"
 
     "github.com/google/uuid"
 
+    "identitycard-server/internal/features/uploads"
     "identitycard-server/internal/pkg/cache"
 )
 
@@ -71,8 +74,11 @@ func (s *App) ScanApplicantService(ctx context.Context, eventID string, token st
         if raw.Applicant == nil || raw.Event == nil || raw.EventDate == nil || raw.Device == nil || raw.Attendance == nil {
             return nil, ErrApplicantNotRegistered
         }
+        applicant := *raw.Applicant
+        applicant.Photo = s.photoDataURL(ctx, eventID, applicant.PhotoKey)
+        applicant.PhotoKey = nil
         return &ScanApplicantResponse{
-            Applicant:  *raw.Applicant,
+            Applicant:  applicant,
             Event:      *raw.Event,
             SubEvent:   raw.SubEvent,
             EventDate:  *raw.EventDate,
@@ -264,4 +270,22 @@ func (s *App) ListAttendeeAnalysisService(
     whereClauseStr := strings.Join(whereClauses, " AND ")
 
     return s.QueryAttendeeAnalysisRepository(ctx, joinClause, whereClauseStr, limitIdx, offsetIdx, pageIdx, limitIdx2, args...)
+}
+
+// photoDataURL returns the applicant's photo inline (photos are ≤600×600
+// JPEG), since the scanner authenticates with a header an <img> cannot send.
+func (s *App) photoDataURL(ctx context.Context, eventID string, key *string) string {
+    if key == nil || s.Store == nil || !strings.HasPrefix(*key, uploads.EventPrefix(eventID)) {
+        return ""
+    }
+    obj, err := s.Store.Get(ctx, *key)
+    if err != nil {
+        return ""
+    }
+    defer obj.Body.Close()
+    data, err := io.ReadAll(io.LimitReader(obj.Body, 1<<20))
+    if err != nil {
+        return ""
+    }
+    return "data:" + obj.ContentType + ";base64," + base64.StdEncoding.EncodeToString(data)
 }

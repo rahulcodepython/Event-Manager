@@ -134,6 +134,10 @@ landing page, coupons.
   (the old Redis stream queue was removed).
 - **Rate limiting:** Redis token bucket per client IP (100 burst, refills
   100/min), shared across instances; fails open if Redis is down.
+- **No hard-coded deployment values:** every URL (API bases of Razorpay,
+  Resend, Google; callback URLs), session TTL and abuse limit comes from
+  the root `.env` through `internal/config` (Go durations like `15m`).
+  `.env` and `.env.example` must list the same keys.
 - **One root `.env`** for every app and for Docker Compose. Redis requires a
   password. Razorpay (payments) and Resend (email) keys live there too.
 - **QR codes are signed** (`qrsign`, HMAC with `QR_SIGNING_SECRET`); the
@@ -155,6 +159,17 @@ landing page, coupons.
   in object storage (`internal/pkg/storage`, S3 API) under
   `sites/<event>/<version>/`; `events.App.OnDelete` hooks remove them when
   an event is deleted or pruned.
+- **Photo and signature fields** (`photo`, `signature` field types, at most
+  one each per form, organizer sets required and minimum pixels): the public
+  form uploads to `POST /public/apply/:eventFormId/uploads?field=<key>`
+  (`internal/features/uploads`, `internal/pkg/imageproc`), which checks
+  and normalizes the image (photo cropped square, 600×600 JPEG; signature
+  PNG ≤600 px wide), stores it under `uploads/pending/` and returns a
+  signed token. Submission exchanges the token for
+  `applicants/<event>/<uuid>.<ext>` stored in the applicant's data. Images
+  appear on the ID card, the scanner result (photo, as a data URL) and the
+  dashboard (`/events/:eventId/applicants/:id/files/:fieldKey`). Pending
+  uploads are swept after 24 h; files go with the applicant or event.
 
 ## Known gaps
 

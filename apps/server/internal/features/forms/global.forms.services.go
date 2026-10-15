@@ -118,6 +118,14 @@ func (s *App) UpdateFieldsService(ctx context.Context, id string, req UpdateForm
     hasEmail := false
     hasPhone := false
 
+    types := make([]string, len(req.Fields))
+    for i, f := range req.Fields {
+        types[i] = f.Type
+    }
+    if err := checkImageFields(types); err != nil {
+        return nil, err
+    }
+
     normalizedFields := make([]FormField, len(req.Fields))
     for i, field := range req.Fields {
         if !SupportedFieldTypes[field.Type] {

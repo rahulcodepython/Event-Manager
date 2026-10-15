@@ -13,9 +13,12 @@ import {
     DialogTitle,
 } from "../ui/dialog";
 import type { ApplicantItem, FormFieldSummary, FormFieldValue } from "../../schema/applicants.types";
+import { ApplicantImage } from "./applicant-image";
 import { formatFieldValue } from "./applicants-utils";
 
 interface ApplicantDataDialogProps {
+    /** Needed to show photo and signature images. */
+    eventId?: string;
     applicant: ApplicantItem;
     formFields?: FormFieldSummary[];
     open: boolean;
@@ -25,6 +28,7 @@ interface ApplicantDataDialogProps {
 export function ApplicantDataDialog({
     applicant,
     formFields,
+    eventId,
     open,
     onOpenChange,
 }: ApplicantDataDialogProps) {
@@ -120,9 +124,17 @@ export function ApplicantDataDialog({
                                             <span className="font-mono text-[11px] text-muted-foreground capitalize">
                                                 {displayLabel}:
                                             </span>
-                                            <span className="font-medium text-foreground text-right break-all">
-                                                {displayVal}
-                                            </span>
+                                            {
+                                                eventId && (fieldDef?.type === "photo" || fieldDef?.type === "signature") ? <ApplicantImage
+                                                    eventId={eventId}
+                                                    applicantId={applicant.user_id}
+                                                    fieldKey={key}
+                                                    type={fieldDef.type}
+                                                    className={fieldDef.type === "photo" ? "size-24 rounded-md object-cover" : "h-14 max-w-48 rounded border bg-white object-contain"}
+                                                /> : <span className="font-medium text-foreground text-right break-all">
+                                                    {displayVal}
+                                                </span>
+                                            }
                                         </div>
                                     );
                                 })}

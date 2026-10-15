@@ -283,6 +283,7 @@ export default function EventApplicantsPage() {
 
             {
                 viewDataApplicant && <ApplicantDataDialog
+                    eventId={eventId}
                     applicant={viewDataApplicant}
                     formFields={formFields}
                     open={!!viewDataApplicant}

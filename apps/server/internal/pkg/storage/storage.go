@@ -8,6 +8,7 @@ import (
     "fmt"
     "io"
     "log/slog"
+    "time"
 
     "github.com/minio/minio-go/v7"
     "github.com/minio/minio-go/v7/pkg/credentials"
@@ -110,4 +111,52 @@ func (s *Store) DeletePrefix(ctx context.Context, prefix string) error {
         }
     }
     return nil
+}
+
+// Copy duplicates an object within the bucket.
+func (s *Store) Copy(ctx context.Context, srcKey, dstKey string) error {
+    if err := s.ready(); err != nil {
+        return err
+    }
+    _, err := s.client.CopyObject(ctx,
+        minio.CopyDestOptions{Bucket: s.bucket, Object: dstKey},
+        minio.CopySrcOptions{Bucket: s.bucket, Object: srcKey},
+    )
+    if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+        return ErrNotFound
+    }
+    return err
+}
+
+// Delete removes one object; a missing object is not an error.
+func (s *Store) Delete(ctx context.Context, key string) error {
+    if err := s.ready(); err != nil {
+        return err
+    }
+    return s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{})
+}
+
+// DeleteOlderThan removes objects under prefix last modified before cutoff
+// and returns how many it removed.
+func (s *Store) DeleteOlderThan(ctx context.Context, prefix string, cutoff time.Time) (int, error) {
+    if err := s.ready(); err != nil {
+        return 0, err
+    }
+    old := make(chan minio.ObjectInfo)
+    count := 0
+    go func() {
+        defer close(old)
+        for obj := range s.client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+            if obj.Err == nil && obj.LastModified.Before(cutoff) {
+                count++
+                old <- obj
+            }
+        }
+    }()
+    for res := range s.client.RemoveObjects(ctx, s.bucket, old, minio.RemoveObjectsOptions{}) {
+        if res.Err != nil {
+            return count, fmt.Errorf("storage: delete %s: %w", res.ObjectName, res.Err)
+        }
+    }
+    return count, nil
 }

@@ -46,9 +46,16 @@ export function ScannerAttendeeCard({
     return (
         <Card className="w-full max-w-md shadow-md border-border/80 bg-card">
             <CardHeader className="text-center">
-                <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-2">
-                    <UserCheck className="size-6" />
-                </div>
+                {
+                    // eslint-disable-next-line @next/next/no-img-element -- inline data URL from the scan
+                    applicant.photo ? <img
+                        src={applicant.photo}
+                        alt={`Photo of ${applicant.name}`}
+                        className="mx-auto mb-2 size-32 rounded-xl border object-cover"
+                    /> : <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-2">
+                        <UserCheck className="size-6" />
+                    </div>
+                }
                 <CardTitle className="text-lg font-bold text-foreground">
                     {applicant.name}
                 </CardTitle>

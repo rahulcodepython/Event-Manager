@@ -181,7 +181,7 @@ export function FormDesignerCanvas({
 
                 {
                     !isPublished && <div className="pt-2">
-                        <AddFieldDialog onAddField={handleAddField} />
+                        <AddFieldDialog onAddField={handleAddField} existingTypes={fields.map((f) => f.type)} />
                     </div>
                 }
             </div>

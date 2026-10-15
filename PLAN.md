@@ -184,6 +184,88 @@ editable from admin. To confirm: Q7.
 - **Counting:** a use counts when the purchase is paid; refunds keep the use. Limits are checked when the order is created, so two simultaneous purchases can exceed a limit by one.
 - **Zero total:** Razorpay cannot take ₹0, so a fully discounted purchase skips Razorpay: the credit is created at once, recorded as a ₹0 paid payment with the coupon, and our own receipt is emailed.
 
+### Phase 11 — Applicant Google sign-in, drafts and application fees (planned)
+
+**Goal.** Every public application starts with "Continue with Google". The application is a server-side **draft** that auto-saves; the applicant can reload or come back later and resume at the last finished step. A draft becomes a real applicant only when it is confirmed: at the end of the form when there is no fee, or when the payment succeeds.
+
+**Applicant sign-in (per form, not an account).**
+- Google sign-in with Google Identity Services ("Sign in with Google" button, same OAuth client as organizer login). The button runs in popup mode; where popups are blocked (mobile in-app browsers) it falls back to redirect mode, where Google POSTs the ID token to our callback, `APPLICANT_GOOGLE_LOGIN_URI`.
+- The API verifies the Google ID token (signature against Google's keys, audience = `GOOGLE_CLIENT_ID`, issuer, expiry, `email_verified`).
+- Name, email and Google profile picture come from Google and are **required and read-only**. The email is the applicant's identity for this form. The picture is the applicant's photo unless the form has a Photo field.
+- The API then sets a short-lived HttpOnly cookie (`applicant_session`, scoped to the public apply API, 24 h) holding the form id + Google `sub` + email (signed). A reload resumes without signing in again; when it expires the applicant clicks Google again and lands on the same draft.
+- No applicant accounts, passwords or profiles beyond this.
+
+**Drafts.**
+- New table `application_drafts`: form, event, Google `sub`, email, name, picture, answers (JSON), image tokens, sub-event choices, `current_step`, status (`draft` → `awaiting_payment` → `confirmed`), payment reference, timestamps. Unique per (form, Google `sub`) and per (form, email).
+- Auto-save after every step (and on field blur): `PUT /public/apply/:formId/draft`. Server validates each step's fields as they are saved, and the whole form again on confirm.
+- Already registered for this form → show the registration (applicant id, card status) instead of a new form.
+- Abandoned drafts are deleted after 7 days, or when the application window closes, with their pending images (sweep job).
+
+**Steps.**
+1. Sign in with Google (name, email, picture filled).
+2. Form fields (the organizer's form; name and email are not asked again).
+3. Review.
+4. Payment — only when the form has a fee.
+5. Done: confirmation screen + confirmation email.
+
+**Confirmation (draft → applicant).**
+- Free form: "Submit" on the review step runs the existing capped insert (`applicants.InsertApplicantTx`, sub-event enrollment, image claim) in one transaction and marks the draft `confirmed`.
+- Paid form: the same conversion runs when the payment is confirmed (Razorpay webhook, the checkout callback, or a status check), exactly once.
+- Capacity, application window and credit checks run again at conversion.
+
+**Application fees (Razorpay).**
+- Organizer sets a fee on the event form (optionally a fee per sub-event).
+- "Pay" creates one Razorpay order per draft (reused if the applicant retries; amount always computed on the server).
+- **Seat hold:** a draft in `awaiting_payment` holds a seat for 15 minutes so a full event cannot take more payments than seats; expired holds free the seat.
+- **Reload during or after payment:** on load, a draft with an open order asks Razorpay for the order's status; if it is paid, the draft is converted there and then (no wait for the webhook). The confirmation email covers the case where the applicant closed the tab.
+- A payment that arrives after its seat hold expired and the event is full is refunded automatically.
+- Payouts through Razorpay Route (see Decisions).
+
+**Organizer side.**
+- Form settings: fee and optional per-sub-event fees.
+- Applicants list unchanged (only confirmed applicants); a "Drafts / awaiting payment" view for follow-up.
+- Payments per applicant, refunds, and fees in the event's figures.
+
+**What changes for existing behaviour.**
+- The single-page public form is replaced by the step flow on every form.
+- Dashboard manual add and bulk upload are unchanged (organizer-entered, no Google, no fee).
+
+**Configuration (all in the root `.env`, nothing hard-coded).**
+
+| Variable | Value (dev) | Used for |
+|---|---|---|
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | existing | organizer login and applicant sign-in |
+| `GOOGLE_REDIRECT_URL` | `${API_URL}/api/v1/auth/google/callback` | organizer login callback (exists today) |
+| `APPLICANT_GOOGLE_LOGIN_URI` | `${API_URL}/api/v1/public/apply/google/callback` | applicant sign-in callback (redirect mode) |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | `${GOOGLE_CLIENT_ID}` | the sign-in button in the browser |
+| `APPLICANT_SESSION_TTL` | `24h` | applicant cookie lifetime |
+| `APPLICATION_SEAT_HOLD` | `15m` | seat hold at the payment step |
+| `APPLICATION_DRAFT_TTL` | `168h` | unfinished drafts are deleted after this |
+| `RAZORPAY_BASE_URL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | existing | orders, payment status, refunds, Route transfers |
+| `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_WEBHOOK_URL` | `${API_URL}/api/v1/payments/razorpay/webhook` | payment confirmations (one webhook for credits and application fees) |
+| `NEXT_PUBLIC_RAZORPAY_CHECKOUT_URL` | `https://checkout.razorpay.com/v1/checkout.js` | checkout in the browser |
+
+Google Cloud Console, on the OAuth client:
+- **Authorized JavaScript origins:** `WEB_URL` (the public form runs there).
+- **Authorized redirect URIs:** `GOOGLE_REDIRECT_URL` and `APPLICANT_GOOGLE_LOGIN_URI`.
+
+Razorpay dashboard: webhook `RAZORPAY_WEBHOOK_URL` with events `payment.captured`, `order.paid`, `refund.processed`, `transfer.processed`; Route enabled on the account.
+
+**Build order.**
+1. Google ID-token verification, applicant session cookie, `application_drafts`, auto-save + resume, confirm for free forms.
+2. Step UI on the public form (sign-in, steps, review, done); Google picture as the photo on forms without a Photo field (card, scanner).
+3. Fees: form settings, Razorpay orders per draft, webhook + status check, seat holds, expiry and refund of late payments.
+4. Razorpay Route onboarding for organizers, payouts, organizer payment/refund views, ledger.
+
+**Decisions.**
+- Google sign-in is required on **every** public form; the single-page form is replaced by the step flow. No email-code fallback: no Google account, no application.
+- The Google picture is the applicant's photo **on forms without a Photo field** (ID card, scanner). If the organizer added a Photo field, the uploaded photo is used instead (its minimum size still applies). Google pictures can be small or a letter avatar; that is accepted.
+- Payouts through **Razorpay Route**: organizers onboard as linked accounts (KYC); each payment is transferred to the organizer minus Razorpay's fee and the platform fee (the organizer bears both; the applicant pays the listed fee).
+- Refunds: the organizer can refund any paid applicant from the dashboard (the applicant is removed); payments that arrive when the event is already full are refunded automatically.
+- Seat hold 15 minutes at the payment step; unfinished drafts are deleted after 7 days or when the application window closes, whichever is first.
+
+**Still open.** Platform fee (percent / flat, and whether it is a catalog feature); per-sub-event fees; what the applicant sees after a refund; Route onboarding UX for organizers.
+
 ---
 
 ## 5. Repo layout after the changes (proposal)

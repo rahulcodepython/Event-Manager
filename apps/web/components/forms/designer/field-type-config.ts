@@ -3,6 +3,7 @@ import {
     Calendar,
     CalendarDays,
     CalendarRange,
+    Camera,
     CheckSquare,
     ChevronDown,
     CircleDot,
@@ -10,6 +11,7 @@ import {
     Hash,
     Link,
     Mail,
+    PenLine,
     Smartphone,
     ToggleLeft,
     Type,
@@ -160,6 +162,24 @@ export const FIELD_TYPE_METAS: Record<FormFieldType, FieldTypeMeta> = {
         defaultKeyPrefix: "week",
         defaultPlaceholder: "YYYY-Www",
     },
+    photo: {
+        type: "photo",
+        label: "Profile Photo",
+        description: "Applicant photo, cropped square; shown on the ID card",
+        icon: Camera,
+        defaultLabel: "Profile Photo",
+        defaultKeyPrefix: "photo",
+        defaultPlaceholder: "Upload a clear photo of your face",
+    },
+    signature: {
+        type: "signature",
+        label: "Signature",
+        description: "Image of the applicant's signature; shown on the ID card",
+        icon: PenLine,
+        defaultLabel: "Signature",
+        defaultKeyPrefix: "signature",
+        defaultPlaceholder: "Upload an image of your signature",
+    },
     file: {
         type: "file",
         label: "File Upload",
@@ -196,7 +216,11 @@ export function createNewField(
         is_system: false,
         options: defaultOptions,
         validation:
-            type === "file"
+            type === "photo"
+                ? { min_width: 300, min_height: 300 }
+                : type === "signature"
+                    ? { min_width: 300, min_height: 100 }
+                    : type === "file"
                 ? { accept: ".pdf, .png, .jpg, .jpeg", max_file_size_mb: 10 }
                 : type === "phone"
                     ? { min_length: 10, max_length: 10 }

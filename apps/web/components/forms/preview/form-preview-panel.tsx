@@ -356,6 +356,20 @@ export function FormPreviewPanel({ form, fields }: FormPreviewPanelProps) {
                                         </div>
                                     )}
 
+                                    {
+                                        (field.type === "photo" || field.type === "signature") && <div className="flex items-center gap-3 rounded-lg border border-dashed bg-muted/20 p-4 text-left">
+                                            <div className={field.type === "photo" ? "size-16 rounded-md bg-muted" : "h-10 w-28 rounded-md bg-muted"} />
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-foreground">
+                                                    {field.type === "photo" ? "Upload photo" : "Upload signature"}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    At least {field.validation?.min_width ?? 300}×{field.validation?.min_height ?? (field.type === "photo" ? 300 : 100)} px · JPEG, PNG or WebP up to 2 MB
+                                                </span>
+                                            </div>
+                                        </div>
+                                    }
+
                                     {/* File Upload Field */}
                                     {field.type === "file" && (
                                         <div className="space-y-2">

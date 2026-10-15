@@ -26,7 +26,6 @@ import (
 const JobType = "contact"
 
 const (
-    maxPerIP     = 5 // messages per IP per hour
     ipWindow     = time.Hour
     maxMessage   = 5000
     redisKeyIP   = "contact:ip:%s"
@@ -44,10 +43,12 @@ type App struct {
     Mailer *mailer.Mailer
     // To: where messages go; empty keeps them in the database only.
     To string
+    // MaxPerHour: messages per IP per hour (CONTACT_MAX_PER_HOUR).
+    MaxPerHour int
 }
 
-func NewApp(db *pgxpool.Pool, rdb *redis.Client, queue *jobqueue.Queue, m *mailer.Mailer, to string) *App {
-    return &App{DB: db, Redis: rdb, Queue: queue, Mailer: m, To: to}
+func NewApp(db *pgxpool.Pool, rdb *redis.Client, queue *jobqueue.Queue, m *mailer.Mailer, to string, maxPerHour int) *App {
+    return &App{DB: db, Redis: rdb, Queue: queue, Mailer: m, To: to, MaxPerHour: maxPerHour}
 }
 
 type Request struct {
@@ -105,7 +106,7 @@ func (h *App) SubmitService(ctx context.Context, ip string, req Request) error {
     if err == nil && n == 1 {
         h.Redis.Expire(ctx, key, ipWindow)
     }
-    if n > maxPerIP {
+    if n > int64(h.MaxPerHour) {
         return ErrRateLimited
     }
 

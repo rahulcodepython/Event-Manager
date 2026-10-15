@@ -14,15 +14,10 @@ import (
     "identitycard-server/internal/utils"
 )
 
-const (
-    // Each client IP gets a bucket of bucketCapacity tokens that refills at
-    // refillPerSecond. A request spends one token; an empty bucket means 429.
-    // This allows short bursts while capping the sustained rate (100/min).
-    bucketCapacity  = 100
-    refillPerSecond = 100.0 / 60.0
-
-    redisKeyRateBucket = "rate:bucket:%s"
-)
+// Each client IP gets a bucket of burst tokens that refills at perMinute
+// tokens a minute (RATE_LIMIT_BURST, RATE_LIMIT_PER_MINUTE). A request
+// spends one token; an empty bucket means 429.
+const redisKeyRateBucket = "rate:bucket:%s"
 
 // tokenBucketScript refills and spends atomically inside Redis, using Redis'
 // own clock so every API instance shares one bucket per IP.
@@ -61,7 +56,9 @@ return {allowed, math.floor(tokens), tostring(wait)}
 // RateLimiterMiddleware applies a Redis token bucket per client IP. Health
 // checks are exempt. If Redis is unreachable the request is allowed, so the
 // API keeps working (Redis is a soft dependency).
-func RateLimiterMiddleware(rdb *redis.Client) fiber.Handler {
+func RateLimiterMiddleware(rdb *redis.Client, perMinute, burst int) fiber.Handler {
+    bucketCapacity := max(burst, 1)
+    refillPerSecond := float64(max(perMinute, 1)) / 60.0
     return func(c *fiber.Ctx) error {
         if path := c.Path(); path == generic.RouteHealth || strings.HasSuffix(path, generic.RouteHealth) {
             return c.Next()

@@ -3,9 +3,12 @@ package cards
 import (
     "context"
     "errors"
+    "io"
     "log/slog"
+    "strings"
     "time"
 
+    "identitycard-server/internal/features/uploads"
     "identitycard-server/internal/pkg/idcard"
     "identitycard-server/internal/pkg/postgres"
 )
@@ -130,7 +133,7 @@ func (s *App) CardPDFService(ctx context.Context, eventID, applicantID string) (
     if err != nil {
         return nil, "", err
     }
-    card := s.card(data)
+    card := s.card(ctx, data)
     pdf, err := idcard.Render(ctx, card)
     return pdf, idcard.Filename(card), err
 }
@@ -167,7 +170,7 @@ func (s *App) publishDue(ctx context.Context, eventID string) error {
     return nil
 }
 
-func (s *App) card(d *cardData) idcard.Card {
+func (s *App) card(ctx context.Context, d *cardData) idcard.Card {
     subEvents := make([]idcard.SubEvent, 0, len(d.SubEvents))
     for _, se := range d.SubEvents {
         item := idcard.SubEvent{Name: se.Name}
@@ -189,7 +192,26 @@ func (s *App) card(d *cardData) idcard.Card {
         QR:            s.Signer.Sign(d.EventID, d.ApplicantID),
         Branding:      d.Branding,
         LogoURL:       d.Logo,
+        Photo:         s.image(ctx, d.EventID, d.PhotoKey),
+        Signature:     s.image(ctx, d.EventID, d.SignatureKey),
     }
+}
+
+// image loads an applicant image; a missing one is left off the card.
+func (s *App) image(ctx context.Context, eventID string, key *string) []byte {
+    if key == nil || !strings.HasPrefix(*key, uploads.EventPrefix(eventID)) {
+        return nil
+    }
+    obj, err := s.Store.Get(ctx, *key)
+    if err != nil {
+        return nil
+    }
+    defer obj.Body.Close()
+    data, err := io.ReadAll(io.LimitReader(obj.Body, 4<<20))
+    if err != nil {
+        return nil
+    }
+    return data
 }
 
 // invalidate drops cached form data, which includes the closing date.
