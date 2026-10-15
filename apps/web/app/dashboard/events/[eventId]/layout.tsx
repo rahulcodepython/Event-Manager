@@ -35,7 +35,9 @@ export default function EventSingleLayout({
 
     return (
         <EventProvider event={event} eventId={eventId}>
-            {children}
+            <div className="container flex min-w-0 flex-1 flex-col gap-6 pb-8">
+                {children}
+            </div>
         </EventProvider>
     );
 }

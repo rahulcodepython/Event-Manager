@@ -4,10 +4,10 @@ import * as React from "react";
 import { parseISO } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { useCurrentEvent } from "../../../../../components/events/event-context";
+import { useEventPage } from "../../../../../components/events/event-context";
+import { PageHeader } from "../../../../../components/generic";
 import { Badge } from "../../../../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../../../components/ui/card";
-import { useBreadcrumbs } from "../../../../../hooks/use-breadcrumbs";
 import { queryKeys } from "../../../../../react-query/query-keys";
 import {
     useBulkUpdateEventDatesMutation,
@@ -39,15 +39,9 @@ function toEventDate(eventId: string, item: EventDateItemInput, existing?: Event
 }
 
 export default function EventDatesPage() {
-    const { event, eventId } = useCurrentEvent();
+    const { event, eventId } = useEventPage("Dates & Schedule");
     const queryClient = useQueryClient();
 
-    useBreadcrumbs([
-        { title: "Dashboard", url: "/dashboard" },
-        { title: "Events", url: "/dashboard/events" },
-        { title: event.name, url: `/dashboard/events/${eventId}` },
-        { title: "Dates & Schedule" },
-    ]);
 
     // Active calendar viewing month
     const initialMonth = React.useMemo(() => {
@@ -245,21 +239,16 @@ export default function EventDatesPage() {
     }, [stagedDates, savedDatesMap]);
 
     return (
-        <div className="flex flex-col gap-6">
-            {/* Header section */}
-            <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                        Event Dates & Schedule
-                    </h1>
+        <>
+            <PageHeader
+                title="Event Dates & Schedule"
+                badge={
                     <Badge variant="outline" className="text-xs">
                         {event.start_date} to {event.end_date}
                     </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                    Select active event dates on the calendar, configure hours, or batch-import schedules via JSON and CSV.
-                </p>
-            </div>
+                }
+                description="Select active event dates on the calendar, configure hours, or batch-import schedules via JSON and CSV."
+            />
 
             {/* Split Layout: Left Card (Calendar), Right Card matches Left Card height */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
@@ -351,6 +340,6 @@ export default function EventDatesPage() {
                 }}
                 isActionPending={bulkUpdateMutation.isPending}
             />
-        </div>
+        </>
     );
 }

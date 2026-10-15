@@ -113,3 +113,15 @@ export const DeleteApplicantResponseSchema = z.object({
 
 export type DeleteApplicantResponse = z.infer<typeof DeleteApplicantResponseSchema>;
 
+export const BulkCreateApplicantsResponseSchema = z.object({
+    created: z.number(),
+    failed: z.array(
+        z.object({
+            row: z.number(),
+            email: z.string(),
+            error: z.string(),
+        }),
+    ),
+});
+
+export type BulkCreateApplicantsResponse = z.infer<typeof BulkCreateApplicantsResponseSchema>;

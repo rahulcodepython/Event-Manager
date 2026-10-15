@@ -1,69 +1,61 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { useParams } from "next/navigation";
-import { ExternalLink, Layers, Loader2, ScanLine } from "lucide-react";
+import * as React from "react"
+import { ExternalLink, Layers, Loader2, ScanLine } from "lucide-react"
 
-import { Button } from "../../../../../components/ui/button";
-import { Card } from "../../../../../components/ui/card";
-import { AssignDevicesDialog } from "../../../../../components/devices/assign-devices-dialog";
-import { EventDevicesTable } from "../../../../../components/devices/event-devices-table";
-import { useBreadcrumbs } from "../../../../../hooks/use-breadcrumbs";
-import { useEventDevicesQuery } from "../../../../../query-hooks/devices.api";
-import { useEventQuery } from "../../../../../query-hooks/events.api";
-import type { EventDeviceAssignment } from "../../../../../schema/devices.types";
+import { Button } from "../../../../../components/ui/button"
+import { Card } from "../../../../../components/ui/card"
+import { AssignDevicesDialog } from "../../../../../components/devices/assign-devices-dialog"
+import { EventDevicesTable } from "../../../../../components/devices/event-devices-table"
+import { useEventPage } from "../../../../../components/events/event-context"
+import { PageHeader } from "../../../../../components/generic"
+import { useEventDevicesQuery } from "../../../../../query-hooks/devices.api"
+import type { EventDeviceAssignment } from "../../../../../schema/devices.types"
 
 export default function EventDevicesPage() {
-    const params = useParams();
-    const eventId = params?.eventId as string;
+    const { event, eventId } = useEventPage("Devices")
+    const {
+        data: assignmentsData,
+        isLoading,
+        isError,
+        error,
+    } = useEventDevicesQuery(eventId)
 
-    const { data: event } = useEventQuery(eventId);
-    const { data: assignmentsData, isLoading, isError, error } = useEventDevicesQuery(eventId);
+    const [isAssignOpen, setIsAssignOpen] = React.useState(false)
 
-    const [isAssignOpen, setIsAssignOpen] = React.useState(false);
-
-    useBreadcrumbs([
-        { title: "Dashboard", url: "/dashboard" },
-        { title: "Events", url: "/dashboard/events" },
-        { title: event?.name || "Event", url: `/dashboard/events/${eventId}` },
-        { title: "Devices" },
-    ]);
-
-    const assignments: EventDeviceAssignment[] = assignmentsData || [];
+    const assignments: EventDeviceAssignment[] = assignmentsData || []
 
     return (
-        <div className="flex flex-col gap-4 w-full max-w-full min-w-0">
-            {/* Header section */}
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-1">
-                <div>
-                    <h1 className="text-lg font-bold text-foreground">Event Scanner Terminals</h1>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                        Scanning hardware authorized to check in attendees for {event?.name || "this event"}.
-                    </p>
-                </div>
+        <>
+            <PageHeader
+                title="Event Scanner Terminals"
+                description={`Scanning hardware authorized to check in attendees for ${event.name}.`}
+                actions={
+                    <>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                                window.open("/devices/pair", "_blank")
+                            }
+                            className="gap-1.5 text-xs font-medium"
+                        >
+                            <ExternalLink className="size-3.5" />
+                            <span>Pair Screen</span>
+                        </Button>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => window.open("/devices/pair", "_blank")}
-                        className="gap-1.5 text-xs font-medium"
-                    >
-                        <ExternalLink className="size-3.5" />
-                        <span>Pair Screen</span>
-                    </Button>
-
-                    <Button
-                        type="button"
-                        variant="default"
-                        onClick={() => setIsAssignOpen(true)}
-                        className="gap-1.5 text-xs font-semibold"
-                    >
-                        <Layers className="size-3.5" />
-                        <span>Assign Devices</span>
-                    </Button>
-                </div>
-            </div>
+                        <Button
+                            type="button"
+                            variant="default"
+                            onClick={() => setIsAssignOpen(true)}
+                            className="gap-1.5 text-xs font-semibold"
+                        >
+                            <Layers className="size-3.5" />
+                            <span>Assign Devices</span>
+                        </Button>
+                    </>
+                }
+            />
 
             {/* Loading / Error States */}
             {isLoading && (
@@ -88,9 +80,12 @@ export default function EventDevicesPage() {
                         <ScanLine className="size-6" />
                     </div>
                     <div className="space-y-1">
-                        <p className="text-sm font-semibold text-foreground">No Devices Assigned</p>
+                        <p className="text-sm font-semibold text-foreground">
+                            No Devices Assigned
+                        </p>
                         <p className="text-xs text-muted-foreground max-w-sm">
-                            Assign existing terminals from your global devices inventory to scan attendees for this event.
+                            Assign existing terminals from your global devices
+                            inventory to scan attendees for this event.
                         </p>
                     </div>
                     <div className="flex items-center gap-2 mt-2">
@@ -109,7 +104,10 @@ export default function EventDevicesPage() {
 
             {/* Table */}
             {!isLoading && !isError && assignments.length > 0 && (
-                <EventDevicesTable assignments={assignments} eventId={eventId} />
+                <EventDevicesTable
+                    assignments={assignments}
+                    eventId={eventId}
+                />
             )}
 
             {/* Assign Global Devices Dialog */}
@@ -118,6 +116,6 @@ export default function EventDevicesPage() {
                 open={isAssignOpen}
                 onOpenChange={setIsAssignOpen}
             />
-        </div>
-    );
+        </>
+    )
 }

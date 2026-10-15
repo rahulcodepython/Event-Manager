@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
-import { BarChart3, CalendarDays, Loader2 } from "lucide-react";
+import { CalendarDays, Loader2 } from "lucide-react";
 
 import {
     AnalysisAttendeesTable,
@@ -13,13 +12,13 @@ import { AnalysisDateLineChart } from "../../../../../components/analysis/analys
 import { AnalysisOverviewPieChart } from "../../../../../components/analysis/analysis-overview-pie-chart";
 import { AnalysisPunctualityChart } from "../../../../../components/analysis/analysis-punctuality-chart";
 import { Card, CardContent } from "../../../../../components/ui/card";
-import { useBreadcrumbs } from "../../../../../hooks/use-breadcrumbs";
+import { useEventPage } from "../../../../../components/events/event-context";
+import { PageHeader } from "../../../../../components/generic";
 import {
     useAttendanceMetricsQuery,
     useAttendeeAnalysisQuery,
 } from "../../../../../query-hooks/attendance.api";
 import { useAllEventDatesQuery } from "../../../../../query-hooks/event-dates.api";
-import { useEventQuery } from "../../../../../query-hooks/events.api";
 
 function getDaysInRange(startStr: string, endStr: string, maxDays = 366): string[] {
     const dates: string[] = [];
@@ -38,8 +37,7 @@ function getDaysInRange(startStr: string, endStr: string, maxDays = 366): string
 }
 
 export default function EventAnalysisPage() {
-    const params = useParams();
-    const eventId = params?.eventId as string;
+    const { event, eventId } = useEventPage("Analysis");
 
     const [fromDate, setFromDate] = React.useState("");
     const [toDate, setToDate] = React.useState("");
@@ -48,26 +46,8 @@ export default function EventAnalysisPage() {
     const [status, setStatus] = React.useState("all");
     const [page, setPage] = React.useState(1);
 
-    const { data: event } = useEventQuery(eventId);
     const { data: allEventDates } = useAllEventDatesQuery(eventId);
 
-    useBreadcrumbs([
-        {
-            title: "Dashboard",
-            url: "/dashboard",
-        },
-        {
-            title: "Events",
-            url: "/dashboard/events",
-        },
-        {
-            title: event?.name || "Event",
-            url: `/dashboard/events/${eventId}`,
-        },
-        {
-            title: "Analysis",
-        },
-    ]);
 
     const hasDateRange = Boolean(fromDate && toDate);
 
@@ -93,13 +73,6 @@ export default function EventAnalysisPage() {
             end_time: null,
         }));
     }, [allEventDates, fromDate, toDate]);
-
-    // Reset selectedDate if it falls outside the active range
-    React.useEffect(() => {
-        if (selectedDate && (!fromDate || !toDate || selectedDate < fromDate || selectedDate > toDate)) {
-            setSelectedDate("");
-        }
-    }, [fromDate, toDate, selectedDate]);
 
     // First API call: Attendance & punctuality charts metrics (only when date range is selected)
     const {
@@ -164,29 +137,22 @@ export default function EventAnalysisPage() {
     };
 
     return (
-        <div className="flex flex-col gap-6 w-full max-w-full min-w-0 pb-8">
-            {/* Header & Date Range Filter */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-1">
-                <div>
-                    <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-                        <BarChart3 className="size-5 text-primary" />
-                        <span>Event Analysis & Attendance Metrics</span>
-                    </h1>
-                    <p className="text-xs text-muted-foreground">
-                        Turnout breakdown, date trends, and attendee punctuality for {event?.name || "this event"}.
-                    </p>
-                </div>
-
-                <AnalysisDateFilter
-                    fromDate={fromDate}
-                    toDate={toDate}
-                    minDate={event?.start_date}
-                    maxDate={event?.end_date}
-                    onFromDateChange={handleFromDateChange}
-                    onToDateChange={handleToDateChange}
-                    onClear={handleClearDateFilter}
-                />
-            </div>
+        <>
+            <PageHeader
+                title="Event Analysis"
+                description={`Turnout breakdown, date trends, and attendee punctuality for ${event.name}.`}
+                actions={
+                    <AnalysisDateFilter
+                        fromDate={fromDate}
+                        toDate={toDate}
+                        minDate={event.start_date}
+                        maxDate={event.end_date}
+                        onFromDateChange={handleFromDateChange}
+                        onToDateChange={handleToDateChange}
+                        onClear={handleClearDateFilter}
+                    />
+                }
+            />
 
             {/* Charts Section */}
             {
@@ -231,6 +197,6 @@ export default function EventAnalysisPage() {
                 onPageChange={setPage}
                 isLoading={isAttendeesLoading}
             />
-        </div>
+        </>
     );
 }

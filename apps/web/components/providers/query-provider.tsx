@@ -7,19 +7,15 @@ import { toast } from "sonner"
 import { ApiError } from "../../react-query/client"
 import { ERR_MSG_GENERIC } from "../../lib/constants"
 
-// One QueryClient per app, constructed once (template §1.8). staleTime is
-// the one app-wide default; override per-query only when a resource
-// genuinely needs fresher/staler data. No MutationCache.onError here — the
-// mutation factory (react-query/mutation.ts) already toasts per-mutation
-// via its own showToast option, so this only owns query errors.
+// One QueryClient per app. staleTime is the app-wide default; override
+// per-query only when needed. Mutations toast their own errors in
+// query-hooks/*, so this only owns query errors.
 export function QueryProvider({ children }: { children: React.ReactNode }) {
     const [client] = useState(
         () =>
             new QueryClient({
                 queryCache: new QueryCache({
-                    // A 401 here is normal (react-query/client.ts's interceptor
-                    // already tried a token refresh and gave up, redirecting to
-                    // /auth/login) — not something to surface as an error toast.
+                    // A 401 is not worth an error toast.
                     onError: (error) => {
                         if (error instanceof ApiError && error.status === 401) return
                         toast.error(error.message || ERR_MSG_GENERIC)

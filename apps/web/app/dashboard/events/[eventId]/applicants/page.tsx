@@ -1,8 +1,7 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import * as React from "react"
+import Link from "next/link"
 import {
     Copy,
     Eye,
@@ -12,9 +11,10 @@ import {
     Phone,
     QrCode,
     Trash2,
+    Upload,
     UserPlus,
-} from "lucide-react";
-import { toast } from "sonner";
+} from "lucide-react"
+import { toast } from "sonner"
 
 import {
     AlertDialog,
@@ -26,69 +26,60 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-} from "../../../../../components/ui/alert-dialog";
+} from "../../../../../components/ui/alert-dialog"
 import {
     ContextMenuItem,
     ContextMenuSeparator,
-} from "../../../../../components/ui/context-menu";
-import { ApplicantDataDialog } from "../../../../../components/applicants/applicant-data-dialog";
-import { ApplicantFiltersBar } from "../../../../../components/applicants/applicant-filters-bar";
-import { ApplicantQrDialog } from "../../../../../components/applicants/applicant-qr-dialog";
-import { CreateApplicantDialog } from "../../../../../components/applicants/create-applicant-dialog";
-import { getApplicantsColumns } from "../../../../../components/applicants/applicants-columns";
-import { InfiniteDataTable } from "../../../../../components/generic";
-import { Button } from "../../../../../components/ui/button";
-import { useBreadcrumbs } from "../../../../../hooks/use-breadcrumbs";
+} from "../../../../../components/ui/context-menu"
+import { ApplicantDataDialog } from "../../../../../components/applicants/applicant-data-dialog"
+import { ApplicantFilterBadges } from "../../../../../components/applicants/applicant-filter-badges"
+import { ApplicantFilterForm } from "../../../../../components/applicants/applicant-filter-form"
+import { ApplicantQrDialog } from "../../../../../components/applicants/applicant-qr-dialog"
+import { BulkUploadApplicantsDialog } from "../../../../../components/applicants/bulk-upload-applicants-dialog"
+import { CreateApplicantDialog } from "../../../../../components/applicants/create-applicant-dialog"
+import { getApplicantsColumns } from "../../../../../components/applicants/applicants-columns"
+import { useEventPage } from "../../../../../components/events/event-context"
+import {
+    InfiniteDataTable,
+    PageHeader,
+} from "../../../../../components/generic"
+import { Button } from "../../../../../components/ui/button"
 import {
     useApplicantSchemaQuery,
     useApplicantsInfiniteQuery,
     useDeleteApplicantMutation,
-} from "../../../../../query-hooks/applicants.api";
-import { useEventQuery } from "../../../../../query-hooks/events.api";
-import type { ApplicantFilter, ApplicantItem } from "../../../../../schema/applicants.types";
+} from "../../../../../query-hooks/applicants.api"
+import type {
+    ApplicantFilter,
+    ApplicantItem,
+} from "../../../../../schema/applicants.types"
 
 export default function EventApplicantsPage() {
-    const params = useParams();
-    const eventId = params?.eventId as string;
+    const { event, eventId } = useEventPage("Applicants")
 
-    const [search, setSearch] = React.useState("");
-    const [filters, setFilters] = React.useState<ApplicantFilter[]>([]);
-    const [createOpen, setCreateOpen] = React.useState(false);
-    const [viewDataApplicant, setViewDataApplicant] = React.useState<ApplicantItem | null>(null);
-    const [viewQrApplicant, setViewQrApplicant] = React.useState<ApplicantItem | null>(null);
-    const [deleteApplicant, setDeleteApplicant] = React.useState<ApplicantItem | null>(null);
+    const [search, setSearch] = React.useState("")
+    const [filters, setFilters] = React.useState<ApplicantFilter[]>([])
+    const [createOpen, setCreateOpen] = React.useState(false)
+    const [bulkOpen, setBulkOpen] = React.useState(false)
+    const [viewDataApplicant, setViewDataApplicant] =
+        React.useState<ApplicantItem | null>(null)
+    const [viewQrApplicant, setViewQrApplicant] =
+        React.useState<ApplicantItem | null>(null)
+    const [deleteApplicant, setDeleteApplicant] =
+        React.useState<ApplicantItem | null>(null)
 
-    const { data: event } = useEventQuery(eventId);
-    const deleteMutation = useDeleteApplicantMutation(eventId);
-
-    useBreadcrumbs([
-        {
-            title: "Dashboard",
-            url: "/dashboard",
-        },
-        {
-            title: "Events",
-            url: "/dashboard/events",
-        },
-        {
-            title: event?.name || "Event",
-            url: `/dashboard/events/${eventId}`,
-        },
-        {
-            title: "Applicants",
-        },
-    ]);
+    const deleteMutation = useDeleteApplicantMutation(eventId)
 
     // 1. Fetch form schema once for column definitions & filter attributes
-    const { data: formSchema } = useApplicantSchemaQuery(eventId);
+    const { data: formSchema } = useApplicantSchemaQuery(eventId)
 
     const formFields = React.useMemo(() => {
-        return formSchema?.fields || [];
-    }, [formSchema]);
+        return formSchema?.fields || []
+    }, [formSchema])
 
     const columns = React.useMemo(() => {
-        return getApplicantsColumns(formFields, eventId);
-    }, [formFields, eventId]);
+        return getApplicantsColumns(formFields, eventId)
+    }, [formFields, eventId])
 
     // 2. Infinite pagination query for applicant data rows
     const {
@@ -99,38 +90,26 @@ export default function EventApplicantsPage() {
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
-    } = useApplicantsInfiniteQuery(eventId, { search, filters });
-
-    const handleAddFilter = React.useCallback((newFilter: ApplicantFilter) => {
-        setFilters((prev) => [...prev, newFilter]);
-    }, []);
-
-    const handleRemoveFilter = React.useCallback((index: number) => {
-        setFilters((prev) => prev.filter((_, i) => i !== index));
-    }, []);
-
-    const handleClearFilters = React.useCallback(() => {
-        setFilters([]);
-    }, []);
+    } = useApplicantsInfiniteQuery(eventId, { search, filters })
 
     const flatApplicants = React.useMemo(() => {
-        return data?.pages.flatMap((page) => page.data) ?? [];
-    }, [data]);
+        return data?.pages.flatMap((page) => page.data) ?? []
+    }, [data])
 
-    const totalCount = data?.pages[0]?.total ?? flatApplicants.length;
+    const totalCount = data?.pages[0]?.total ?? flatApplicants.length
 
     const handleDelete = async () => {
-        if (!deleteApplicant) return;
+        if (!deleteApplicant) return
         try {
-            await deleteMutation.mutateAsync(deleteApplicant.user_id);
-            setDeleteApplicant(null);
+            await deleteMutation.mutateAsync(deleteApplicant.user_id)
+            setDeleteApplicant(null)
         } catch {
             // Handled by mutation toast
         }
-    };
+    }
 
     const renderRowContextMenu = (row: { original: ApplicantItem }) => {
-        const applicant = row.original;
+        const applicant = row.original
         return (
             <>
                 <ContextMenuItem
@@ -153,8 +132,8 @@ export default function EventApplicantsPage() {
 
                 <ContextMenuItem
                     onClick={() => {
-                        navigator.clipboard.writeText(applicant.user_id);
-                        toast.success("Applicant ID copied");
+                        navigator.clipboard.writeText(applicant.user_id)
+                        toast.success("Applicant ID copied")
                     }}
                     className="gap-2.5"
                 >
@@ -164,8 +143,8 @@ export default function EventApplicantsPage() {
 
                 <ContextMenuItem
                     onClick={() => {
-                        navigator.clipboard.writeText(applicant.email);
-                        toast.success("Email copied");
+                        navigator.clipboard.writeText(applicant.email)
+                        toast.success("Email copied")
                     }}
                     className="gap-2.5"
                 >
@@ -176,8 +155,8 @@ export default function EventApplicantsPage() {
                 {applicant.phone && (
                     <ContextMenuItem
                         onClick={() => {
-                            navigator.clipboard.writeText(applicant.phone);
-                            toast.success("Mobile number copied");
+                            navigator.clipboard.writeText(applicant.phone)
+                            toast.success("Mobile number copied")
                         }}
                         className="gap-2.5"
                     >
@@ -197,51 +176,49 @@ export default function EventApplicantsPage() {
                     <span>Delete Applicant</span>
                 </ContextMenuItem>
             </>
-        );
-    };
+        )
+    }
 
     return (
-        <div className="flex flex-col gap-4 w-full max-w-full min-w-0">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between px-1">
-                <div>
-                    <h1 className="text-lg font-bold text-foreground">
-                        Registered Applicants
-                    </h1>
-                    <p className="text-xs text-muted-foreground">
-                        All verified attendees registered for {event?.name || "this event"}.
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        nativeButton={false}
-                        render={<Link href={`/dashboard/events/${eventId}/form`} />}
-                        className="gap-2 font-medium"
-                    >
-                        <FileText className="size-4" />
-                        <span>Registration Form</span>
-                    </Button>
-
-                    <Button
-                        type="button"
-                        variant="default"
-                        onClick={() => setCreateOpen(true)}
-                        className="gap-2 font-semibold"
-                    >
-                        <UserPlus className="size-4" />
-                        <span>Add Applicant</span>
-                    </Button>
-                </div>
-            </div>
-
-            <ApplicantFiltersBar
-                fields={formFields}
-                filters={filters}
-                onAddFilter={handleAddFilter}
-                onRemoveFilter={handleRemoveFilter}
-                onClearFilters={handleClearFilters}
+        <>
+            <PageHeader
+                title="Registered Applicants"
+                description={`All verified attendees registered for ${event.name}.`}
+                actions={
+                    <>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            nativeButton={false}
+                            render={
+                                <Link
+                                    href={`/dashboard/events/${eventId}/form`}
+                                />
+                            }
+                            className="gap-2 font-medium"
+                        >
+                            <FileText className="size-4" />
+                            <span>Registration Form</span>
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setBulkOpen(true)}
+                            className="gap-2 font-medium"
+                        >
+                            <Upload className="size-4" />
+                            <span>Bulk Upload</span>
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => setCreateOpen(true)}
+                            className="gap-2 font-semibold"
+                        >
+                            <UserPlus className="size-4" />
+                            <span>Add Applicant</span>
+                        </Button>
+                    </>
+                }
             />
 
             <InfiniteDataTable
@@ -256,8 +233,33 @@ export default function EventApplicantsPage() {
                 fetchNextPage={fetchNextPage}
                 searchPlaceholder="Search by name, email, or applicant ID..."
                 onSearchChange={setSearch}
+                toolbarActions={
+                    <ApplicantFilterForm
+                        fields={formFields}
+                        onAddFilter={(f) => setFilters((prev) => [...prev, f])}
+                    />
+                }
+                toolbarFooter={
+                    <ApplicantFilterBadges
+                        filters={filters}
+                        fields={formFields}
+                        onRemoveFilter={(i) =>
+                            setFilters((prev) =>
+                                prev.filter((_, idx) => idx !== i),
+                            )
+                        }
+                        onClearFilters={() => setFilters([])}
+                    />
+                }
                 itemLabel="applicants"
                 renderRowContextMenu={renderRowContextMenu}
+            />
+
+            <BulkUploadApplicantsDialog
+                eventId={eventId}
+                formFields={formFields}
+                open={bulkOpen}
+                onOpenChange={setBulkOpen}
             />
 
             <CreateApplicantDialog
@@ -273,7 +275,7 @@ export default function EventApplicantsPage() {
                     formFields={formFields}
                     open={!!viewDataApplicant}
                     onOpenChange={(open) => {
-                        if (!open) setViewDataApplicant(null);
+                        if (!open) setViewDataApplicant(null)
                     }}
                 />
             )}
@@ -284,7 +286,7 @@ export default function EventApplicantsPage() {
                     eventId={eventId}
                     open={!!viewQrApplicant}
                     onOpenChange={(open) => {
-                        if (!open) setViewQrApplicant(null);
+                        if (!open) setViewQrApplicant(null)
                     }}
                 />
             )}
@@ -292,7 +294,7 @@ export default function EventApplicantsPage() {
             <AlertDialog
                 open={!!deleteApplicant}
                 onOpenChange={(open) => {
-                    if (!open) setDeleteApplicant(null);
+                    if (!open) setDeleteApplicant(null)
                 }}
             >
                 <AlertDialogContent className="sm:max-w-lg">
@@ -307,8 +309,9 @@ export default function EventApplicantsPage() {
                             <span className="font-semibold text-foreground">
                                 {deleteApplicant?.name}
                             </span>{" "}
-                            ({deleteApplicant?.email})? This will permanently delete their
-                            registration and attendance records for this event.
+                            ({deleteApplicant?.email})? This will permanently
+                            delete their registration and attendance records for
+                            this event.
                         </AlertDialogDescription>
                     </AlertDialogBody>
                     <AlertDialogFooter>
@@ -324,12 +327,14 @@ export default function EventApplicantsPage() {
                                 <Loader2 className="size-4 animate-spin" />
                             )}
                             <span>
-                                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                                {deleteMutation.isPending
+                                    ? "Deleting..."
+                                    : "Delete"}
                             </span>
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
-    );
+        </>
+    )
 }

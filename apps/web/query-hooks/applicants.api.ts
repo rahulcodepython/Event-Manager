@@ -7,6 +7,8 @@ import {
     ApplicantFilter,
     ApplicantItem,
     ApplicantItemSchema,
+    BulkCreateApplicantsResponse,
+    BulkCreateApplicantsResponseSchema,
     CreateApplicantValues,
     DeleteApplicantResponse,
     DeleteApplicantResponseSchema,
@@ -107,6 +109,35 @@ export function useCreateApplicantMutation(eventId: string) {
         },
         onError: (err) => {
             toast.error(err.message || "Failed to add applicant");
+        },
+    });
+}
+
+export function useBulkCreateApplicantsMutation(eventId: string) {
+    const queryClient = useQueryClient();
+
+    return useMutation<BulkCreateApplicantsResponse, ApiError, CreateApplicantValues[]>({
+        mutationFn: async (applicants) => {
+            return apiRequest<BulkCreateApplicantsResponse>(
+                {
+                    url: `/events/${eventId}/applicants/bulk`,
+                    method: "POST",
+                    data: { applicants },
+                },
+                BulkCreateApplicantsResponseSchema,
+            );
+        },
+        onSuccess: (res) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.applicants.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.analysis.all });
+            if (res.failed.length === 0) {
+                toast.success(`${res.created} applicants uploaded`);
+            } else {
+                toast.warning(`${res.created} uploaded, ${res.failed.length} failed`);
+            }
+        },
+        onError: (err) => {
+            toast.error(err.message || "Failed to upload applicants");
         },
     });
 }

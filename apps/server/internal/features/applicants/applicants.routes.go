@@ -10,5 +10,6 @@ func (h *App) RegisterRoutes(r fiber.Router) {
     group.Get("/schema", h.GetApplicantSchemaHandler)
     group.Get("/", h.ListApplicantsHandler)
     group.Post("/", h.CreateApplicantHandler)
+    group.Post("/bulk", h.BulkCreateApplicantsHandler)
     group.Delete("/:applicantId", h.DeleteApplicantHandler)
 }

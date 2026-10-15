@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
 import { Loader2, Lock } from "lucide-react";
 
 import {
@@ -21,7 +20,7 @@ import { EventFormSetupCards } from "../../../../../components/events/form/event
 import { QrSharingDialog } from "../../../../../components/events/form/qr-sharing-dialog";
 import { FormDesignerCanvas } from "../../../../../components/forms/designer/form-designer-canvas";
 import { FormPreviewPanel } from "../../../../../components/forms/preview/form-preview-panel";
-import { useBreadcrumbs } from "../../../../../hooks/use-breadcrumbs";
+import { useEventPage } from "../../../../../components/events/event-context";
 import {
     useCreateEventFormMutation,
     useDeleteEventFormMutation,
@@ -29,14 +28,10 @@ import {
     useLockEventFormMutation,
     useUpdateEventFormMutation,
 } from "../../../../../query-hooks/eventform.api";
-import { useEventQuery } from "../../../../../query-hooks/events.api";
 import type { Form, FormField } from "../../../../../schema/forms.types";
 
 export default function EventFormPage() {
-    const params = useParams();
-    const eventId = params?.eventId as string;
-
-    const { data: event } = useEventQuery(eventId);
+    const { event, eventId } = useEventPage("Registration Form");
     const { data: eventForm, isLoading } = useEventFormQuery(eventId);
 
     const createMutation = useCreateEventFormMutation();
@@ -44,23 +39,6 @@ export default function EventFormPage() {
     const lockMutation = useLockEventFormMutation();
     const deleteMutation = useDeleteEventFormMutation();
 
-    useBreadcrumbs([
-        {
-            title: "Dashboard",
-            url: "/dashboard",
-        },
-        {
-            title: "Events",
-            url: "/dashboard/events",
-        },
-        {
-            title: event?.name || "Event",
-            url: `/dashboard/events/${eventId}`,
-        },
-        {
-            title: "Registration Form",
-        },
-    ]);
 
     // Designer fields state
     const [designerFields, setDesignerFields] = React.useState<FormField[]>([]);
@@ -109,7 +87,7 @@ export default function EventFormPage() {
 
     // Sensible default expiration (event end date or 30 days in future)
     const getDefaultExpiresAt = React.useCallback(() => {
-        if (event?.end_date) {
+        if (event.end_date) {
             const parsed = new Date(event.end_date);
             if (!isNaN(parsed.getTime())) {
                 parsed.setHours(23, 59, 59, 999);
@@ -119,7 +97,7 @@ export default function EventFormPage() {
         const fallback = new Date();
         fallback.setDate(fallback.getDate() + 30);
         return fallback.toISOString();
-    }, [event?.end_date]);
+    }, [event.end_date]);
 
     // 1. Initial State: Setup handlers
     const handleSelectTemplate = (template: Form) => {
@@ -127,7 +105,7 @@ export default function EventFormPage() {
             eventId,
             source: "template",
             template_id: template.id,
-            name: `${event?.name || "Event"} - ${template.name}`,
+            name: `${event.name} - ${template.name}`,
             max_applicants: -1,
             expires_at: getDefaultExpiresAt(),
         });
@@ -137,7 +115,7 @@ export default function EventFormPage() {
         createMutation.mutate({
             eventId,
             source: "scratch",
-            name: `${event?.name || "Event"} Registration Form`,
+            name: `${event.name} Registration Form`,
             max_applicants: -1,
             expires_at: getDefaultExpiresAt(),
         });
@@ -197,23 +175,21 @@ export default function EventFormPage() {
     // A. Dual Setup Cards when no form exists
     if (!eventForm) {
         return (
-            <div className="w-full max-w-full min-w-0">
-                <EventFormSetupCards
-                    onSelectTemplate={handleSelectTemplate}
-                    onBuildScratch={handleBuildScratch}
-                    isCreating={createMutation.isPending}
-                />
-            </div>
+            <EventFormSetupCards
+                onSelectTemplate={handleSelectTemplate}
+                onBuildScratch={handleBuildScratch}
+                isCreating={createMutation.isPending}
+            />
         );
     }
 
     // B. Form Exists (Locked or Unlocked)
     return (
-        <div className="flex flex-col h-[calc(100vh-5rem)] min-h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] w-full max-w-full min-w-0 gap-3 overflow-hidden">
+        <div className="flex flex-col h-[calc(100vh-7rem)] min-h-0 gap-3 overflow-hidden">
             {/* Top Action Header */}
             <EventFormHeader
                 eventForm={eventForm}
-                eventName={event?.name || "Event"}
+                eventName={event.name}
                 onLockClick={handleLockClick}
                 isLocking={lockMutation.isPending}
                 onDeleteForm={handleDeleteForm}

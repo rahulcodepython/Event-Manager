@@ -21,6 +21,8 @@ export interface InfiniteDataTableProps<TData, TValue> {
     searchValue?: string;
     onSearchChange?: (search: string) => void;
     toolbarActions?: React.ReactNode;
+    /** Rendered between the toolbar and the table, e.g. active filters. */
+    toolbarFooter?: React.ReactNode;
     itemLabel?: string;
     renderRowContextMenu?: (row: Row<TData>) => React.ReactNode;
 }
@@ -39,6 +41,7 @@ export function InfiniteDataTable<TData, TValue>({
     searchValue,
     onSearchChange,
     toolbarActions,
+    toolbarFooter,
     itemLabel = "items",
     renderRowContextMenu,
 }: InfiniteDataTableProps<TData, TValue>) {
@@ -57,12 +60,14 @@ export function InfiniteDataTable<TData, TValue>({
                         />
                     }
                     {
-                        toolbarActions && <div className="flex items-center justify-end">
+                        toolbarActions && <div className="flex flex-wrap items-center justify-end gap-2">
                             {toolbarActions}
                         </div>
                     }
                 </div>
             }
+
+            {toolbarFooter}
 
             {/* Error Banner */}
             {

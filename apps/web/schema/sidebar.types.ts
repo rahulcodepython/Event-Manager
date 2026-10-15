@@ -6,6 +6,7 @@ export interface NavItem {
     title: string;
     url: string;
     icon: LucideIcon;
+    description?: string;
 }
 
 export type NavItems = NavItem & {

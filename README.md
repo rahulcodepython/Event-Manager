@@ -9,21 +9,17 @@ events (established or flash) with optional sub-events.
   Owns auth entirely, via [better-auth](https://better-auth.com).
 - `apps/server` — Go/Fiber API (Postgres via sqlc + pgx). Verifies
   bearer JWTs against `apps/web`'s JWKS endpoint; issues none itself.
-- `infra` — local dev infrastructure (Postgres, MinIO, Mailhog via
-  Docker Compose).
+- `infra` — local dev infrastructure (Postgres, Redis via Docker Compose).
 
 See `apps/web/README.md` and `apps/server/README.md` for per-app setup.
 
 ## Local development
 
 ```bash
-cd infra && docker compose up -d      # postgres, minio, mailhog
+cd infra && docker compose up -d      # postgres, migrate, redis
 cd apps/server && make dev            # migrates on boot
 cd apps/web && bun install && bun dev
 ```
-
-Publishing an event emails every attendee their ID card (PDF + QR) — locally
-that mail goes to Mailhog, not a real inbox: http://localhost:8025.
 
 ## Architecture & Billing Documentation
 

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { ArrowLeft, BarChart3, Calendar, CalendarDays, FileText, LayoutDashboard, Settings, Smartphone, Users } from "lucide-react";
 
 import { useEventQuery } from "../query-hooks/events.api";
-import type { NavNode } from "../schema/sidebar.types";
+import type { NavItem, NavNode } from "../schema/sidebar.types";
 
 // Only need the id/slug segment right after /dashboard/events/
 const EVENT_ID_REGEX = /^\/dashboard\/events\/([^/]+)/;
@@ -28,23 +28,28 @@ const ROOT_NAV_LAYOUT: NavNode[] = [
     },
 ];
 
-function createEventSingleNavLayout(eventId: string, eventName: string): NavNode[] {
+/** Sub-pages of a single event; shared by the sidebar and the overview page. */
+export function getEventSections(eventId: string): NavItem[] {
     const basePath = `/dashboard/events/${eventId}`;
 
     return [
+        { title: "Overview", url: basePath, icon: LayoutDashboard },
+        { title: "Dates", url: `${basePath}/dates`, icon: CalendarDays, description: "Active days and session hours" },
+        { title: "Registration Form", url: `${basePath}/form`, icon: FileText, description: "Registration form, capacity and sharing" },
+        { title: "Applicants", url: `${basePath}/applicants`, icon: Users, description: "Registered attendees and their QR codes" },
+        { title: "Devices", url: `${basePath}/devices`, icon: Smartphone, description: "Scanner terminals assigned to this event" },
+        { title: "Analysis", url: `${basePath}/analysis`, icon: BarChart3, description: "Turnout, trends and punctuality" },
+        { title: "Settings", url: `${basePath}/settings`, icon: Settings, description: "Event name, dates, venue and organizer" },
+    ];
+}
+
+function createEventSingleNavLayout(eventId: string, eventName: string): NavNode[] {
+    return [
         { type: "back", icon: ArrowLeft, title: "Back To Events", url: "/dashboard/events" },
         {
-            title: eventName.slice(0, 32) + "...",
+            title: eventName.length > 32 ? `${eventName.slice(0, 32)}...` : eventName,
             type: "group",
-            items: [
-                { title: "Overview", url: basePath, icon: LayoutDashboard },
-                { title: "Dates", url: `${basePath}/dates`, icon: CalendarDays },
-                { title: "Registration Form", url: `${basePath}/form`, icon: FileText },
-                { title: "Applicants", url: `${basePath}/applicants`, icon: Users },
-                { title: "Devices", url: `${basePath}/devices`, icon: Smartphone },
-                { title: "Analysis", url: `${basePath}/analysis`, icon: BarChart3 },
-                { title: "Settings", url: `${basePath}/settings`, icon: Settings },
-            ],
+            items: getEventSections(eventId),
         },
     ];
 }

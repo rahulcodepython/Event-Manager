@@ -80,6 +80,26 @@ func (h *App) CreateApplicantHandler(c *fiber.Ctx) error {
     return utils.Created(c, "applicant created successfully", applicant)
 }
 
+func (h *App) BulkCreateApplicantsHandler(c *fiber.Ctx) error {
+    eventID := c.Params("eventId")
+
+    var req BulkCreateApplicantsRequest
+    if err := c.BodyParser(&req); err != nil {
+        return utils.ErrBadRequest(c, "invalid request body", err)
+    }
+
+    res, err := h.BulkCreateApplicantsService(c.UserContext(), eventID, req.Applicants)
+    if err != nil {
+        slog.Error("failed to bulk create applicants", "error", err, "eventId", eventID)
+        if errors.Is(err, ErrInvalidEventID) || errors.Is(err, ErrBulkLimit) {
+            return utils.ErrBadRequest(c, err.Error(), err)
+        }
+        return utils.ErrInternal(c, "failed to upload applicants", err)
+    }
+
+    return utils.OK(c, "applicants uploaded", res)
+}
+
 func (h *App) DeleteApplicantHandler(c *fiber.Ctx) error {
     eventID := c.Params("eventId")
     applicantID := c.Params("applicantId")

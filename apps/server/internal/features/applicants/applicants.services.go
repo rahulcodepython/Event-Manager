@@ -90,35 +90,45 @@ func (s *App) GetApplicantSchemaService(ctx context.Context, eventID string) (*F
     })
 }
 
-func (s *App) CreateApplicantService(ctx context.Context, eventID string, req CreateApplicantRequest) (*ApplicantItem, error) {
-    if _, err := uuid.Parse(eventID); err != nil {
-        return nil, ErrInvalidEventID
+const maxBulkApplicants = 1000
+
+var ErrBulkLimit = fmt.Errorf("between 1 and %d applicants can be uploaded at once", maxBulkApplicants)
+
+// normalizeApplicant trims and validates one applicant payload.
+func normalizeApplicant(req CreateApplicantRequest) (CreateApplicantRequest, error) {
+    req.Name = strings.TrimSpace(req.Name)
+    if req.Name == "" {
+        return req, ErrInvalidName
     }
 
-    trimmedName := strings.TrimSpace(req.Name)
-    if trimmedName == "" {
-        return nil, ErrInvalidName
+    req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+    if req.Email == "" || !strings.Contains(req.Email, "@") {
+        return req, ErrInvalidEmail
     }
 
-    trimmedEmail := strings.ToLower(strings.TrimSpace(req.Email))
-    if trimmedEmail == "" || !strings.Contains(trimmedEmail, "@") {
-        return nil, ErrInvalidEmail
-    }
-
-    trimmedPhone := strings.TrimSpace(req.Phone)
-    if trimmedPhone == "" {
-        if p, ok := req.Data["phone"].(string); ok && strings.TrimSpace(p) != "" {
-            trimmedPhone = strings.TrimSpace(p)
-        } else if m, ok := req.Data["mobile"].(string); ok && strings.TrimSpace(m) != "" {
-            trimmedPhone = strings.TrimSpace(m)
+    req.Phone = strings.TrimSpace(req.Phone)
+    if req.Phone == "" {
+        for _, key := range []string{"phone", "mobile"} {
+            if p, ok := req.Data[key].(string); ok && strings.TrimSpace(p) != "" {
+                req.Phone = strings.TrimSpace(p)
+                break
+            }
         }
     }
-    if trimmedPhone == "" {
-        return nil, ErrInvalidPhone
+    if req.Phone == "" {
+        return req, ErrInvalidPhone
     }
 
     if req.Data == nil {
         req.Data = make(map[string]interface{})
+    }
+    return req, nil
+}
+
+func (s *App) insertApplicant(ctx context.Context, eventID string, req CreateApplicantRequest) (*ApplicantItem, error) {
+    req, err := normalizeApplicant(req)
+    if err != nil {
+        return nil, err
     }
 
     dataJSON, err := json.Marshal(req.Data)
@@ -127,25 +137,60 @@ func (s *App) CreateApplicantService(ctx context.Context, eventID string, req Cr
     }
 
     userID := utils.GenerateApplicantUserID(eventID)
-
-    created, err := s.CreateApplicantRepository(ctx, eventID, userID, trimmedName, trimmedEmail, trimmedPhone, dataJSON)
-    if err != nil {
-        if errors.Is(err, postgres.ErrConflict) {
-            return nil, ErrAlreadyRegistered
-        }
-        return nil, err
-    }
-    if created == nil {
+    created, err := s.CreateApplicantRepository(ctx, eventID, userID, req.Name, req.Email, req.Phone, dataJSON)
+    // The insert query returns no row when the email is already registered.
+    if errors.Is(err, postgres.ErrConflict) || errors.Is(err, postgres.ErrNotFound) || (err == nil && created == nil) {
         return nil, ErrAlreadyRegistered
     }
+    return created, err
+}
 
-    if s.Cache != nil {
-        _ = s.Cache.DeletePattern(ctx, fmt.Sprintf("cache:event_forms:event:%s*", eventID))
-        _ = s.Cache.DeletePattern(ctx, fmt.Sprintf("cache:applicant_schema:e=%s*", eventID))
-        _ = s.Cache.DeletePattern(ctx, "cache:public_apply:*")
+func (s *App) invalidateApplicantCaches(ctx context.Context, eventID string) {
+    if s.Cache == nil {
+        return
+    }
+    _ = s.Cache.DeletePattern(ctx, fmt.Sprintf("cache:event_forms:event:%s*", eventID))
+    _ = s.Cache.DeletePattern(ctx, fmt.Sprintf("cache:applicant_schema:e=%s*", eventID))
+    _ = s.Cache.DeletePattern(ctx, "cache:public_apply:*")
+}
+
+func (s *App) CreateApplicantService(ctx context.Context, eventID string, req CreateApplicantRequest) (*ApplicantItem, error) {
+    if _, err := uuid.Parse(eventID); err != nil {
+        return nil, ErrInvalidEventID
     }
 
+    created, err := s.insertApplicant(ctx, eventID, req)
+    if err != nil {
+        return nil, err
+    }
+
+    s.invalidateApplicantCaches(ctx, eventID)
     return created, nil
+}
+
+// BulkCreateApplicantsService inserts each applicant independently; a bad row
+// is reported back instead of failing the whole upload.
+func (s *App) BulkCreateApplicantsService(ctx context.Context, eventID string, reqs []CreateApplicantRequest) (*BulkCreateApplicantsResponse, error) {
+    if _, err := uuid.Parse(eventID); err != nil {
+        return nil, ErrInvalidEventID
+    }
+    if len(reqs) == 0 || len(reqs) > maxBulkApplicants {
+        return nil, ErrBulkLimit
+    }
+
+    res := &BulkCreateApplicantsResponse{Failed: []BulkApplicantError{}}
+    for i, req := range reqs {
+        if _, err := s.insertApplicant(ctx, eventID, req); err != nil {
+            res.Failed = append(res.Failed, BulkApplicantError{Row: i + 1, Email: req.Email, Error: err.Error()})
+            continue
+        }
+        res.Created++
+    }
+
+    if res.Created > 0 {
+        s.invalidateApplicantCaches(ctx, eventID)
+    }
+    return res, nil
 }
 
 func (s *App) DeleteApplicantService(ctx context.Context, eventID, userID string) (*DeleteApplicantResponse, error) {
@@ -161,16 +206,10 @@ func (s *App) DeleteApplicantService(ctx context.Context, eventID, userID string
         return nil, err
     }
 
-    if s.Cache != nil {
-        _ = s.Cache.DeletePattern(ctx, fmt.Sprintf("cache:event_forms:event:%s*", eventID))
-        _ = s.Cache.DeletePattern(ctx, fmt.Sprintf("cache:applicant_schema:e=%s*", eventID))
-        _ = s.Cache.DeletePattern(ctx, "cache:public_apply:*")
-    }
+    s.invalidateApplicantCaches(ctx, eventID)
 
     return &DeleteApplicantResponse{
         UserID:  userID,
         Message: "Applicant deleted successfully",
     }, nil
 }
-
-

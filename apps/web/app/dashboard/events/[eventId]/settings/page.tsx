@@ -6,7 +6,8 @@ import { Save } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { useCurrentEvent } from "../../../../../components/events/event-context";
+import { useEventPage } from "../../../../../components/events/event-context";
+import { PageHeader } from "../../../../../components/generic";
 import { Button } from "../../../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../../../components/ui/card";
 import {
@@ -18,7 +19,6 @@ import {
     FormMessage,
 } from "../../../../../components/ui/form";
 import { Input } from "../../../../../components/ui/input";
-import { useBreadcrumbs } from "../../../../../hooks/use-breadcrumbs";
 import { useUpdateEventMutation } from "../../../../../query-hooks/events.api";
 
 const EventSettingsFormSchema = z
@@ -40,26 +40,9 @@ const EventSettingsFormSchema = z
 type EventSettingsFormValues = z.infer<typeof EventSettingsFormSchema>;
 
 export default function SettingsPage() {
-    const { event, eventId } = useCurrentEvent();
+    const { event } = useEventPage("Settings");
     const updateEventMutation = useUpdateEventMutation();
 
-    useBreadcrumbs([
-        {
-            title: "Dashboard",
-            url: "/dashboard",
-        },
-        {
-            title: "Events",
-            url: "/dashboard/events",
-        },
-        {
-            title: event.name,
-            url: `/dashboard/events/${eventId}`,
-        },
-        {
-            title: "Settings",
-        },
-    ]);
 
     const form = useForm<EventSettingsFormValues>({
         resolver: zodResolver(EventSettingsFormSchema),
@@ -88,13 +71,11 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="container mx-auto flex flex-1 flex-col justify-start gap-6 py-6">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
-                <p className="text-xs text-muted-foreground">
-                    Update basic event information, schedule dates, and venue configurations.
-                </p>
-            </div>
+        <>
+            <PageHeader
+                title="Settings"
+                description="Update basic event information, schedule dates, and venue configurations."
+            />
 
             <Card>
                 <CardHeader>
@@ -196,6 +177,6 @@ export default function SettingsPage() {
                     </Form>
                 </CardContent>
             </Card>
-        </div>
+        </>
     );
 }

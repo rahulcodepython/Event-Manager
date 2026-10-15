@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "../../ui/button";
 import { StagedDatesPreviewDialog } from "./staged-dates-preview-dialog";
+import { parseCSVObjects } from "../../../lib/csv";
 import type { EventDateItemInput } from "../../../schema/event-dates.types";
 
 export interface FileUploadSectionProps {
@@ -67,29 +68,14 @@ function parseJSONRows(text: string): RawRow[] {
 }
 
 function parseCSVRows(text: string): RawRow[] {
-    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    if (lines.length < 2) {
+    const rows = parseCSVObjects(text);
+    if (rows.length === 0) {
         throw new Error("CSV must contain a header row and at least one data row");
     }
-
-    const header = lines[0].toLowerCase().split(",").map((h) => h.trim());
-    const dateIdx = header.indexOf("date");
-    const startIdx = header.indexOf("start_time") !== -1 ? header.indexOf("start_time") : header.indexOf("starttime");
-    const endIdx = header.indexOf("end_time") !== -1 ? header.indexOf("end_time") : header.indexOf("endtime");
-
-    if (dateIdx === -1 || startIdx === -1 || endIdx === -1) {
+    if (!("date" in rows[0]) || !("start_time" in rows[0]) || !("end_time" in rows[0])) {
         throw new Error('CSV header must contain "date", "start_time", and "end_time"');
     }
-
-    return lines
-        .slice(1)
-        .map((line) => line.split(","))
-        .filter((cols) => cols.length > Math.max(dateIdx, startIdx, endIdx))
-        .map((cols) => ({
-            date: cols[dateIdx]?.trim(),
-            start_time: cols[startIdx]?.trim(),
-            end_time: cols[endIdx]?.trim(),
-        }));
+    return rows.map((r) => ({ date: r.date, start_time: r.start_time, end_time: r.end_time }));
 }
 
 export function FileUploadSection({

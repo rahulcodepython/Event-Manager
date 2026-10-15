@@ -1,61 +1,65 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { ExternalLink, Loader2, Plus, ScanLine, Search } from "lucide-react";
+import * as React from "react"
+import { ExternalLink, Loader2, Plus, ScanLine, Search } from "lucide-react"
 
-import { Button } from "../../../components/ui/button";
-import { Card } from "../../../components/ui/card";
-import { Input } from "../../../components/ui/input";
-import { CreateDeviceDialog } from "../../../components/devices/create-device-dialog";
-import { GlobalDevicesTable } from "../../../components/devices/global-devices-table";
-import { useBreadcrumbs } from "../../../hooks/use-breadcrumbs";
-import { useDevicesQuery } from "../../../query-hooks/devices.api";
-import type { Device } from "../../../schema/devices.types";
+import { PageHeader } from "../../../components/generic"
+import { Button } from "../../../components/ui/button"
+import { Card } from "../../../components/ui/card"
+import { Input } from "../../../components/ui/input"
+import { CreateDeviceDialog } from "../../../components/devices/create-device-dialog"
+import { GlobalDevicesTable } from "../../../components/devices/global-devices-table"
+import { useBreadcrumbs } from "../../../hooks/use-breadcrumbs"
+import { useDevicesQuery } from "../../../query-hooks/devices.api"
+import type { Device } from "../../../schema/devices.types"
 
 export default function GlobalDevicesPage() {
-    const [search, setSearch] = React.useState("");
-    const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+    const [search, setSearch] = React.useState("")
+    const [isCreateOpen, setIsCreateOpen] = React.useState(false)
 
     useBreadcrumbs([
         { title: "Dashboard", url: "/dashboard" },
         { title: "Devices" },
-    ]);
+    ])
 
-    const { data: devicesData, isLoading, isError, error } = useDevicesQuery({ search });
-    const devices: Device[] = devicesData?.data || [];
+    const {
+        data: devicesData,
+        isLoading,
+        isError,
+        error,
+    } = useDevicesQuery({ search })
+    const devices: Device[] = devicesData?.data || []
 
     return (
         <div className="flex flex-col gap-4 w-full max-w-full min-w-0">
-            {/* Header section */}
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-1">
-                <div>
-                    <h1 className="text-lg font-bold text-foreground">Global Scanner Devices</h1>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                        Central terminal pool of scanning hardware verified with unique device fingerprinting.
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => window.open("/devices/pair", "_blank")}
-                        className="gap-2 font-medium"
-                    >
-                        <ExternalLink className="size-4" />
-                        <span>Pair Screen</span>
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="default"
-                        onClick={() => setIsCreateOpen(true)}
-                        className="gap-2 font-semibold"
-                    >
-                        <Plus className="size-4" />
-                        <span>Add Device</span>
-                    </Button>
-                </div>
-            </div>
+            <PageHeader
+                title="Global Scanner Devices"
+                description="Central terminal pool of scanning hardware verified with unique device fingerprinting."
+                actions={
+                    <>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                                window.open("/devices/pair", "_blank")
+                            }
+                            className="gap-2 font-medium"
+                        >
+                            <ExternalLink className="size-4" />
+                            <span>Pair Screen</span>
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="default"
+                            onClick={() => setIsCreateOpen(true)}
+                            className="gap-2 font-semibold"
+                        >
+                            <Plus className="size-4" />
+                            <span>Add Device</span>
+                        </Button>
+                    </>
+                }
+            />
 
             {/* Filter and Search */}
             <div className="flex items-center gap-2 px-1">
@@ -94,7 +98,9 @@ export default function GlobalDevicesPage() {
                         <ScanLine className="size-6" />
                     </div>
                     <div className="space-y-1">
-                        <p className="text-sm font-semibold text-foreground">No Devices Found</p>
+                        <p className="text-sm font-semibold text-foreground">
+                            No Devices Found
+                        </p>
                         <p className="text-xs text-muted-foreground max-w-sm">
                             {search
                                 ? "No devices match your search criteria. Try a different query."
@@ -116,10 +122,15 @@ export default function GlobalDevicesPage() {
             )}
 
             {/* Table */}
-            {!isLoading && !isError && devices.length > 0 && <GlobalDevicesTable devices={devices} />}
+            {!isLoading && !isError && devices.length > 0 && (
+                <GlobalDevicesTable devices={devices} />
+            )}
 
             {/* Create Device Dialog */}
-            <CreateDeviceDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+            <CreateDeviceDialog
+                open={isCreateOpen}
+                onOpenChange={setIsCreateOpen}
+            />
         </div>
-    );
+    )
 }

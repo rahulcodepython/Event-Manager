@@ -52,3 +52,18 @@ type DeleteApplicantResponse struct {
     UserID  string `json:"user_id"`
     Message string `json:"message"`
 }
+
+type BulkCreateApplicantsRequest struct {
+    Applicants []CreateApplicantRequest `json:"applicants"`
+}
+
+type BulkApplicantError struct {
+    Row   int    `json:"row"`
+    Email string `json:"email"`
+    Error string `json:"error"`
+}
+
+type BulkCreateApplicantsResponse struct {
+    Created int                  `json:"created"`
+    Failed  []BulkApplicantError `json:"failed"`
+}

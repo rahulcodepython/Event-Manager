@@ -7,3 +7,4 @@ export {
     InfiniteDataTable,
     type InfiniteDataTableProps,
 } from "./infinite-data-table";
+export { PageHeader, type PageHeaderProps } from "./page-header";
