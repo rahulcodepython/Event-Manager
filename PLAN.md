@@ -170,8 +170,12 @@ editable from admin. To confirm: Q7.
 - **Upload:** zip with `index.html` at the top (or in one folder), 10 MB / 300 files, HTML/CSS/JS/images/fonts/JSON. Each upload replaces the site: new files go to a fresh version folder, the site switches in one update, the old folder is deleted. Files live in S3-compatible storage (MinIO locally, R2/S3 in production).
 - **Serving:** third binary `cmd/sites` (`SITES_PORT`, 8002) maps the Host to a site; `/register` and `/register/<sub-event id>` redirect to the registration form. Online until the credit ends (then an "event ended" page). Caddy on-demand TLS asks `/__tls-check` so certificates are issued only for existing sites.
 
-### Phase 9 — Landing page app
-- Public marketing site (Next.js): product, pricing calculator (uses the quote endpoint), sign-up.
+### Phase 9 — Landing page app ✅ done
+- `apps/landing` (Next.js, port 3002, same design system): home (hero, how it works, features, FAQ, contact), pricing calculator (catalog rendered on the server every 5 min, live quotes from `/pricing/quote`), contact page, and placeholder Terms, Privacy and Refund policy.
+- Placeholder copy and company details live in `apps/landing/lib/site.ts` and `lib/content.ts`.
+- Sign-up and login buttons go to the app's Google login (`NEXT_PUBLIC_WEB_URL/login`).
+- Contact form: `POST /public/contact` (honeypot field, 5 messages per IP per hour), stored in `contact_messages` and emailed to `CONTACT_EMAIL` through the email queue.
+- The client API allows the landing origin (`LANDING_URL`) in CORS.
 
 ### Phase 10 — Coupons
 - Admin creates coupons. The client applies a coupon at purchase. The quote shows the discount.
@@ -208,7 +212,7 @@ Q8 asks whether `admin` and `landing` should be separate apps like this.
 4. **Branding.** What exactly does it unlock: the client's logo and colours on forms, cards and emails? Removal of platform branding?
 6. **Pruning.** Delete everything (applicants, attendance, form, event), or keep the event shell? Warn the client by email N days before? Offer an export first?
 7. **Feature keys.** OK that enforcement code refers to features by a fixed `key` (e.g. `applicants`), while names, prices and limits stay editable from admin? A brand new feature added from admin would only affect price until code enforces it.
-8. **Apps.** Should the admin web and landing page be separate Next.js apps (`apps/admin`, `apps/landing`)? Or should landing live inside `apps/web`?
+8. ~~**Apps**~~ Decided: `apps/admin` and `apps/landing` are separate Next.js apps.
 
 ### Auth and payments
 11. ~~**Admin login**~~ Decided: single account from env, no 2FA.

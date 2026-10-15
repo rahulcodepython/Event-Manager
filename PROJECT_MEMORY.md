@@ -31,6 +31,9 @@ revenue, expenses and the feature catalog.
 - `apps/web` — Next.js 16 (App Router), React 19, TanStack Query + axios,
   react-hook-form + zod, shadcn/ui on `@base-ui/react`, Tailwind v4.
 - `apps/admin` — admin web app, same stack as `apps/web`, port 3001.
+- `apps/landing` — public marketing site (Next.js, port 3002): home,
+  pricing calculator, contact, legal pages. Placeholder copy in
+  `lib/site.ts` and `lib/content.ts`.
 - `apps/server` — Go + Fiber v2, Postgres via pgx with raw SQL returning
   JSON, Redis (cache, sessions, rate limits, device sessions).
   Three binaries: `cmd/server` (client API), `cmd/admin` (admin API),
@@ -56,6 +59,7 @@ revenue, expenses and the feature catalog.
 | cards | `/events/:eventId/cards` (`/schedule`, `/close`, `/publish`, `/resend`), `/events/:eventId/applicants/:applicantId/card` (PDF), `.../qr`, `.../card/resend` | closing + publishing schedule, card emails, organizer download |
 | subevents | `/events/:eventId/sub-events`, `.../sub-events/:subEventId` (+ `/applicants`, `/dates`), `/events/:eventId/sub-event-settings` | sub-events, enrollment, form choice settings; public form takes `sub_event_ids` / `sub_event_link` |
 | sites | `/events/:eventId/site` (`/check`, `/upload`) | claim subdomain, upload zip, delete |
+| contact | `/public/contact` | landing contact form; stored, emailed to `CONTACT_EMAIL` |
 | reminders | (background) | client emails before credit end and data deletion |
 
 Admin API features (`internal/features/admin/`, all behind the admin session):

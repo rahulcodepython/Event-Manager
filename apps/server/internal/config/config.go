@@ -24,6 +24,11 @@ type Config struct {
 	APIURL      string // public base URL of the client API, e.g. http://localhost:8000
 	WebURL      string // client web app origin, allowed by CORS
 	AdminWebURL string // admin web app origin, allowed by CORS on the admin API
+	LandingURL  string // marketing site origin, allowed by CORS on the client API
+
+	// ContactEmail receives the landing page's contact form. Empty: messages
+	// are stored but not emailed.
+	ContactEmail string
 
 	// Auth
 	JWTAccessSecret    string
@@ -124,6 +129,9 @@ func Load() (*Config, error) {
 		APIURL:      getOr("API_URL", "http://localhost:8000"),
 		WebURL:      webURL,
 		AdminWebURL: getOr("ADMIN_WEB_URL", "http://localhost:3001"),
+		LandingURL:  getOr("LANDING_URL", "http://localhost:3002"),
+
+		ContactEmail: os.Getenv("CONTACT_EMAIL"),
 
 		JWTAccessSecret:    require("JWT_ACCESS_SECRET"),
 		JWTRefreshSecret:   require("JWT_REFRESH_SECRET"),

@@ -10,6 +10,8 @@ at the door with paired scanner devices.
   (Next.js App Router, shadcn/ui, TanStack Query, react-hook-form + zod).
 - `apps/admin` — platform admin web app (Next.js, same stack as `apps/web`):
   dashboard, clients, ledger, subscriptions, pricing catalog.
+- `apps/landing` — public marketing site (Next.js): home, pricing
+  calculator, contact and legal pages.
 - `apps/server` — Go/Fiber API. Two binaries share one codebase:
   `cmd/server` (client API, port 8000), `cmd/admin` (platform admin API,
   port 8001) and `cmd/sites` (uploaded event sites, port 8002).
@@ -35,6 +37,7 @@ cd apps/server && make dev-admin          # admin API on :8001
 cd apps/server && make dev-sites          # event sites on :8002 (http://<slug>.sites.localhost:8002)
 cd apps/web && bun install && bun dev     # :3000
 cd apps/admin && bun dev                  # admin web on :3001
+cd apps/landing && bun dev                # marketing site on :3002
 ```
 
 The admin logs in with `ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env`.

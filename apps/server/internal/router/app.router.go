@@ -13,6 +13,7 @@ import (
     "identitycard-server/internal/features/applicants"
     "identitycard-server/internal/features/auth"
     "identitycard-server/internal/features/cards"
+    "identitycard-server/internal/features/contact"
     "identitycard-server/internal/features/credits"
     "identitycard-server/internal/features/attendance"
     "identitycard-server/internal/features/devices"
@@ -55,6 +56,7 @@ type AppRouter struct {
     Cards      *cards.App
     SubEvents  *subevents.App
     Sites      *sites.App
+    Contact    *contact.App
 }
 
 func NewAppRouter(
@@ -82,11 +84,13 @@ func NewAppRouter(
     subEventsApp := subevents.NewApp(pool, cch)
     cardsApp := cards.NewApp(pool, rdb, cch, emailQueue, mail, signer)
     remindersApp := reminders.NewApp(pool, rdb, emailQueue, mail, cfg.WebURL)
+    contactApp := contact.NewApp(pool, rdb, emailQueue, mail, cfg.ContactEmail)
     cardsApp.StartScheduler(rootCtx)
     remindersApp.StartScheduler(rootCtx)
     go emailQueue.Run(rootCtx, map[string]jobqueue.Handler{
         cards.JobType:     cardsApp.JobHandler(),
         reminders.JobType: remindersApp.JobHandler(),
+        contact.JobType:   contactApp.JobHandler(),
     }, 600*time.Millisecond)
 
     return &AppRouter{
@@ -109,11 +113,13 @@ func NewAppRouter(
         Cards:      cardsApp,
         SubEvents:  subEventsApp,
         Sites:      sitesApp,
+        Contact:    contactApp,
     }
 }
 
 func (r *AppRouter) SetUp() {
-    useCommonMiddlewares(r.App, r.CFG, r.Redis, r.RootCtx, r.CFG.WebURL, "Content-Type,Authorization,X-Device-Token")
+    // The landing site calls the public pricing and contact endpoints.
+    useCommonMiddlewares(r.App, r.CFG, r.Redis, r.RootCtx, r.CFG.WebURL+","+r.CFG.LandingURL, "Content-Type,Authorization,X-Device-Token")
 
     api := r.App.Group(generic.APIV1Prefix)
 
@@ -121,6 +127,7 @@ func (r *AppRouter) SetUp() {
     //    public registration form, scanner devices with their device token).
     r.Auth.RegisterPublicRoutes(api)
     r.Pricing.RegisterPublicRoutes(api)
+    r.Contact.RegisterPublicRoutes(api)
     r.Credits.RegisterPublicRoutes(api)
     r.Register.RegisterRoutes(api)
     r.Devices.RegisterPublicRoutes(api)
