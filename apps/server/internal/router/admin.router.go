@@ -10,6 +10,7 @@ import (
     "identitycard-server/internal/config"
     "identitycard-server/internal/features/admin/catalog"
     "identitycard-server/internal/features/admin/clients"
+    "identitycard-server/internal/features/admin/coupons"
     "identitycard-server/internal/features/admin/dashboard"
     "identitycard-server/internal/features/admin/ledger"
     "identitycard-server/internal/features/admin/session"
@@ -35,6 +36,7 @@ type AdminRouter struct {
     Catalog       *catalog.App
     Ledger        *ledger.App
     Subscriptions *subscriptions.App
+    Coupons       *coupons.App
 }
 
 func NewAdminRouter(
@@ -62,6 +64,7 @@ func NewAdminRouter(
         Catalog:       catalog.NewApp(pool, pricingApp),
         Ledger:        ledger.NewApp(pool),
         Subscriptions: subscriptions.NewApp(pool),
+        Coupons:       coupons.NewApp(pool),
     }
 }
 
@@ -81,4 +84,5 @@ func (r *AdminRouter) SetUp() {
     r.Catalog.RegisterRoutes(admin)
     r.Ledger.RegisterRoutes(admin)
     r.Subscriptions.RegisterRoutes(admin)
+    r.Coupons.RegisterRoutes(admin)
 }

@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { Loader2, ShieldCheckIcon } from "lucide-react"
 
 import { PageHeader } from "../../../../components/generic"
@@ -29,6 +31,9 @@ export default function BuyCreditPage() {
     const [name, setName] = React.useState("")
     const [values, setValues] = React.useState<Record<string, number>>({})
     const [paying, setPaying] = React.useState(false)
+    // couponInput is typed; couponCode is the one applied to the quote.
+    const [couponInput, setCouponInput] = React.useState("")
+    const [couponCode, setCouponCode] = React.useState("")
 
     useBreadcrumbs([
         { title: "Dashboard", url: "/dashboard" },
@@ -41,13 +46,26 @@ export default function BuyCreditPage() {
         key: f.key,
         value: values[f.key] ?? f.default_value,
     }))
-    const { data: quote, isFetching: quoting } = useQuoteQuery(selections, Boolean(catalog))
+    const { data: quote, isFetching: quoting } = useQuoteQuery(selections, Boolean(catalog), couponCode)
+    const couponApplied = Boolean(quote?.coupon)
+    const queryClient = useQueryClient()
 
     const pay = async () => {
         if (!quote || !name.trim()) return
         setPaying(true)
         try {
-            const order = await createOrder.mutateAsync({ name: name.trim(), selections })
+            const order = await createOrder.mutateAsync({
+                name: name.trim(),
+                selections,
+                coupon_code: couponApplied ? couponCode : undefined,
+            })
+            if (order.free) {
+                // Fully covered by the coupon: the credit already exists.
+                queryClient.invalidateQueries({ queryKey: ["credits"] })
+                toast.success("Credit ready. A receipt is on its way to your email.")
+                router.push("/dashboard/credits")
+                return
+            }
             const result = await openRazorpayCheckout(order, {
                 description: name.trim(),
                 email: me?.user.email,
@@ -152,6 +170,12 @@ export default function BuyCreditPage() {
                                     <span className="text-muted-foreground">Subtotal</span>
                                     <span>{formatMoney(quote.subtotal, quote.currency)}</span>
                                 </div>
+                                {
+                                    quote.coupon && <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                                        <span>Coupon {quote.coupon.code}</span>
+                                        <span>-{formatMoney(quote.discount, quote.currency)}</span>
+                                    </div>
+                                }
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">
                                         {quote.tax_name} {quote.tax_rate_bp / 100}%
@@ -165,6 +189,37 @@ export default function BuyCreditPage() {
                                 </div>
                             </>
                         }
+                        <form
+                            className="flex gap-2"
+                            onSubmit={(e) => {
+                                e.preventDefault()
+                                setCouponCode(couponInput.trim().toUpperCase())
+                            }}
+                        >
+                            <Input
+                                placeholder="Coupon code"
+                                value={couponInput}
+                                onChange={(e) => setCouponInput(e.target.value)}
+                                className="uppercase"
+                            />
+                            {
+                                couponCode ? <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setCouponCode("")
+                                        setCouponInput("")
+                                    }}
+                                >
+                                    Remove
+                                </Button> : <Button type="submit" variant="outline" disabled={!couponInput.trim()}>
+                                    Apply
+                                </Button>
+                            }
+                        </form>
+                        {
+                            couponCode && quote?.coupon_error && <p className="text-xs text-destructive">{quote.coupon_error}</p>
+                        }
                         <Button
                             className="mt-2 w-full gap-2"
                             disabled={!quote || quoting || paying || !name.trim()}
@@ -173,7 +228,7 @@ export default function BuyCreditPage() {
                             {
                                 paying && <Loader2 className="size-4 animate-spin" />
                             }
-                            {quote ? `Pay ${formatMoney(quote.total, quote.currency)}` : "Pay"}
+                            {quote ? quote.total === 0 ? "Get credit for free" : `Pay ${formatMoney(quote.total, quote.currency)}` : "Pay"}
                         </Button>
                         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <ShieldCheckIcon className="size-3.5" />

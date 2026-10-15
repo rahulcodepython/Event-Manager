@@ -72,6 +72,7 @@ Admin API features (`internal/features/admin/`, all behind the admin session):
 | catalog | `/catalog`, `/catalog/settings`, `/catalog/features/:featureId` | replaces a feature's options and rates in one transaction; invalidates the shared catalog cache |
 | ledger | `/categories`, `/transactions` | manual entries editable; payment rows are not |
 | subscriptions | `/subscriptions`, `/subscriptions/:id/renew` | renew = expense row + next due date |
+| coupons | `/coupons`, `/coupons/:couponId` | CRUD; used coupons can only be deactivated |
 
 Not built yet (see `PLAN.md`):
 landing page, coupons.
@@ -101,6 +102,10 @@ landing page, coupons.
 - **Refunds** are recorded, not executed: money goes back in the Razorpay
   dashboard; the admin marks it, which ends the credit (`revoked_at`,
   `ends_at = now`) and adds a ledger row.
+- **Coupons** (`coupons`, `payments.coupon_id/discount`): uses are paid or
+  refunded payments with the coupon. A ₹0 purchase has no Razorpay order
+  (`razorpay_order_id` NULL) and gets a receipt email (`credits` job
+  `receipt`); it adds no ledger row.
 - **Ledger:** `transactions` (kind income / expense / refund; source payment /
   manual / subscription). Payment fulfilment writes the income row in the
   same statement. Revenue = income − refunds.

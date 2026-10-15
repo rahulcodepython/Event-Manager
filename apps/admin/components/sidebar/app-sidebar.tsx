@@ -10,6 +10,7 @@ import {
     RepeatIcon,
     ShieldIcon,
     TagsIcon,
+    TicketPercentIcon,
     UsersIcon,
     WalletIcon,
 } from "lucide-react"
@@ -49,6 +50,7 @@ const NAV = [
         title: "Product",
         items: [
             { title: "Pricing catalog", url: "/catalog", icon: BookOpenIcon },
+            { title: "Coupons", url: "/coupons", icon: TicketPercentIcon },
         ],
     },
 ]

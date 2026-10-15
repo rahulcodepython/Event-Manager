@@ -15,4 +15,5 @@ export const queryKeys = {
         list: (params: Record<string, string | number>) => ["transactions", "list", params] as const,
     },
     subscriptions: ["subscriptions"] as const,
+    coupons: ["coupons"] as const,
 }

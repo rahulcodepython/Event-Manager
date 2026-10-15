@@ -7,6 +7,7 @@ import (
 
     "github.com/google/uuid"
 
+    "identitycard-server/internal/pkg/jobqueue"
     "identitycard-server/internal/pkg/postgres"
 )
 
@@ -46,9 +47,6 @@ func (s *App) SkipTrialService(ctx context.Context, orgID string) error {
 // CreateOrderService prices the selections on the server and opens a
 // Razorpay order for exactly that amount.
 func (s *App) CreateOrderService(ctx context.Context, orgID string, req CreateOrderRequest) (*CreateOrderResponse, error) {
-    if s.Cfg.RazorpayKeyID == "" || s.Cfg.RazorpayKeySecret == "" {
-        return nil, ErrPaymentsNotConfigured
-    }
     name := strings.TrimSpace(req.Name)
     if name == "" {
         return nil, ErrInvalidCreditName
@@ -57,6 +55,28 @@ func (s *App) CreateOrderService(ctx context.Context, orgID string, req CreateOr
     quote, err := s.Pricing.QuoteService(ctx, req.Selections)
     if err != nil {
         return nil, err
+    }
+    if strings.TrimSpace(req.CouponCode) != "" {
+        if err := s.Pricing.ApplyCoupon(ctx, quote, req.CouponCode, orgID); err != nil {
+            return nil, err
+        }
+    }
+
+    // Fully discounted: no Razorpay; we complete it and send our own receipt.
+    if quote.Total == 0 {
+        creditID := uuid.NewString()
+        paymentID, err := s.FreePurchaseRepository(ctx, orgID, name, quote, creditID)
+        if err != nil {
+            return nil, err
+        }
+        if s.Queue != nil {
+            _ = s.Queue.Enqueue(ctx, jobqueue.Job{Type: ReceiptJobType, ID: paymentID})
+        }
+        return &CreateOrderResponse{Free: true, CreditID: creditID, Currency: quote.Currency, Quote: quote}, nil
+    }
+
+    if s.Cfg.RazorpayKeyID == "" || s.Cfg.RazorpayKeySecret == "" {
+        return nil, ErrPaymentsNotConfigured
     }
 
     orderID, err := s.createRazorpayOrder(ctx, quote.Total, quote.Currency, uuid.NewString()[:32])

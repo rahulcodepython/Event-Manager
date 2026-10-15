@@ -64,6 +64,7 @@ func (h *App) CreateOrderHandler(c *fiber.Ctx) error {
         case errors.Is(err, ErrPaymentsNotConfigured):
             return utils.Respond(c, fiber.StatusServiceUnavailable, false, err.Error(), any(nil), err)
         case errors.Is(err, ErrInvalidCreditName),
+            errors.Is(err, pricing.ErrCoupon),
             errors.Is(err, pricing.ErrUnknownFeature),
             errors.Is(err, pricing.ErrInvalidValue),
             errors.Is(err, pricing.ErrDuplicateKey):

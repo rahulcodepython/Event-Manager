@@ -73,6 +73,8 @@ type Selection struct {
 
 type QuoteRequest struct {
     Selections []Selection `json:"selections"`
+    // CouponCode (optional) previews a coupon's discount.
+    CouponCode string `json:"coupon_code"`
 }
 
 type QuoteLine struct {
@@ -85,12 +87,17 @@ type QuoteLine struct {
 }
 
 type Quote struct {
-    Currency  string      `json:"currency"`
-    Lines     []QuoteLine `json:"lines"`
-    BaseFee   int64       `json:"base_fee"`
-    Subtotal  int64       `json:"subtotal"`
-    TaxName   string      `json:"tax_name"`
-    TaxRateBP int         `json:"tax_rate_bp"`
-    Tax       int64       `json:"tax"`
-    Total     int64       `json:"total"`
+    Currency string      `json:"currency"`
+    Lines    []QuoteLine `json:"lines"`
+    BaseFee  int64       `json:"base_fee"`
+    // Subtotal is before the discount; tax is on Subtotal - Discount.
+    Subtotal int64          `json:"subtotal"`
+    Discount int64          `json:"discount"`
+    Coupon   *AppliedCoupon `json:"coupon,omitempty"`
+    // CouponError: why a previewed coupon does not apply (quote endpoint only).
+    CouponError string `json:"coupon_error,omitempty"`
+    TaxName     string `json:"tax_name"`
+    TaxRateBP   int    `json:"tax_rate_bp"`
+    Tax         int64  `json:"tax"`
+    Total       int64  `json:"total"`
 }

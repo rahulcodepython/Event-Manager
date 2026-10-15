@@ -16,6 +16,7 @@ const (
             'subtotal', c.subtotal,
             'tax', c.tax,
             'total', c.total,
+            'discount', c.discount,
             'starts_at', c.starts_at,
             'ends_at', c.ends_at,
             'created_at', c.created_at,
@@ -80,8 +81,61 @@ const (
     `
 
     InsertPaymentQuery = `
-        INSERT INTO payments (organization_id, credit_name, quote, amount, currency, razorpay_order_id)
-        VALUES ($1::uuid, $2, $3::jsonb, $4, $5, $6);
+        INSERT INTO payments (organization_id, credit_name, quote, amount, currency, razorpay_order_id, coupon_id, coupon_code, discount)
+        VALUES ($1::uuid, $2, $3::jsonb, $4, $5, $6, $7::uuid, $8, $9);
+    `
+
+    // FreePurchaseQuery completes a purchase whose total is 0 (a coupon
+    // covered everything): a paid payment without Razorpay, its credit and
+    // features. $1 org, $2 name, $3 quote, $4 currency, $5 coupon id,
+    // $6 coupon code, $7 discount, $8 credit id, $9 duration key.
+    // Returns the payment id.
+    FreePurchaseQuery = `
+        WITH p AS (
+            INSERT INTO payments (organization_id, credit_name, quote, amount, currency, status,
+                                  coupon_id, coupon_code, discount, credit_id, paid_at)
+            VALUES ($1::uuid, $2, $3::jsonb, 0, $4, 'paid', $5::uuid, $6, $7, $8::uuid, now())
+            RETURNING *
+        ),
+        c AS (
+            INSERT INTO credits (id, organization_id, name, kind, currency, subtotal, discount, tax, total, starts_at, ends_at)
+            SELECT $8::uuid, p.organization_id, p.credit_name, 'paid', p.currency,
+                   (p.quote->>'subtotal')::bigint, p.discount, 0, 0,
+                   now(),
+                   now() + make_interval(days => (
+                       SELECT (l->>'value')::int FROM jsonb_array_elements(p.quote->'lines') l
+                       WHERE l->>'key' = $9
+                   ))
+            FROM p
+            RETURNING id
+        ),
+        cf AS (
+            INSERT INTO credit_features (credit_id, feature_id, value, label, amount)
+            SELECT c.id, (l->>'feature_id')::uuid, (l->>'value')::int, l->>'label', (l->>'amount')::bigint
+            FROM c, p, jsonb_array_elements(p.quote->'lines') l
+        )
+        SELECT p.id::text FROM p, c;
+    `
+
+    // ReceiptQuery: what a free purchase's receipt email shows.
+    ReceiptQuery = `
+        SELECT jsonb_build_object(
+            'payment_id', p.id,
+            'email', u.email,
+            'owner_name', u.name,
+            'organization', o.name,
+            'credit_name', p.credit_name,
+            'coupon_code', p.coupon_code,
+            'discount', p.discount,
+            'amount', p.amount,
+            'currency', p.currency,
+            'quote', p.quote,
+            'paid_at', p.paid_at
+        )
+        FROM payments p
+        JOIN organizations o ON o.id = p.organization_id
+        JOIN users u ON u.id = o.owner_id
+        WHERE p.id = $1::uuid;
     `
 
     // FulfillPaymentQuery marks an order paid and creates its credit from
@@ -96,9 +150,9 @@ const (
             RETURNING *
         ),
         c AS (
-            INSERT INTO credits (id, organization_id, name, kind, currency, subtotal, tax, total, starts_at, ends_at)
+            INSERT INTO credits (id, organization_id, name, kind, currency, subtotal, discount, tax, total, starts_at, ends_at)
             SELECT $3::uuid, p.organization_id, p.credit_name, 'paid', p.currency,
-                   (p.quote->>'subtotal')::bigint, (p.quote->>'tax')::bigint, p.amount,
+                   (p.quote->>'subtotal')::bigint, p.discount, (p.quote->>'tax')::bigint, p.amount,
                    now(),
                    now() + make_interval(days => (
                        SELECT (l->>'value')::int FROM jsonb_array_elements(p.quote->'lines') l

@@ -11,6 +11,7 @@ export const CreditSchema = z.object({
     subtotal: z.number(),
     tax: z.number(),
     total: z.number(),
+    discount: z.number().default(0),
     starts_at: z.string(),
     ends_at: z.string(),
     prune_at: z.string(),
@@ -32,6 +33,9 @@ export const CreditSchema = z.object({
 export type Credit = z.infer<typeof CreditSchema>
 
 export const CreateOrderResponseSchema = z.object({
+    /** A coupon covered the whole price: the credit exists, no Razorpay. */
+    free: z.boolean().default(false),
+    credit_id: z.string().optional(),
     order_id: z.string(),
     key_id: z.string(),
     amount: z.number(),

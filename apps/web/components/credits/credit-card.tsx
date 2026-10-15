@@ -34,7 +34,14 @@ export function CreditCard({ credit }: { credit: Credit }) {
                     </div>
                 </div>
                 {
-                    credit.kind === "paid" && <span className="shrink-0 text-sm font-semibold">{formatMoney(credit.total, credit.currency)}</span>
+                    credit.kind === "paid" && <div className="flex shrink-0 flex-col items-end">
+                        <span className="text-sm font-semibold">{formatMoney(credit.total, credit.currency)}</span>
+                        {
+                            credit.discount > 0 && <span className="text-xs text-emerald-700 dark:text-emerald-400">
+                                Saved {formatMoney(credit.discount, credit.currency)}
+                            </span>
+                        }
+                    </div>
                 }
             </CardHeader>
 

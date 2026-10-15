@@ -37,7 +37,33 @@ func (r *App) InsertPaymentRepository(ctx context.Context, orgID, name string, q
     if err != nil {
         return err
     }
-    return postgres.Exec(ctx, r.DB, InsertPaymentQuery, orgID, name, string(raw), quote.Total, quote.Currency, orderID)
+    couponID, couponCode := couponOf(quote)
+    return postgres.Exec(ctx, r.DB, InsertPaymentQuery, orgID, name, string(raw), quote.Total, quote.Currency, orderID,
+        couponID, couponCode, quote.Discount)
+}
+
+// FreePurchaseRepository completes a zero-total purchase and returns the payment id.
+func (r *App) FreePurchaseRepository(ctx context.Context, orgID, name string, quote *pricing.Quote, creditID string) (string, error) {
+    raw, err := json.Marshal(quote)
+    if err != nil {
+        return "", err
+    }
+    couponID, couponCode := couponOf(quote)
+    var paymentID string
+    err = r.DB.QueryRow(ctx, FreePurchaseQuery, orgID, name, string(raw), quote.Currency,
+        couponID, couponCode, quote.Discount, creditID, generic.FeatureKeyDuration).Scan(&paymentID)
+    return paymentID, postgres.MapPgError(err)
+}
+
+func (r *App) ReceiptRepository(ctx context.Context, paymentID string) (*receipt, error) {
+    return postgres.QueryJSON[receipt](ctx, r.DB, ReceiptQuery, paymentID)
+}
+
+func couponOf(q *pricing.Quote) (*string, string) {
+    if q.Coupon == nil {
+        return nil, ""
+    }
+    return &q.Coupon.ID, q.Coupon.Code
 }
 
 // FulfillPaymentRepository returns ErrNotFound if the order was already paid

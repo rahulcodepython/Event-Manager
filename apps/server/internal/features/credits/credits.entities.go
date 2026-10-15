@@ -31,6 +31,7 @@ type Credit struct {
     Subtotal  int64           `json:"subtotal"`
     Tax       int64           `json:"tax"`
     Total     int64           `json:"total"`
+    Discount  int64           `json:"discount"`
     StartsAt  time.Time       `json:"starts_at"`
     EndsAt    time.Time       `json:"ends_at"`
     // PruneAt: when an event on this credit is deleted (ends_at + backup days).
@@ -48,10 +49,15 @@ type RenameCreditRequest struct {
 type CreateOrderRequest struct {
     Name       string              `json:"name"`
     Selections []pricing.Selection `json:"selections"`
+    CouponCode string              `json:"coupon_code"`
 }
 
-// CreateOrderResponse is what the Razorpay Checkout popup needs.
+// CreateOrderResponse is what the Razorpay Checkout popup needs. When a
+// coupon makes the total 0, Free is set, the credit already exists and
+// there is no Razorpay order.
 type CreateOrderResponse struct {
+    Free     bool           `json:"free"`
+    CreditID string         `json:"credit_id,omitempty"`
     OrderID  string         `json:"order_id"`
     KeyID    string         `json:"key_id"`
     Amount   int64          `json:"amount"`
@@ -80,4 +86,19 @@ type razorpayWebhook struct {
             } `json:"entity"`
         } `json:"payment"`
     } `json:"payload"`
+}
+
+// receipt is a free purchase's receipt email.
+type receipt struct {
+    PaymentID    string         `json:"payment_id"`
+    Email        string         `json:"email"`
+    OwnerName    string         `json:"owner_name"`
+    Organization string         `json:"organization"`
+    CreditName   string         `json:"credit_name"`
+    CouponCode   string         `json:"coupon_code"`
+    Discount     int64          `json:"discount"`
+    Amount       int64          `json:"amount"`
+    Currency     string         `json:"currency"`
+    Quote        pricing.Quote  `json:"quote"`
+    PaidAt       time.Time      `json:"paid_at"`
 }

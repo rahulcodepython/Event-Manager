@@ -78,11 +78,13 @@ type Payment struct {
     Amount            int64      `json:"amount"`
     Currency          string     `json:"currency"`
     Status            string     `json:"status"`
-    RazorpayOrderID   string     `json:"razorpay_order_id"`
+    RazorpayOrderID   *string    `json:"razorpay_order_id"`
     RazorpayPaymentID *string    `json:"razorpay_payment_id"`
     PaidAt            *time.Time `json:"paid_at"`
     RefundedAt        *time.Time `json:"refunded_at"`
     RefundNote        string     `json:"refund_note"`
+    CouponCode        string     `json:"coupon_code"`
+    Discount          int64      `json:"discount"`
     CreatedAt         time.Time  `json:"created_at"`
 }
 

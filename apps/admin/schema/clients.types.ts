@@ -60,11 +60,13 @@ export const ClientPaymentSchema = z.object({
     amount: z.number(),
     currency: z.string(),
     status: z.enum(["paid", "refunded"]),
-    razorpay_order_id: z.string(),
+    razorpay_order_id: z.string().nullable(),
     razorpay_payment_id: z.string().nullable(),
     paid_at: z.string().nullable(),
     refunded_at: z.string().nullable(),
     refund_note: z.string(),
+    coupon_code: z.string().default(""),
+    discount: z.number().default(0),
     created_at: z.string(),
 })
 

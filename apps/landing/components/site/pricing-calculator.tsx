@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react"
 
 import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
+import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Separator } from "../ui/separator"
@@ -21,11 +22,13 @@ export function PricingCalculator({ initialCatalog }: { initialCatalog: Catalog 
         initialData: initialCatalog ?? undefined,
     })
     const [values, setValues] = React.useState<Record<string, number>>({})
+    const [couponInput, setCouponInput] = React.useState("")
+    const [couponCode, setCouponCode] = React.useState("")
 
     const selections = (catalog?.features ?? []).map((f) => ({ key: f.key, value: values[f.key] ?? f.default_value }))
     const { data: quote, isFetching } = useQuery({
-        queryKey: ["quote", selections],
-        queryFn: () => getQuote(selections),
+        queryKey: ["quote", selections, couponCode],
+        queryFn: () => getQuote(selections, couponCode),
         enabled: Boolean(catalog),
         placeholderData: (prev) => prev,
     })
@@ -104,6 +107,12 @@ export function PricingCalculator({ initialCatalog }: { initialCatalog: Catalog 
                                     <span>{formatMoney(l.amount, quote.currency)}</span>
                                 </div>)
                             }
+                            {
+                                quote.coupon && <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                                    <span>Coupon {quote.coupon.code}</span>
+                                    <span>-{formatMoney(quote.discount, quote.currency)}</span>
+                                </div>
+                            }
                             <Separator />
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">{quote.tax_name} {quote.tax_rate_bp / 100}%</span>
@@ -114,6 +123,29 @@ export function PricingCalculator({ initialCatalog }: { initialCatalog: Catalog 
                                 <span>{formatMoney(quote.total, quote.currency)}</span>
                             </div>
                         </>
+                    }
+                    <form
+                        className="flex gap-2"
+                        onSubmit={(e) => {
+                            e.preventDefault()
+                            setCouponCode(couponInput.trim().toUpperCase())
+                        }}
+                    >
+                        <Input
+                            placeholder="Coupon code"
+                            value={couponInput}
+                            onChange={(e) => setCouponInput(e.target.value)}
+                            className="uppercase"
+                        />
+                        <Button type="submit" variant="outline" disabled={!couponInput.trim()}>
+                            Apply
+                        </Button>
+                    </form>
+                    {
+                        couponCode && quote?.coupon_error && <p className="text-xs text-destructive">{quote.coupon_error}</p>
+                    }
+                    {
+                        quote?.coupon && <p className="text-xs text-muted-foreground">Enter the same code when you buy. Some codes are limited per account.</p>
                     }
                     <Button className="mt-2 w-full" nativeButton={false} render={<a href={loginUrl} />}>
                         Sign up and buy

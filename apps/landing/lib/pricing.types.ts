@@ -48,7 +48,12 @@ export const QuoteSchema = z.object({
         }),
     ),
     base_fee: z.number(),
+    /** Before the discount; tax is on subtotal - discount. */
     subtotal: z.number(),
+    discount: z.number().default(0),
+    coupon: z.object({ code: z.string(), description: z.string() }).nullish(),
+    /** Why a previewed coupon does not apply. */
+    coupon_error: z.string().nullish(),
     tax_name: z.string(),
     tax_rate_bp: z.number(),
     tax: z.number(),

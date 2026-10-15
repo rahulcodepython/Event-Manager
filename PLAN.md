@@ -177,9 +177,12 @@ editable from admin. To confirm: Q7.
 - Contact form: `POST /public/contact` (honeypot field, 5 messages per IP per hour), stored in `contact_messages` and emailed to `CONTACT_EMAIL` through the email queue.
 - The client API allows the landing origin (`LANDING_URL`) in CORS.
 
-### Phase 10 — Coupons
-- Admin creates coupons. The client applies a coupon at purchase. The quote shows the discount.
-- Redemptions are tracked and limits enforced (Q18).
+### Phase 10 — Coupons ✅ done
+- **Admin** creates coupons: percent (optional max discount) or flat ₹; valid from/until; total uses; uses per client; minimum order. Used coupons cannot be deleted, only deactivated.
+- **Discount** comes off the subtotal (base fee + features); GST is charged on the rest (`pricing.ApplyCoupon`).
+- **Where:** the buy-credit page (applied to the real order) and the landing calculator (preview, `coupon_code` on `/pricing/quote`; per-client limits are checked only at purchase).
+- **Counting:** a use counts when the purchase is paid; refunds keep the use. Limits are checked when the order is created, so two simultaneous purchases can exceed a limit by one.
+- **Zero total:** Razorpay cannot take ₹0, so a fully discounted purchase skips Razorpay: the credit is created at once, recorded as a ₹0 paid payment with the coupon, and our own receipt is emailed.
 
 ---
 
@@ -230,7 +233,7 @@ Q8 asks whether `admin` and `landing` should be separate apps like this.
 17. ~~**Site content**~~ Decided: uploaded static sites on a separate domain (see Phase 8).
 
 ### Coupons
-18. **Coupon types:** percent and/or flat amount? Usage limits per coupon and per client? Expiry date? Restricted to certain features?
+18. ~~**Coupon types**~~ Decided (see Phase 10).
 
 ### Housekeeping
 21. Is the phase order in section 4 right? In particular, should ID cards (Phase 6) come before the admin apps (Phase 5)?

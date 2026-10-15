@@ -60,7 +60,7 @@ export function useRenameCreditMutation() {
 }
 
 export function useCreateOrderMutation() {
-    return useMutation<CreateOrderResponse, ApiError, { name: string; selections: Selection[] }>({
+    return useMutation<CreateOrderResponse, ApiError, { name: string; selections: Selection[]; coupon_code?: string }>({
         mutationFn: (data) =>
             apiRequest<CreateOrderResponse>({ url: "/credits/orders", method: "POST", data }, CreateOrderResponseSchema),
         onError: (err) => toast.error(err.message || "Failed to start payment"),

@@ -14,7 +14,7 @@ export class ApiError extends Error {
     }
 }
 
-async function request<T>(path: string, init: RequestInit, schema?: z.ZodType<T>): Promise<T> {
+async function request<T>(path: string, init: RequestInit, schema?: z.ZodType<T, z.ZodTypeDef, unknown>): Promise<T> {
     const res = await fetch(`${apiBase}${path}`, {
         ...init,
         headers: { "Content-Type": "application/json", ...init.headers },
@@ -30,8 +30,12 @@ export function getCatalog(init: RequestInit = {}): Promise<Catalog> {
     return request("/pricing/catalog", { method: "GET", ...init }, CatalogSchema)
 }
 
-export function getQuote(selections: Selection[]): Promise<Quote> {
-    return request("/pricing/quote", { method: "POST", body: JSON.stringify({ selections }) }, QuoteSchema)
+export function getQuote(selections: Selection[], couponCode = ""): Promise<Quote> {
+    return request(
+        "/pricing/quote",
+        { method: "POST", body: JSON.stringify({ selections, coupon_code: couponCode || undefined }) },
+        QuoteSchema,
+    )
 }
 
 export type ContactInput = { name: string, email: string, message: string, website: string }

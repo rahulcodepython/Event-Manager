@@ -233,6 +233,11 @@ export default function ClientDetailPage() {
                                                 <div className="flex flex-col gap-1">
                                                     <span className="font-medium">{p.credit_name}</span>
                                                     {
+                                                        p.coupon_code && <span className="text-xs text-emerald-700 dark:text-emerald-400">
+                                                            Coupon {p.coupon_code} · -{formatMoney(p.discount, p.currency)}
+                                                        </span>
+                                                    }
+                                                    {
                                                         p.status === "refunded" && <span className="text-xs text-muted-foreground">
                                                             Refunded {formatDate(p.refunded_at)}{p.refund_note ? ` · ${p.refund_note}` : ""}
                                                         </span>
@@ -241,8 +246,8 @@ export default function ClientDetailPage() {
                                             </TableCell>
                                             <TableCell className="font-mono text-xs">
                                                 <div className="flex flex-col">
-                                                    <span>{p.razorpay_payment_id ?? "—"}</span>
-                                                    <span className="text-muted-foreground">{p.razorpay_order_id}</span>
+                                                    <span>{p.razorpay_payment_id ?? (p.amount === 0 ? "Free (coupon)" : "—")}</span>
+                                                    <span className="text-muted-foreground">{p.razorpay_order_id ?? ""}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-xs">{formatDate(p.paid_at)}</TableCell>

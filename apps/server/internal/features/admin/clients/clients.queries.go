@@ -101,6 +101,8 @@ const (
                     'paid_at', p.paid_at,
                     'refunded_at', p.refunded_at,
                     'refund_note', p.refund_note,
+                    'coupon_code', p.coupon_code,
+                    'discount', p.discount,
                     'created_at', p.created_at
                 ) ORDER BY p.created_at DESC)
                 FROM payments p WHERE p.organization_id = o.id AND p.status <> 'created'
@@ -168,6 +170,7 @@ const (
                    'Refund: ' || p.credit_name || CASE WHEN $2 <> '' THEN ' (' || $2 || ')' ELSE '' END,
                    p.id, p.organization_id
             FROM p
+            WHERE p.amount > 0
         )
         SELECT p.organization_id::text FROM p;
     `

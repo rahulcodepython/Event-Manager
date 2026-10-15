@@ -85,12 +85,15 @@ func NewAppRouter(
     cardsApp := cards.NewApp(pool, rdb, cch, emailQueue, mail, signer)
     remindersApp := reminders.NewApp(pool, rdb, emailQueue, mail, cfg.WebURL)
     contactApp := contact.NewApp(pool, rdb, emailQueue, mail, cfg.ContactEmail)
+    creditsApp := credits.NewApp(pool, cfg, pricingApp)
+    creditsApp.Queue, creditsApp.Mailer = emailQueue, mail
     cardsApp.StartScheduler(rootCtx)
     remindersApp.StartScheduler(rootCtx)
     go emailQueue.Run(rootCtx, map[string]jobqueue.Handler{
-        cards.JobType:     cardsApp.JobHandler(),
-        reminders.JobType: remindersApp.JobHandler(),
-        contact.JobType:   contactApp.JobHandler(),
+        cards.JobType:          cardsApp.JobHandler(),
+        reminders.JobType:      remindersApp.JobHandler(),
+        contact.JobType:        contactApp.JobHandler(),
+        credits.ReceiptJobType: creditsApp.ReceiptJobHandler(),
     }, 600*time.Millisecond)
 
     return &AppRouter{
@@ -101,7 +104,7 @@ func NewAppRouter(
         RootCtx: rootCtx,
 
         Auth:       auth.NewApp(pool, rdb, cfg),
-        Credits:    credits.NewApp(pool, cfg, pricingApp),
+        Credits:    creditsApp,
         Events:     eventsApp,
         Dates:      dates.NewApp(pool, cch),
         Forms:      forms.NewApp(pool, cch),

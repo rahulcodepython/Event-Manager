@@ -12,12 +12,12 @@ export function useCatalogQuery() {
     })
 }
 
-/** Server-side price for a set of selections; refetches as they change. */
-export function useQuoteQuery(selections: Selection[], enabled = true) {
+/** Server-side price for a set of selections (and coupon); refetches as they change. */
+export function useQuoteQuery(selections: Selection[], enabled = true, couponCode = "") {
     return useQuery<Quote, ApiError>({
-        queryKey: queryKeys.pricing.quote(selections),
+        queryKey: queryKeys.pricing.quote({ selections, couponCode }),
         queryFn: () =>
-            apiRequest<Quote>({ url: "/pricing/quote", method: "POST", data: { selections } }, QuoteSchema),
+            apiRequest<Quote>({ url: "/pricing/quote", method: "POST", data: { selections, coupon_code: couponCode || undefined } }, QuoteSchema),
         enabled,
         placeholderData: keepPreviousData,
     })
