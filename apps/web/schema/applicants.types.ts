@@ -20,6 +20,7 @@ export const ApplicantItemSchema = z.object({
     card_status: z.enum(["pending", "queued", "sent", "failed"]).default("pending"),
     card_sent_at: z.string().nullish(),
     card_error: z.string().nullish(),
+    sub_events: z.array(z.object({ id: z.string(), name: z.string() })).default([]),
 });
 
 export type ApplicantItem = z.infer<typeof ApplicantItemSchema>;

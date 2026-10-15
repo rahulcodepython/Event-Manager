@@ -13,18 +13,18 @@ type bulkUpsertResult struct {
 }
 
 // ListByMonthRepository retrieves all event dates for an event within a specific month.
-func (r *App) ListByMonthRepository(ctx context.Context, eventID string, month string) ([]EventDate, error) {
-    return postgres.QueryJSONSlice[EventDate](ctx, r.DB, ListEventDatesByMonthQuery, eventID, month)
+func (r *App) ListByMonthRepository(ctx context.Context, eventID, subEventID, month string) ([]EventDate, error) {
+    return postgres.QueryJSONSlice[EventDate](ctx, r.DB, ListEventDatesByMonthQuery, eventID, month, subEventID)
 }
 
 // OverrideRepository removes all existing dates for an event and inserts the new dates in a single database round-trip.
-func (r *App) OverrideRepository(ctx context.Context, eventID string, dates []EventDateItemInput) ([]EventDate, error) {
+func (r *App) OverrideRepository(ctx context.Context, eventID, subEventID string, dates []EventDateItemInput) ([]EventDate, error) {
     datesJSON, err := json.Marshal(dates)
     if err != nil {
         return nil, err
     }
 
-    result, err := postgres.QueryJSON[bulkUpsertResult](ctx, r.DB, OverrideEventDatesAtomicQuery, eventID, string(datesJSON))
+    result, err := postgres.QueryJSON[bulkUpsertResult](ctx, r.DB, OverrideEventDatesAtomicQuery, eventID, string(datesJSON), subEventID)
     if err != nil {
         return nil, err
     }
@@ -42,7 +42,7 @@ func (r *App) OverrideRepository(ctx context.Context, eventID string, dates []Ev
 }
 
 // SyncRepository atomically removes deselected dates and upserts active dates in a single database round-trip.
-func (r *App) SyncRepository(ctx context.Context, eventID string, upsertDates []EventDateItemInput, deleteDates []string) ([]EventDate, error) {
+func (r *App) SyncRepository(ctx context.Context, eventID, subEventID string, upsertDates []EventDateItemInput, deleteDates []string) ([]EventDate, error) {
     if upsertDates == nil {
         upsertDates = []EventDateItemInput{}
     }
@@ -55,7 +55,7 @@ func (r *App) SyncRepository(ctx context.Context, eventID string, upsertDates []
         return nil, err
     }
 
-    result, err := postgres.QueryJSON[bulkUpsertResult](ctx, r.DB, SyncEventDatesAtomicQuery, eventID, string(datesJSON), deleteDates)
+    result, err := postgres.QueryJSON[bulkUpsertResult](ctx, r.DB, SyncEventDatesAtomicQuery, eventID, string(datesJSON), deleteDates, subEventID)
     if err != nil {
         return nil, err
     }

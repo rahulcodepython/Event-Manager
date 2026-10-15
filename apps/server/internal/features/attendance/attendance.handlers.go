@@ -41,7 +41,8 @@ func (h *App) ScanApplicantHandler(c *fiber.Ctx) error {
         if errors.Is(err, ErrDeviceUnauthorized) {
             return utils.ErrForbidden(c, err.Error(), err)
         }
-        if errors.Is(err, ErrApplicantNotRegistered) || errors.Is(err, ErrEventNotFound) || errors.Is(err, ErrNoEventDates) {
+        if errors.Is(err, ErrApplicantNotRegistered) || errors.Is(err, ErrEventNotFound) || errors.Is(err, ErrNoEventDates) ||
+            errors.Is(err, ErrSubEventNotFound) || errors.Is(err, ErrNotEnrolled) {
             return utils.ErrNotFound(c, err.Error(), err)
         }
         if errors.Is(err, ErrInvalidEventID) || errors.Is(err, ErrInvalidApplicantID) ||
@@ -136,7 +137,7 @@ func (h *App) GetAttendanceMetricsHandler(c *fiber.Ctx) error {
         toDate = &q
     }
 
-    metrics, err := h.GetAttendanceMetricsService(c.UserContext(), eventID, fromDate, toDate)
+    metrics, err := h.GetAttendanceMetricsService(c.UserContext(), eventID, c.Query("sub_event_id"), fromDate, toDate)
     if err != nil {
         slog.Error("failed to get attendance metrics", "error", err, "eventId", eventID)
         if errors.Is(err, ErrInvalidEventID) {
@@ -172,7 +173,7 @@ func (h *App) ListAttendeeAnalysisHandler(c *fiber.Ctx) error {
         selectedDate = &q
     }
 
-    res, err := h.ListAttendeeAnalysisService(c.UserContext(), eventID, search, status, fromDate, toDate, selectedDate, page, limit)
+    res, err := h.ListAttendeeAnalysisService(c.UserContext(), eventID, c.Query("sub_event_id"), search, status, fromDate, toDate, selectedDate, page, limit)
     if err != nil {
         slog.Error("failed to list attendee analysis", "error", err, "eventId", eventID)
         if errors.Is(err, ErrInvalidEventID) {
@@ -182,4 +183,18 @@ func (h *App) ListAttendeeAnalysisHandler(c *fiber.Ctx) error {
     }
 
     return utils.OK(c, "attendee analysis retrieved successfully", res)
+}
+
+// ListDeviceSubEventsHandler lists the sub-events of every event the device
+// is assigned to, so the scanner can switch to a sub-event.
+func (h *App) ListDeviceSubEventsHandler(c *fiber.Ctx) error {
+    token := extractDeviceToken(c)
+    if token == "" {
+        return utils.ErrUnauthorized(c, "missing device authorization token", errors.New("unauthorized"))
+    }
+    res, err := h.ListDeviceSubEventsRepository(c.UserContext(), hashDeviceToken(token))
+    if err != nil {
+        return utils.ErrInternal(c, "failed to list sub-events", err)
+    }
+    return utils.OK(c, "sub-events retrieved", res)
 }

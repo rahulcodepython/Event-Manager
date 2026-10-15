@@ -6,6 +6,8 @@ import { queryKeys } from "../react-query/query-keys";
 import {
     AttendanceMetricsResponse,
     AttendanceMetricsResponseSchema,
+    DeviceSubEvents,
+    DeviceSubEventsSchema,
     MarkAttendanceResponse,
     MarkAttendanceResponseSchema,
     MarkEntryRequest,
@@ -20,12 +22,12 @@ import {
 /** Scans a card; the event comes from the QR, so it is passed per call. */
 export function useScanApplicantMutation() {
     return useMutation<ScanApplicantResponse, ApiError, ScanApplicantRequest & { eventId: string }>({
-        mutationFn: async ({ eventId, qr }) => {
+        mutationFn: async ({ eventId, qr, sub_event_id }) => {
             return apiRequest<ScanApplicantResponse>(
                 {
                     url: `/events/${eventId}/attendance/scan`,
                     method: "POST",
-                    data: { qr },
+                    data: { qr, sub_event_id },
                 },
                 ScanApplicantResponseSchema,
             );
@@ -83,14 +85,15 @@ export function useMarkExitMutation(eventId: string) {
 
 export function useAttendanceMetricsQuery(
     eventId: string,
-    filters?: { fromDate?: string; toDate?: string },
+    filters?: { fromDate?: string; toDate?: string; subEventId?: string },
     options?: { enabled?: boolean },
 ) {
     const fromDate = filters?.fromDate || undefined;
     const toDate = filters?.toDate || undefined;
+    const subEventId = filters?.subEventId || undefined;
 
     return useQuery<AttendanceMetricsResponse, ApiError>({
-        queryKey: queryKeys.analysis.metrics(eventId, { fromDate, toDate }),
+        queryKey: queryKeys.analysis.metrics(eventId, { fromDate, toDate, subEventId }),
         queryFn: async () => {
             return apiRequest<AttendanceMetricsResponse>(
                 {
@@ -99,6 +102,7 @@ export function useAttendanceMetricsQuery(
                     params: {
                         from_date: fromDate,
                         to_date: toDate,
+                        sub_event_id: subEventId,
                     },
                 },
                 AttendanceMetricsResponseSchema,
@@ -118,11 +122,13 @@ export function useAttendeeAnalysisQuery(
         fromDate?: string;
         toDate?: string;
         selectedDate?: string;
+        subEventId?: string;
         page?: number;
         limit?: number;
     },
     options?: { enabled?: boolean },
 ) {
+    const subEventId = params?.subEventId || undefined;
     const page = params?.page ?? 1;
     const limit = params?.limit ?? 30;
     const search = params?.search?.trim() || undefined;
@@ -138,6 +144,7 @@ export function useAttendeeAnalysisQuery(
             fromDate,
             toDate,
             selectedDate,
+            subEventId,
             page,
             limit,
         }),
@@ -154,6 +161,7 @@ export function useAttendeeAnalysisQuery(
                         from_date: fromDate,
                         to_date: toDate,
                         selected_date: selectedDate,
+                        sub_event_id: subEventId,
                     },
                 },
                 PaginatedAttendeeAnalysisSchema,
@@ -162,5 +170,14 @@ export function useAttendeeAnalysisQuery(
         enabled: options?.enabled !== undefined
             ? options.enabled
             : Boolean(eventId && selectedDate),
+    });
+}
+
+/** Sub-events of every event this scanner device is assigned to. */
+export function useDeviceSubEventsQuery(enabled: boolean) {
+    return useQuery<DeviceSubEvents, ApiError>({
+        queryKey: queryKeys.subEvents.device,
+        queryFn: () => apiRequest<DeviceSubEvents>({ url: "/attendance/sub-events", method: "GET" }, DeviceSubEventsSchema),
+        enabled,
     });
 }

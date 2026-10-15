@@ -574,7 +574,7 @@ func seedDatabase(ctx context.Context, pool *pgxpool.Pool, ownerEmail string) er
         _, err := tx.Exec(ctx, `
             INSERT INTO event_dates (event_id, date, start_time, end_time, created_at, updated_at)
             VALUES ($1, $2, $3, $4, now(), now())
-            ON CONFLICT (event_id, date) DO UPDATE SET
+            ON CONFLICT (event_id, (COALESCE(sub_event_id, '00000000-0000-0000-0000-000000000000'::uuid)), date) DO UPDATE SET
                 start_time = EXCLUDED.start_time,
                 end_time = EXCLUDED.end_time,
                 updated_at = now();

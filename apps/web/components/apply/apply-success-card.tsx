@@ -49,9 +49,14 @@ export function ApplySuccessCard({
                         Application Submitted
                     </Badge>
                     <h2 className="text-xl font-bold text-foreground">
-                        Application Received!
+                        {submission.status === "enrolled" ? "You're in!" : "Application Received!"}
                     </h2>
-                    <p className="text-xs text-muted-foreground">
+                    {
+                        submission.status === "enrolled" && <p className="text-xs text-muted-foreground">
+                            {submission.message}
+                        </p>
+                    }
+                    <p className={submission.status === "enrolled" ? "hidden" : "text-xs text-muted-foreground"}>
                         Thank you for submitting your application for{" "}
                         <span className="font-semibold text-foreground">{eventName || "the event"}</span>.
                         Your submission has been received and queued. You will be able to sign in to check your booking confirmation status once applicant login is enabled.

@@ -7,6 +7,14 @@ import (
 // ScanApplicantRequest carries the scanned QR text, a signed qrsign token.
 type ScanApplicantRequest struct {
     QR string `json:"qr"`
+    // SubEventID scans for a sub-event: its days, enrolled applicants only.
+    SubEventID string `json:"sub_event_id,omitempty"`
+}
+
+type ScanSubEventInfo struct {
+    ID    string `json:"id"`
+    Name  string `json:"name"`
+    Venue string `json:"venue"`
 }
 
 type ScanApplicantInfo struct {
@@ -50,6 +58,7 @@ type ScanAttendanceInfo struct {
 type ScanApplicantResponse struct {
     Applicant  ScanApplicantInfo  `json:"applicant"`
     Event      ScanEventInfo      `json:"event"`
+    SubEvent   *ScanSubEventInfo  `json:"sub_event"`
     EventDate  ScanEventDateInfo  `json:"event_date"`
     Device     ScanDeviceInfo     `json:"device"`
     Attendance ScanAttendanceInfo `json:"attendance"`
@@ -122,4 +131,16 @@ type PaginatedAttendeeAnalysis struct {
     Total int                    `json:"total"`
     Page  int                    `json:"page"`
     Limit int                    `json:"limit"`
+}
+
+// DeviceEventSubEvents is one event of a scanner device with its sub-events.
+type DeviceEventSubEvents struct {
+    EventID   string `json:"event_id"`
+    EventName string `json:"event_name"`
+    SubEvents []struct {
+        ID    string   `json:"id"`
+        Name  string   `json:"name"`
+        Venue string   `json:"venue"`
+        Dates []string `json:"dates"`
+    } `json:"sub_events"`
 }

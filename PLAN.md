@@ -153,8 +153,16 @@ editable from admin. To confirm: Q7.
 - **Delivery:** Resend, PDF attachment only (no link). One Redis-stream queue (`internal/pkg/jobqueue`) for all email, paced under Resend's 2 req/s, 5 attempts with backoff, crash-safe reclaim; per-applicant `card_status` (pending / queued / sent / failed). Resend one, failed, or all after publishing. The organizer can download any card from the dashboard.
 - **Client reminders:** 1 day before the credit ends, 7 days before data deletion (backup > 7 days) and 1 day before deletion; each sent once (`credit_reminders`).
 
-### Phase 7 — Sub-events
-- Design only after the sub-event questions are answered (Q16).
+### Phase 7 — Sub-events ✅ done
+- **What:** smaller events inside an event (`sub_events`): name, description, venue, optional hard cap, and their own days with hours (stored in `event_dates` with `sub_event_id`, which must fall inside the event's dates).
+- **Limit:** the catalog feature `sub_events` (renamed "Number of sub-events") is how many sub-events an event can have; 0 disables them.
+- **Joining** (`sub_event_applicants`, one applicant row per email):
+  - organizer assigns event applicants;
+  - the registration form offers sub-events: off / pick one / pick any number, optionally required;
+  - a per-sub-event public link (the event form with that sub-event fixed); an email already registered is enrolled instead of refused.
+  - Caps are hard for everyone. Enrollment is frozen once applications close, like applicants.
+- **Attendance:** the scanner switches to a sub-event; only enrolled applicants pass, entry/exit per sub-event day. Analysis can be filtered to one sub-event; the event's own figures exclude sub-event attendance.
+- **ID card** lists the applicant's sub-events.
 
 ### Phase 8 — Event subdomain sites
 - One subdomain per event, claimed in event settings, validated for uniqueness and reserved names.
@@ -210,7 +218,7 @@ Q8 asks whether `admin` and `landing` should be separate apps like this.
 15. ~~**Delivery**~~ Decided: PDF attachment by Resend at the card publishing date, after applications close.
 
 ### Sub-events
-16. Still open from v1 (Q24–Q33): real examples, own time slots and venue, how applicants pick, capacity, extra fields or fees, scanner per sub-event, admin edits. Answer these before Phase 7.
+16. ~~Sub-events~~ Decided (see Phase 7).
 
 ### Subdomains
 17. **Site content:** uploaded static HTML, a built-in template page, or both? OK to use a separate domain for these sites (abuse safety)? Is the subdomain freed when the event's data is pruned?

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowLeft, BarChart3, Calendar, CalendarDays, FileText, IdCard, LayoutDashboard, Settings, Smartphone, TicketIcon, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, Calendar, CalendarDays, FileText, IdCard, Layers, LayoutDashboard, Settings, Smartphone, TicketIcon, Users } from "lucide-react";
 
 import { useEventQuery } from "../query-hooks/events.api";
 import type { NavItem, NavNode } from "../schema/sidebar.types";
@@ -38,6 +38,7 @@ export function getEventSections(eventId: string): NavItem[] {
         { title: "Dates", url: `${basePath}/dates`, icon: CalendarDays, description: "Active days and session hours" },
         { title: "Registration Form", url: `${basePath}/form`, icon: FileText, description: "Registration form, capacity and sharing" },
         { title: "Applicants", url: `${basePath}/applicants`, icon: Users, description: "Registered attendees and their QR codes" },
+        { title: "Sub-events", url: `${basePath}/sub-events`, icon: Layers, description: "Workshops and sessions with their own attendance" },
         { title: "ID Cards", url: `${basePath}/cards`, icon: IdCard, description: "Close applications and email ID cards" },
         { title: "Devices", url: `${basePath}/devices`, icon: Smartphone, description: "Scanner terminals assigned to this event" },
         { title: "Analysis", url: `${basePath}/analysis`, icon: BarChart3, description: "Turnout, trends and punctuality" },

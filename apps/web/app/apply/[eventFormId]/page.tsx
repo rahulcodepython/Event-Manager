@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 import { ApplyEventHeader } from "../../../components/apply/apply-event-header";
@@ -15,6 +15,7 @@ import type { SubmitApplicationResponse } from "../../../schema/publicapply.type
 export default function PublicApplyPage() {
     const params = useParams();
     const eventFormId = params?.eventFormId as string;
+    const subEventLinkId = useSearchParams().get("sub");
 
     const {
         data: config,
@@ -67,6 +68,11 @@ export default function PublicApplyPage() {
         );
     }
 
+    // A sub-event link fixes that sub-event, if its link is open.
+    const fixedSubEvent = subEventLinkId
+        ? config.sub_events.options.find((o) => o.id === subEventLinkId && o.link_enabled)
+        : undefined;
+
     // 3. Submission Successful Screen
     if (submissionSuccess) {
         return (
@@ -95,9 +101,23 @@ export default function PublicApplyPage() {
                     branding={config.branding}
                 />
 
+                {
+                    subEventLinkId && <div className="rounded-xl border bg-card p-4 text-sm shadow-xs">
+                        {
+                            fixedSubEvent ? <>
+                                <p className="font-semibold">Registering for {fixedSubEvent.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {fixedSubEvent.is_full ? "This sub-event is full." : "Already registered for the event? Use the same email to be added to this sub-event."}
+                                </p>
+                            </> : <p className="text-xs text-muted-foreground">This sub-event link is not open. You can still register for the event.</p>
+                        }
+                    </div>
+                }
+
                 <PublicApplyForm
                     eventFormId={eventFormId}
                     config={config}
+                    fixedSubEvent={fixedSubEvent}
                     onSuccess={handleSuccess}
                 />
 

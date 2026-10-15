@@ -35,7 +35,7 @@ export function ScannerAttendeeCard({
     isEntryPending,
     isExitPending,
 }: ScannerAttendeeCardProps) {
-    const { applicant, event, event_date, device, attendance } = data;
+    const { applicant, event, sub_event, event_date, device, attendance } = data;
 
     const formatTime = (timeStr?: string | null) => {
         if (!timeStr) return "-";
@@ -90,6 +90,15 @@ export function ScannerAttendeeCard({
                             {event.name}
                         </span>
                     </div>
+
+                    {
+                        sub_event && <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Sub-event</span>
+                            <span className="font-semibold text-primary text-right truncate max-w-[200px]">
+                                {sub_event.name}{sub_event.venue ? ` · ${sub_event.venue}` : ""}
+                            </span>
+                        </div>
+                    }
 
                     <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">Session Date</span>

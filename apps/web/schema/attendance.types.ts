@@ -3,6 +3,8 @@ import { z } from "zod";
 /** The scanned QR text: a server-signed card token. */
 export const ScanApplicantRequestSchema = z.object({
     qr: z.string(),
+    /** Scan for a sub-event: its days, enrolled applicants only. */
+    sub_event_id: z.string().optional(),
 });
 
 export type ScanApplicantRequest = z.infer<typeof ScanApplicantRequestSchema>;
@@ -74,6 +76,7 @@ export type ScanAttendanceInfo = z.infer<typeof ScanAttendanceInfoSchema>;
 export const ScanApplicantResponseSchema = z.object({
     applicant: ScanApplicantInfoSchema,
     event: ScanEventInfoSchema,
+    sub_event: z.object({ id: z.string(), name: z.string(), venue: z.string() }).nullish(),
     event_date: ScanEventDateInfoSchema,
     device: ScanDeviceInfoSchema,
     attendance: ScanAttendanceInfoSchema,
@@ -167,3 +170,16 @@ export const PaginatedAttendeeAnalysisSchema = z.object({
 });
 
 export type PaginatedAttendeeAnalysis = z.infer<typeof PaginatedAttendeeAnalysisSchema>;
+
+export const DeviceSubEventsSchema = z.array(z.object({
+    event_id: z.string(),
+    event_name: z.string(),
+    sub_events: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        venue: z.string(),
+        dates: z.array(z.string()),
+    })),
+}));
+
+export type DeviceSubEvents = z.infer<typeof DeviceSubEventsSchema>;

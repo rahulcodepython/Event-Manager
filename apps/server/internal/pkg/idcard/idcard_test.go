@@ -16,6 +16,12 @@ func TestRender(t *testing.T) {
         ApplicantName: "Ravi Kumar Śarma",
         ApplicantID:   "4afe1ad4-1a2b3c4d-20261015",
         QR:            "IC1.payload.sig",
+        SubEvents: []SubEvent{
+            {Name: "AI Workshop", StartDate: "2026-10-15", EndDate: "2026-10-15"},
+            {Name: "Hackathon Finals", StartDate: "2026-10-16", EndDate: "2026-10-17"},
+            {Name: "Panel"},
+            {Name: "Networking"},
+        },
     })
     if err != nil {
         t.Fatal(err)

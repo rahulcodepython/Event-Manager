@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ScannerAttendeeCard } from "../../../components/scanner/scanner-attendee-card";
 import { ScannerCamera } from "../../../components/scanner/scanner-camera";
 import { ScannerErrorCard } from "../../../components/scanner/scanner-error-card";
+import { ScannerModePicker, type ScanTarget } from "../../../components/scanner/scanner-mode-picker";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card";
 import {
@@ -23,6 +24,8 @@ export default function StandaloneDeviceScanPage() {
     const [currentEventId, setCurrentEventId] = React.useState<string>("");
     const [scannedResult, setScannedResult] = React.useState<ScanApplicantResponse | null>(null);
     const [scanError, setScanError] = React.useState<string | null>(null);
+    // Event entrance (null) or one sub-event.
+    const [target, setTarget] = React.useState<ScanTarget>(null);
 
     React.useEffect(() => {
         if (typeof window !== "undefined") {
@@ -50,10 +53,15 @@ export default function StandaloneDeviceScanPage() {
             return;
         }
 
+        if (target && target.eventId !== targetEventId) {
+            setScanError(`This card is for another event. The scanner is set to ${target.name}.`);
+            return;
+        }
+
         setCurrentEventId(targetEventId);
 
         try {
-            const res = await scanMutation.mutateAsync({ eventId: targetEventId, qr });
+            const res = await scanMutation.mutateAsync({ eventId: targetEventId, qr, sub_event_id: target?.subEventId });
             setScannedResult(res);
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "Failed to verify badge";
@@ -189,6 +197,10 @@ export default function StandaloneDeviceScanPage() {
                     </div>
                 }
             </div>
+
+            {
+                !scanError && !scannedResult && <ScannerModePicker value={target} onChange={setTarget} />
+            }
 
             {
                 scanError ? <ScannerErrorCard

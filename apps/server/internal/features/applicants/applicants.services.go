@@ -9,6 +9,7 @@ import (
     "time"
 
     "github.com/google/uuid"
+    "github.com/jackc/pgx/v5"
     "identitycard-server/internal/pkg/cache"
     "identitycard-server/internal/pkg/entitlements"
     "identitycard-server/internal/pkg/postgres"
@@ -132,6 +133,18 @@ func normalizeApplicant(req CreateApplicantRequest) (CreateApplicantRequest, err
 // credit's applicant limit always holds. extraCap further limits the count
 // (e.g. the public form's capacity); pass -1 for none.
 func (s *App) InsertApplicant(ctx context.Context, eventID string, req CreateApplicantRequest, extraCap int) (*ApplicantItem, error) {
+    var item *ApplicantItem
+    err := postgres.WithTx(ctx, s.DB, func(tx pgx.Tx) error {
+        var err error
+        item, err = s.InsertApplicantTx(ctx, tx, eventID, req, extraCap)
+        return err
+    })
+    return item, err
+}
+
+// InsertApplicantTx is InsertApplicant inside the caller's transaction, so
+// related writes (e.g. sub-event enrollment) commit with the applicant.
+func (s *App) InsertApplicantTx(ctx context.Context, tx pgx.Tx, eventID string, req CreateApplicantRequest, extraCap int) (*ApplicantItem, error) {
     req, err := normalizeApplicant(req)
     if err != nil {
         return nil, err
@@ -143,7 +156,7 @@ func (s *App) InsertApplicant(ctx context.Context, eventID string, req CreateApp
     }
 
     userID := utils.GenerateApplicantUserID(eventID)
-    res, err := s.CreateApplicantRepository(ctx, eventID, userID, req.Name, req.Email, req.Phone, dataJSON, extraCap)
+    res, err := s.CreateApplicantTx(ctx, tx, eventID, userID, req.Name, req.Email, req.Phone, dataJSON, extraCap)
     if errors.Is(err, postgres.ErrConflict) {
         return nil, ErrAlreadyRegistered
     }

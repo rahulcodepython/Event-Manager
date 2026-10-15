@@ -16,13 +16,15 @@ var (
 
 // EventDate represents a single scheduled date for an event.
 type EventDate struct {
-    ID        string    `json:"id"`
-    EventID   string    `json:"event_id"`
-    Date      string    `json:"date"`
-    StartTime string    `json:"start_time"`
-    EndTime   string    `json:"end_time"`
-    CreatedAt time.Time `json:"created_at"`
-    UpdatedAt time.Time `json:"updated_at"`
+    ID         string    `json:"id"`
+    EventID    string    `json:"event_id"`
+    // SubEventID is set for a sub-event's day.
+    SubEventID *string   `json:"sub_event_id"`
+    Date       string    `json:"date"`
+    StartTime  string    `json:"start_time"`
+    EndTime    string    `json:"end_time"`
+    CreatedAt  time.Time `json:"created_at"`
+    UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // EventDateItemInput represents the payload for a single date within bulk operations.

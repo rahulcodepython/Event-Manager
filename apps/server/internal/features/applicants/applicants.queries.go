@@ -96,6 +96,7 @@ func BuildFilteredApplicantsQuery(whereClause string, limitIdx, offsetIdx, pageI
                 a.phone,
                 a.data,
                 ea.created_at,
+                ea.event_id,
                 ea.card_status,
                 ea.card_sent_at,
                 ea.card_error
@@ -116,7 +117,12 @@ func BuildFilteredApplicantsQuery(whereClause string, limitIdx, offsetIdx, pageI
                 'created_at', fa.created_at,
                 'card_status', fa.card_status,
                 'card_sent_at', fa.card_sent_at,
-                'card_error', fa.card_error
+                'card_error', fa.card_error,
+                'sub_events', COALESCE((
+                    SELECT jsonb_agg(jsonb_build_object('id', se.id, 'name', se.name) ORDER BY se.created_at)
+                    FROM sub_event_applicants sea JOIN sub_events se ON se.id = sea.sub_event_id
+                    WHERE sea.event_id = fa.event_id AND sea.applicant_id = fa.user_id
+                ), '[]'::jsonb)
             ) AS item
             FROM filtered_applicants fa
             ORDER BY fa.created_at DESC

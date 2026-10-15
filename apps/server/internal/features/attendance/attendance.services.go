@@ -26,6 +26,8 @@ var (
     ErrSessionEnded           = errors.New("cannot check in: event session time has already ended")
     ErrInvalidQR              = errors.New("invalid or forged QR code")
     ErrWrongEvent             = errors.New("this card belongs to a different event")
+    ErrSubEventNotFound       = errors.New("sub-event not found")
+    ErrNotEnrolled            = errors.New("applicant is not enrolled in this sub-event")
 )
 
 func (s *App) ScanApplicantService(ctx context.Context, eventID string, token string, req ScanApplicantRequest) (*ScanApplicantResponse, error) {
@@ -44,7 +46,7 @@ func (s *App) ScanApplicantService(ctx context.Context, eventID string, token st
 
     tokenHash := hashDeviceToken(token)
 
-    raw, err := s.ScanApplicantRepository(ctx, eventID, payload.ApplicantID, tokenHash)
+    raw, err := s.ScanApplicantRepository(ctx, eventID, payload.ApplicantID, tokenHash, strings.TrimSpace(req.SubEventID))
     if err != nil {
         return nil, err
     }
@@ -59,6 +61,10 @@ func (s *App) ScanApplicantService(ctx context.Context, eventID string, token st
         return nil, ErrEventNotFound
     case "applicant_not_registered":
         return nil, ErrApplicantNotRegistered
+    case "sub_event_not_found":
+        return nil, ErrSubEventNotFound
+    case "not_enrolled":
+        return nil, ErrNotEnrolled
     case "no_event_dates":
         return nil, ErrNoEventDates
     case "ok":
@@ -68,6 +74,7 @@ func (s *App) ScanApplicantService(ctx context.Context, eventID string, token st
         return &ScanApplicantResponse{
             Applicant:  *raw.Applicant,
             Event:      *raw.Event,
+            SubEvent:   raw.SubEvent,
             EventDate:  *raw.EventDate,
             Device:     *raw.Device,
             Attendance: *raw.Attendance,
@@ -169,7 +176,7 @@ func (s *App) MarkExitService(ctx context.Context, eventID string, token string,
     }
 }
 
-func (s *App) GetAttendanceMetricsService(ctx context.Context, eventID string, fromDate, toDate *string) (*AttendanceMetricsResponse, error) {
+func (s *App) GetAttendanceMetricsService(ctx context.Context, eventID, subEventID string, fromDate, toDate *string) (*AttendanceMetricsResponse, error) {
     if _, err := uuid.Parse(eventID); err != nil {
         return nil, ErrInvalidEventID
     }
@@ -181,15 +188,16 @@ func (s *App) GetAttendanceMetricsService(ctx context.Context, eventID string, f
     if toDate != nil {
         tStr = *toDate
     }
-    cacheKey := fmt.Sprintf("cache:attendance:metrics:%s:from=%s:to=%s", eventID, fStr, tStr)
+    cacheKey := fmt.Sprintf("cache:attendance:metrics:%s:sub=%s:from=%s:to=%s", eventID, subEventID, fStr, tStr)
     return cache.RememberWithJitter(ctx, s.Cache, cacheKey, 30*time.Second, cache.DefaultJitterPercentage, func() (*AttendanceMetricsResponse, error) {
-        return s.GetAttendanceMetricsRepository(ctx, eventID, fromDate, toDate)
+        return s.GetAttendanceMetricsRepository(ctx, eventID, subEventID, fromDate, toDate)
     })
 }
 
 func (s *App) ListAttendeeAnalysisService(
     ctx context.Context,
     eventID string,
+    subEventID string,
     search string,
     status string,
     fromDate, toDate, selectedDate *string,
@@ -199,17 +207,23 @@ func (s *App) ListAttendeeAnalysisService(
         return nil, ErrInvalidEventID
     }
 
-    args := []any{eventID}
-    whereClauses := []string{"ea.event_id = $1::uuid"}
+    // $2 is the scope: '' for the event itself, else a sub-event (its
+    // enrolled applicants and its own days).
+    args := []any{eventID, subEventID}
+    whereClauses := []string{
+        "ea.event_id = $1::uuid",
+        "($2 = '' OR EXISTS (SELECT 1 FROM sub_event_applicants sea WHERE sea.sub_event_id::text = $2 AND sea.applicant_id = ea.user_id))",
+    }
+    const scope = "sub_event_id IS NOT DISTINCT FROM NULLIF($2, '')::uuid"
     var joinClause string
 
     if selectedDate != nil && *selectedDate != "" {
         args = append(args, *selectedDate)
         dateIdx := len(args)
-        joinClause = fmt.Sprintf("LEFT JOIN event_dates ed ON ed.event_id = ea.event_id AND ed.date = $%d::date LEFT JOIN event_attendance att ON att.event_id = ea.event_id AND att.applicant_id = ea.user_id AND att.event_date_id = ed.id", dateIdx)
+        joinClause = fmt.Sprintf("LEFT JOIN event_dates ed ON ed.event_id = ea.event_id AND ed.%s AND ed.date = $%d::date LEFT JOIN event_attendance att ON att.event_id = ea.event_id AND att.applicant_id = ea.user_id AND att.event_date_id = ed.id", scope, dateIdx)
         whereClauses = append(whereClauses, "ed.id IS NOT NULL")
     } else {
-        joinClause = "LEFT JOIN event_attendance att ON att.event_id = ea.event_id AND att.applicant_id = ea.user_id LEFT JOIN event_dates ed ON ed.id = att.event_date_id"
+        joinClause = "LEFT JOIN event_attendance att ON att.event_id = ea.event_id AND att.applicant_id = ea.user_id AND att.event_date_id IN (SELECT id FROM event_dates WHERE event_id = ea.event_id AND " + scope + ") LEFT JOIN event_dates ed ON ed.id = att.event_date_id"
         if fromDate != nil && *fromDate != "" {
             args = append(args, *fromDate)
             whereClauses = append(whereClauses, fmt.Sprintf("(ed.date IS NULL OR ed.date >= $%d::date)", len(args)))

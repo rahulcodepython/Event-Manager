@@ -1,11 +1,14 @@
 package dates
 
+// Every query takes a scope parameter: '' for the event's own days, or a
+// sub-event id for that sub-event's days (which must fall inside the event's).
 const (
     // ListEventDatesByMonthQuery retrieves all scheduled dates for an event in a specified month.
     ListEventDatesByMonthQuery = `
         SELECT COALESCE(jsonb_agg(jsonb_build_object(
             'id', ed.id,
             'event_id', ed.event_id,
+            'sub_event_id', ed.sub_event_id,
             'date', to_char(ed.date, 'YYYY-MM-DD'),
             'start_time', to_char(ed.start_time, 'HH24:MI'),
             'end_time', to_char(ed.end_time, 'HH24:MI'),
@@ -14,6 +17,7 @@ const (
         ) ORDER BY ed.date ASC), '[]'::jsonb)
         FROM event_dates ed
         WHERE ed.event_id = $1
+            AND ed.sub_event_id IS NOT DISTINCT FROM NULLIF($3, '')::uuid
             AND ($2 = '' OR to_char(ed.date, 'YYYY-MM') = $2);
     `
 
@@ -47,13 +51,15 @@ const (
         deleted AS (
             DELETE FROM event_dates
             WHERE event_id = $1
+              AND sub_event_id IS NOT DISTINCT FROM NULLIF($3, '')::uuid
               AND (SELECT status FROM validation) = 'valid'
         ),
         inserted AS (
-            INSERT INTO event_dates (id, event_id, date, start_time, end_time, created_at, updated_at)
+            INSERT INTO event_dates (id, event_id, sub_event_id, date, start_time, end_time, created_at, updated_at)
             SELECT
                 gen_random_uuid(),
                 $1,
+                NULLIF($3, '')::uuid,
                 ind.date,
                 ind.start_time,
                 ind.end_time,
@@ -61,7 +67,7 @@ const (
                 now()
             FROM incoming_dates ind
             WHERE (SELECT status FROM validation) = 'valid'
-            RETURNING id, event_id, date, start_time, end_time, created_at, updated_at
+            RETURNING id, event_id, sub_event_id, date, start_time, end_time, created_at, updated_at
         )
         SELECT jsonb_build_object(
             'status', (SELECT status FROM validation),
@@ -69,6 +75,7 @@ const (
                 SELECT jsonb_agg(jsonb_build_object(
                     'id', u.id,
                     'event_id', u.event_id,
+                    'sub_event_id', u.sub_event_id,
                     'date', to_char(u.date, 'YYYY-MM-DD'),
                     'start_time', to_char(u.start_time, 'HH24:MI'),
                     'end_time', to_char(u.end_time, 'HH24:MI'),
@@ -108,14 +115,16 @@ const (
         deleted AS (
             DELETE FROM event_dates
             WHERE event_id = $1
+              AND sub_event_id IS NOT DISTINCT FROM NULLIF($4, '')::uuid
               AND date = ANY($3::date[])
               AND (SELECT status FROM validation) = 'valid'
         ),
         upserted AS (
-            INSERT INTO event_dates (id, event_id, date, start_time, end_time, created_at, updated_at)
+            INSERT INTO event_dates (id, event_id, sub_event_id, date, start_time, end_time, created_at, updated_at)
             SELECT
                 gen_random_uuid(),
                 $1,
+                NULLIF($4, '')::uuid,
                 ind.date,
                 ind.start_time,
                 ind.end_time,
@@ -123,12 +132,12 @@ const (
                 now()
             FROM incoming_dates ind
             WHERE (SELECT status FROM validation) = 'valid'
-            ON CONFLICT (event_id, date) DO UPDATE
+            ON CONFLICT (event_id, (COALESCE(sub_event_id, '00000000-0000-0000-0000-000000000000'::uuid)), date) DO UPDATE
             SET
                 start_time = EXCLUDED.start_time,
                 end_time = EXCLUDED.end_time,
                 updated_at = now()
-            RETURNING id, event_id, date, start_time, end_time, created_at, updated_at
+            RETURNING id, event_id, sub_event_id, date, start_time, end_time, created_at, updated_at
         )
         SELECT jsonb_build_object(
             'status', (SELECT status FROM validation),
@@ -136,6 +145,7 @@ const (
                 SELECT jsonb_agg(jsonb_build_object(
                     'id', u.id,
                     'event_id', u.event_id,
+                    'sub_event_id', u.sub_event_id,
                     'date', to_char(u.date, 'YYYY-MM-DD'),
                     'start_time', to_char(u.start_time, 'HH24:MI'),
                     'end_time', to_char(u.end_time, 'HH24:MI'),

@@ -60,6 +60,25 @@ export function getApplicantsColumns(
             },
         },
         {
+            id: "sub_events",
+            header: "Sub-events",
+            meta: {
+                headerClassName: "min-w-[140px] max-w-[240px]",
+                cellClassName: "min-w-[140px] max-w-[240px]",
+            },
+            cell: ({ row }) => {
+                const subEvents = row.original.sub_events;
+                if (subEvents.length === 0) return <span className="text-muted-foreground">-</span>;
+                return <div className="flex flex-wrap gap-1">
+                    {
+                        subEvents.map((s) => <Badge key={s.id} variant="secondary" className="text-[10px]">
+                            {s.name}
+                        </Badge>)
+                    }
+                </div>;
+            },
+        },
+        {
             id: "card_status",
             header: "ID Card",
             meta: {

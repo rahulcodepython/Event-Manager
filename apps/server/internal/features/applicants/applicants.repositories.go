@@ -37,17 +37,20 @@ type createApplicantResult struct {
 
 // CreateApplicantRepository inserts under a per-event lock so concurrent
 // inserts can't push the event past its applicant limit.
-func (r *App) CreateApplicantRepository(ctx context.Context, eventID, userID, name, email, phone string, dataJSON []byte, extraCap int) (*createApplicantResult, error) {
-    var res *createApplicantResult
-    err := postgres.WithTx(ctx, r.DB, func(tx pgx.Tx) error {
-        if err := postgres.LockKey(ctx, tx, postgres.EventApplicantsLockKey(eventID)); err != nil {
-            return err
-        }
-        var err error
-        res, err = postgres.QueryJSON[createApplicantResult](ctx, tx, CreateApplicantAtomicQuery, eventID, userID, name, email, phone, dataJSON, extraCap)
-        return err
-    })
-    return res, err
+// CreateApplicantTx runs the capped insert inside tx under the event's
+// applicant lock (held until tx ends).
+func (r *App) CreateApplicantTx(ctx context.Context, tx pgx.Tx, eventID, userID, name, email, phone string, dataJSON []byte, extraCap int) (*createApplicantResult, error) {
+    if err := postgres.LockKey(ctx, tx, postgres.EventApplicantsLockKey(eventID)); err != nil {
+        return nil, err
+    }
+    return postgres.QueryJSON[createApplicantResult](ctx, tx, CreateApplicantAtomicQuery, eventID, userID, name, email, phone, dataJSON, extraCap)
+}
+
+// FindByEmailTx returns the applicant id registered for the event with this email.
+func (r *App) FindByEmailTx(ctx context.Context, tx pgx.Tx, eventID, email string) (string, error) {
+    var id string
+    err := tx.QueryRow(ctx, `SELECT user_id FROM event_applicants WHERE event_id = $1::uuid AND email = $2`, eventID, email).Scan(&id)
+    return id, postgres.MapPgError(err)
 }
 
 func (r *App) DeleteApplicantRepository(ctx context.Context, eventID, userID string) error {

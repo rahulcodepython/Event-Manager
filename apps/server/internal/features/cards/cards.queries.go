@@ -115,7 +115,17 @@ const (
             'venue', COALESCE(em.venue, ''),
             'organizer', COALESCE(em.organizer, ''),
             'logo', COALESCE(em.logo, ''),
-            'branding', ce.has_branding
+            'branding', ce.has_branding,
+            'sub_events', COALESCE((
+                SELECT jsonb_agg(jsonb_build_object(
+                    'name', se.name,
+                    'first_day', (SELECT to_char(min(ed.date), 'YYYY-MM-DD') FROM event_dates ed WHERE ed.sub_event_id = se.id),
+                    'last_day', (SELECT to_char(max(ed.date), 'YYYY-MM-DD') FROM event_dates ed WHERE ed.sub_event_id = se.id)
+                ) ORDER BY se.created_at)
+                FROM sub_event_applicants sea
+                JOIN sub_events se ON se.id = sea.sub_event_id
+                WHERE sea.event_id = ea.event_id AND sea.applicant_id = ea.user_id
+            ), '[]'::jsonb)
         )
         FROM event_applicants ea
         JOIN applicants a ON a.id = ea.user_id

@@ -23,6 +23,7 @@ import (
     "identitycard-server/internal/features/register"
     "identitycard-server/internal/features/reminders"
     "identitycard-server/internal/features/retention"
+    "identitycard-server/internal/features/subevents"
     "identitycard-server/internal/generic"
     "identitycard-server/internal/middlewares"
     "identitycard-server/internal/pkg/cache"
@@ -50,6 +51,7 @@ type AppRouter struct {
     Attendance *attendance.App
     Pricing    *pricing.App
     Cards      *cards.App
+    SubEvents  *subevents.App
 }
 
 func NewAppRouter(
@@ -72,6 +74,7 @@ func NewAppRouter(
     signer := qrsign.New(cfg.QRSigningSecret)
     mail := mailer.New(cfg.ResendAPIKey, cfg.EmailFrom)
     emailQueue := jobqueue.New(rdb, "email")
+    subEventsApp := subevents.NewApp(pool, cch)
     cardsApp := cards.NewApp(pool, rdb, cch, emailQueue, mail, signer)
     remindersApp := reminders.NewApp(pool, rdb, emailQueue, mail, cfg.WebURL)
     cardsApp.StartScheduler(rootCtx)
@@ -99,6 +102,7 @@ func NewAppRouter(
         Attendance: attendance.NewApp(pool, cch, signer),
         Pricing:    pricingApp,
         Cards:      cardsApp,
+        SubEvents:  subEventsApp,
     }
 }
 
@@ -131,6 +135,7 @@ func (r *AppRouter) SetUp() {
 
     r.Credits.RegisterRoutes(org)
     r.Events.RegisterRoutes(org)
+    r.SubEvents.RegisterRoutes(org) // before Dates: guards sub-event dates
     r.Dates.RegisterRoutes(org)
     r.Forms.RegisterRoutes(org)
     r.Applicants.RegisterRoutes(org)

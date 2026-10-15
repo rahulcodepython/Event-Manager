@@ -28,8 +28,10 @@ import { Input } from "../ui/input";
 import { PhoneInput } from "../ui/phone-input";
 import { useSubmitApplicationMutation } from "../../query-hooks/publicapply.api";
 import type { FormField as FormFieldType } from "../../schema/forms.types";
+import { SubEventPicker } from "./sub-event-picker";
 import {
     buildPublicApplyFormSchema,
+    type PublicSubEventOption,
     type FormFieldValue,
     type PublicApplyConfig,
     type PublicApplyFormValues,
@@ -39,15 +41,22 @@ import {
 interface PublicApplyFormProps {
     eventFormId: string;
     config: PublicApplyConfig;
+    /** Opened through a sub-event link: that sub-event is fixed. */
+    fixedSubEvent?: PublicSubEventOption;
     onSuccess: (res: SubmitApplicationResponse, submittedEmail: string) => void;
 }
 
 export function PublicApplyForm({
     eventFormId,
     config,
+    fixedSubEvent,
     onSuccess,
 }: PublicApplyFormProps) {
     const submitMutation = useSubmitApplicationMutation();
+    const [subEventIds, setSubEventIds] = React.useState<string[]>([]);
+    const [subEventError, setSubEventError] = React.useState<string | null>(null);
+    const { mode, required, options } = config.sub_events;
+    const showPicker = !fixedSubEvent && mode !== "off" && options.length > 0;
     const customFields = (config.form?.fields as FormFieldType[]) || [];
 
     const schema = React.useMemo(
@@ -66,6 +75,10 @@ export function PublicApplyForm({
     });
 
     const onSubmit = async (values: PublicApplyFormValues) => {
+        if (showPicker && required && subEventIds.length === 0) {
+            setSubEventError("Choose a sub-event.");
+            return;
+        }
         try {
             const parsed = schema.parse(values);
             const cleanData: Record<string, FormFieldValue> = {};
@@ -80,6 +93,8 @@ export function PublicApplyForm({
                 email: parsed.email.trim().toLowerCase(),
                 phone: parsed.phone.trim(),
                 data: cleanData,
+                sub_event_ids: fixedSubEvent ? undefined : subEventIds,
+                sub_event_link: fixedSubEvent?.id,
             });
             onSuccess(res, parsed.email.trim().toLowerCase());
             toast.success("Application submitted successfully!");
@@ -199,6 +214,20 @@ export function PublicApplyForm({
                                 />
                             );
                         })}
+
+                        {
+                            showPicker && <SubEventPicker
+                                mode={mode}
+                                required={required}
+                                options={options}
+                                value={subEventIds}
+                                error={subEventError}
+                                onChange={(ids) => {
+                                    setSubEventIds(ids);
+                                    setSubEventError(null);
+                                }}
+                            />
+                        }
                     </CardContent>
 
                     <CardFooter className="flex items-center justify-between border-t border-border px-6 py-4 bg-muted/20">

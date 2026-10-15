@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import { CalendarDays, Loader2 } from "lucide-react";
 
 import {
@@ -19,6 +20,8 @@ import {
     useAttendeeAnalysisQuery,
 } from "../../../../../query-hooks/attendance.api";
 import { useAllEventDatesQuery } from "../../../../../query-hooks/event-dates.api";
+import { useSubEventsQuery } from "../../../../../query-hooks/subevents.api";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../../components/ui/select";
 
 function getDaysInRange(startStr: string, endStr: string, maxDays = 366): string[] {
     const dates: string[] = [];
@@ -38,6 +41,9 @@ function getDaysInRange(startStr: string, endStr: string, maxDays = 366): string
 
 export default function EventAnalysisPage() {
     const { event, eventId } = useEventPage("Analysis");
+    // "" is the event itself; otherwise a sub-event (?sub= preselects it).
+    const [subEventId, setSubEventId] = React.useState(useSearchParams().get("sub") ?? "");
+    const { data: subEvents } = useSubEventsQuery(eventId);
 
     const [fromDate, setFromDate] = React.useState("");
     const [toDate, setToDate] = React.useState("");
@@ -46,7 +52,14 @@ export default function EventAnalysisPage() {
     const [status, setStatus] = React.useState("all");
     const [page, setPage] = React.useState(1);
 
-    const { data: allEventDates } = useAllEventDatesQuery(eventId);
+    const { data: mainEventDates } = useAllEventDatesQuery(eventId);
+    const scopeItems = [
+        { value: "", label: "Whole event" },
+        ...(subEvents?.sub_events ?? []).map((s) => ({ value: s.id, label: s.name })),
+    ];
+    const allEventDates = subEventId
+        ? subEvents?.sub_events.find((s) => s.id === subEventId)?.days
+        : mainEventDates;
 
 
     const hasDateRange = Boolean(fromDate && toDate);
@@ -80,7 +93,7 @@ export default function EventAnalysisPage() {
         isLoading: isMetricsLoading,
     } = useAttendanceMetricsQuery(
         eventId,
-        { fromDate, toDate },
+        { fromDate, toDate, subEventId },
         { enabled: Boolean(eventId && hasDateRange) },
     );
 
@@ -96,6 +109,7 @@ export default function EventAnalysisPage() {
             fromDate,
             toDate,
             selectedDate,
+            subEventId,
             page,
             limit: 15,
         },
@@ -142,15 +156,39 @@ export default function EventAnalysisPage() {
                 title="Event Analysis"
                 description={`Turnout breakdown, date trends, and attendee punctuality for ${event.name}.`}
                 actions={
-                    <AnalysisDateFilter
-                        fromDate={fromDate}
-                        toDate={toDate}
-                        minDate={event.start_date}
-                        maxDate={event.end_date}
-                        onFromDateChange={handleFromDateChange}
-                        onToDateChange={handleToDateChange}
-                        onClear={handleClearDateFilter}
-                    />
+                    <>
+                        {
+                            scopeItems.length > 1 && <Select
+                                value={subEventId}
+                                items={scopeItems}
+                                onValueChange={(v) => {
+                                    setSubEventId(v ?? "");
+                                    setSelectedDate("");
+                                    setPage(1);
+                                }}
+                            >
+                                <SelectTrigger className="w-48">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {
+                                        scopeItems.map((s) => <SelectItem key={s.value || "event"} value={s.value}>
+                                            {s.label}
+                                        </SelectItem>)
+                                    }
+                                </SelectContent>
+                            </Select>
+                        }
+                        <AnalysisDateFilter
+                            fromDate={fromDate}
+                            toDate={toDate}
+                            minDate={event.start_date}
+                            maxDate={event.end_date}
+                            onFromDateChange={handleFromDateChange}
+                            onToDateChange={handleToDateChange}
+                            onClear={handleClearDateFilter}
+                        />
+                    </>
                 }
             />
 

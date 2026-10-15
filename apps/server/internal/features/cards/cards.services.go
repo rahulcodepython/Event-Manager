@@ -168,7 +168,16 @@ func (s *App) publishDue(ctx context.Context, eventID string) error {
 }
 
 func (s *App) card(d *cardData) idcard.Card {
+    subEvents := make([]idcard.SubEvent, 0, len(d.SubEvents))
+    for _, se := range d.SubEvents {
+        item := idcard.SubEvent{Name: se.Name}
+        if se.FirstDay != nil && se.LastDay != nil {
+            item.StartDate, item.EndDate = *se.FirstDay, *se.LastDay
+        }
+        subEvents = append(subEvents, item)
+    }
     return idcard.Card{
+        SubEvents:     subEvents,
         EventName:     d.EventName,
         StartDate:     d.StartDate,
         EndDate:       d.EndDate,

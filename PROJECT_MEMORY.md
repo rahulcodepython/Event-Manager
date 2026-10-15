@@ -52,6 +52,7 @@ revenue, expenses and the feature catalog.
 | devices | `/devices`, `/events/:eventId/devices` | PIN pairing, WebAuthn, assignment to events |
 | attendance | `/events/:eventId/attendance`, `/events/:eventId/analysis` | scan (signed QR only), entry, exit; metrics and attendee lists |
 | cards | `/events/:eventId/cards` (`/schedule`, `/close`, `/publish`, `/resend`), `/events/:eventId/applicants/:applicantId/card` (PDF), `.../qr`, `.../card/resend` | closing + publishing schedule, card emails, organizer download |
+| subevents | `/events/:eventId/sub-events`, `.../sub-events/:subEventId` (+ `/applicants`, `/dates`), `/events/:eventId/sub-event-settings` | sub-events, enrollment, form choice settings; public form takes `sub_event_ids` / `sub_event_link` |
 | reminders | (background) | client emails before credit end and data deletion |
 
 Admin API features (`internal/features/admin/`, all behind the admin session):
@@ -65,7 +66,7 @@ Admin API features (`internal/features/admin/`, all behind the admin session):
 | ledger | `/categories`, `/transactions` | manual entries editable; payment rows are not |
 | subscriptions | `/subscriptions`, `/subscriptions/:id/renew` | renew = expense row + next due date |
 
-Not built yet (see `PLAN.md`): sub-events, event subdomains,
+Not built yet (see `PLAN.md`): event subdomains,
 landing page, coupons.
 
 ## Decisions still binding
@@ -133,6 +134,10 @@ landing page, coupons.
 - **Email:** Resend via `internal/pkg/mailer`; every email goes through the
   `jobqueue` Redis stream (`jobs:email`). Handlers are idempotent and state
   lives in Postgres (`event_applicants.card_status`, `credit_reminders`).
+- **Sub-events reuse attendance:** a sub-event's days are `event_dates` rows
+  with `sub_event_id`; scans, metrics and analysis take a scope (event or
+  sub-event). Enrollment goes through `subevents.EnrollTx` (per-sub-event
+  advisory lock, hard cap), also inside the public form's transaction.
 
 ## Known gaps
 

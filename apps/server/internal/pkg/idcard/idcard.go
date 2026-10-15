@@ -33,7 +33,18 @@ type Card struct {
     // Branding: show the event logo and drop the "Powered by" line.
     Branding bool
     LogoURL  string
+    // SubEvents the applicant is enrolled in, listed under the QR code.
+    SubEvents []SubEvent
 }
+
+type SubEvent struct {
+    Name      string
+    StartDate string // YYYY-MM-DD, empty when it has no days yet
+    EndDate   string
+}
+
+// maxSubEventLines: sub-events listed before "+N more".
+const maxSubEventLines = 3
 
 const (
     pageW   = 105.0 // A6 portrait, mm
@@ -93,15 +104,37 @@ func Render(ctx context.Context, c Card) ([]byte, error) {
     }
     pdf.RegisterImageOptionsReader("qr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(png))
     qrY := bandH + 26
-    pdf.ImageOptions("qr", (pageW-qrSize)/2, qrY, qrSize, qrSize, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+    size := qrSizeFor(c)
+    pdf.ImageOptions("qr", (pageW-size)/2, qrY, size, size, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
 
     // Event details.
-    pdf.SetXY(margin, qrY+qrSize+3)
+    pdf.SetXY(margin, qrY+size+3)
     pdf.SetFont("go", "", 8)
     pdf.SetTextColor(82, 82, 91)
     for _, line := range []string{c.Venue, organizerLine(c.Organizer)} {
         if line != "" {
             pdf.CellFormat(pageW-2*margin, 4.5, fit(pdf, line, pageW-2*margin, 1), "", 1, "C", false, 0, "")
+        }
+    }
+
+    // Sub-events.
+    if len(c.SubEvents) > 0 {
+        pdf.Ln(1)
+        pdf.SetFont("go", "B", 7.5)
+        pdf.SetTextColor(24, 24, 27)
+        pdf.CellFormat(pageW-2*margin, 4, "Also registered for", "", 1, "C", false, 0, "")
+        pdf.SetFont("go", "", 7.5)
+        pdf.SetTextColor(82, 82, 91)
+        for i, se := range c.SubEvents {
+            if i == maxSubEventLines {
+                pdf.CellFormat(pageW-2*margin, 3.8, fmt.Sprintf("+%d more", len(c.SubEvents)-maxSubEventLines), "", 1, "C", false, 0, "")
+                break
+            }
+            line := se.Name
+            if se.StartDate != "" {
+                line += " · " + dateRange(se.StartDate, se.EndDate)
+            }
+            pdf.CellFormat(pageW-2*margin, 3.8, fit(pdf, line, pageW-2*margin, 1), "", 1, "C", false, 0, "")
         }
     }
 
@@ -205,4 +238,20 @@ func organizerLine(organizer string) string {
         return ""
     }
     return "Organized by " + organizer
+}
+
+// qrSizeFor shrinks the QR code so the sub-event list still fits above
+// the footer.
+func qrSizeFor(c Card) float64 {
+    if len(c.SubEvents) == 0 {
+        return qrSize
+    }
+    lines := min(len(c.SubEvents), maxSubEventLines)
+    if len(c.SubEvents) > maxSubEventLines {
+        lines++
+    }
+    const footerTop = pageH - margin - 8
+    const detailLines = 2 * 4.5
+    free := footerTop - (bandH + 26) - 3 - detailLines - (5 + 3.8*float64(lines))
+    return min(qrSize, free)
 }

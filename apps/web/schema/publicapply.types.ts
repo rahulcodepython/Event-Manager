@@ -32,6 +32,18 @@ export const PublicFormInfoSchema = z.object({
 
 export type PublicFormInfo = z.infer<typeof PublicFormInfoSchema>;
 
+export const PublicSubEventOptionSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string(),
+    venue: z.string(),
+    link_enabled: z.boolean(),
+    is_full: z.boolean(),
+    days: z.array(z.object({ date: z.string(), start_time: z.string(), end_time: z.string() })),
+});
+
+export type PublicSubEventOption = z.infer<typeof PublicSubEventOptionSchema>;
+
 export const PublicApplyConfigSchema = z.object({
     event_form_id: z.string(),
     status: z.enum(["waiting", "live"]),
@@ -40,6 +52,11 @@ export const PublicApplyConfigSchema = z.object({
     max_applicants: z.number(),
     current_applicants: z.number(),
     branding: z.boolean().default(false),
+    sub_events: z.object({
+        mode: z.enum(["off", "one", "many"]),
+        required: z.boolean(),
+        options: z.array(PublicSubEventOptionSchema),
+    }).default({ mode: "off", required: false, options: [] }),
     expires_at: z.string(),
     event: PublicEventInfoSchema.nullish(),
     form: PublicFormInfoSchema.nullish(),
@@ -53,6 +70,9 @@ export const SubmitApplicationSchema = z.object({
     email: z.string().email("Invalid email address"),
     phone: z.string().min(1, "Mobile number is required"),
     data: z.record(z.string(), FormFieldValueSchema).default({}),
+    sub_event_ids: z.array(z.string()).optional(),
+    /** The sub-event of the link the form was opened with. */
+    sub_event_link: z.string().optional(),
 });
 
 export type SubmitApplicationInput = z.infer<typeof SubmitApplicationSchema>;

@@ -40,6 +40,12 @@ export const queryKeys = {
         byEvent: (eventId: string, filters?: { search?: string; filters?: unknown }) =>
             ["applicants", "event", eventId, filters] as const,
     },
+    subEvents: {
+        overview: (eventId: string) => ["subEvents", "overview", eventId] as const,
+        enrolled: (subEventId: string, params: { search: string; page: number }) => ["subEvents", "enrolled", subEventId, params] as const,
+        dates: (subEventId: string) => ["subEvents", "dates", subEventId] as const,
+        device: ["subEvents", "device"] as const,
+    },
     cards: {
         status: (eventId: string) => ["cards", "status", eventId] as const,
         qr: (eventId: string, applicantId: string) => ["cards", "qr", eventId, applicantId] as const,
@@ -55,7 +61,7 @@ export const queryKeys = {
     },
     analysis: {
         all: ["analysis"] as const,
-        metrics: (eventId: string, filters?: { fromDate?: string; toDate?: string }) =>
+        metrics: (eventId: string, filters?: { fromDate?: string; toDate?: string; subEventId?: string }) =>
             ["analysis", "metrics", eventId, filters] as const,
         attendees: (
             eventId: string,
@@ -65,6 +71,7 @@ export const queryKeys = {
                 fromDate?: string;
                 toDate?: string;
                 selectedDate?: string;
+                subEventId?: string;
                 page?: number;
                 limit?: number;
             },

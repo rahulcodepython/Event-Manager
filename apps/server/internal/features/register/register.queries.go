@@ -28,6 +28,29 @@ const (
             'max_applicants', ef.capacity,
             'current_applicants', ef.current_count,
             'branding', ef.has_branding,
+            'sub_events', jsonb_build_object(
+                'mode', ef.sub_event_mode,
+                'required', ef.sub_event_required,
+                'options', COALESCE((
+                    SELECT jsonb_agg(jsonb_build_object(
+                        'id', se.id,
+                        'name', se.name,
+                        'description', se.description,
+                        'venue', se.venue,
+                        'link_enabled', se.link_enabled,
+                        'is_full', se.capacity IS NOT NULL AND (SELECT count(*) FROM sub_event_applicants sea WHERE sea.sub_event_id = se.id) >= se.capacity,
+                        'days', COALESCE((
+                            SELECT jsonb_agg(jsonb_build_object(
+                                'date', to_char(ed.date, 'YYYY-MM-DD'),
+                                'start_time', to_char(ed.start_time, 'HH24:MI'),
+                                'end_time', to_char(ed.end_time, 'HH24:MI')
+                            ) ORDER BY ed.date)
+                            FROM event_dates ed WHERE ed.sub_event_id = se.id
+                        ), '[]'::jsonb)
+                    ) ORDER BY se.created_at)
+                    FROM sub_events se WHERE se.event_id = ef.event_id
+                ), '[]'::jsonb)
+            ),
             'expires_at', ef.expires_at,
             'event', jsonb_build_object(
                 'id', e.id,

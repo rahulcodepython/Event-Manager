@@ -11,6 +11,8 @@ func (h *App) RegisterPublicRoutes(r fiber.Router) {
     group.Post("/scan", h.ScanApplicantHandler)
     group.Post("/entry", h.MarkEntryHandler)
     group.Post("/exit", h.MarkExitHandler)
+
+    r.Get("/attendance/sub-events", h.ListDeviceSubEventsHandler)
 }
 
 // RegisterRoutes mounts the organization's analysis endpoints.
