@@ -2,6 +2,7 @@ package router
 
 import (
     "context"
+    "time"
 
     "github.com/go-webauthn/webauthn/webauthn"
     "github.com/gofiber/fiber/v2"
@@ -11,6 +12,7 @@ import (
     "identitycard-server/internal/config"
     "identitycard-server/internal/features/applicants"
     "identitycard-server/internal/features/auth"
+    "identitycard-server/internal/features/cards"
     "identitycard-server/internal/features/credits"
     "identitycard-server/internal/features/attendance"
     "identitycard-server/internal/features/devices"
@@ -19,10 +21,14 @@ import (
     "identitycard-server/internal/features/forms"
     "identitycard-server/internal/features/pricing"
     "identitycard-server/internal/features/register"
+    "identitycard-server/internal/features/reminders"
     "identitycard-server/internal/features/retention"
     "identitycard-server/internal/generic"
     "identitycard-server/internal/middlewares"
     "identitycard-server/internal/pkg/cache"
+    "identitycard-server/internal/pkg/jobqueue"
+    "identitycard-server/internal/pkg/mailer"
+    "identitycard-server/internal/pkg/qrsign"
 )
 
 // AppRouter wires the client-facing API (cmd/server).
@@ -43,6 +49,7 @@ type AppRouter struct {
     Devices    *devices.App
     Attendance *attendance.App
     Pricing    *pricing.App
+    Cards      *cards.App
 }
 
 func NewAppRouter(
@@ -60,6 +67,20 @@ func NewAppRouter(
     eventsApp := events.NewApp(pool, cch)
     retention.NewApp(pool, rdb, eventsApp).StartWorker(rootCtx)
 
+    // Emails (ID cards, client reminders) go through one Redis-stream queue,
+    // sent one at a time to stay under Resend's 2 requests/second.
+    signer := qrsign.New(cfg.QRSigningSecret)
+    mail := mailer.New(cfg.ResendAPIKey, cfg.EmailFrom)
+    emailQueue := jobqueue.New(rdb, "email")
+    cardsApp := cards.NewApp(pool, rdb, cch, emailQueue, mail, signer)
+    remindersApp := reminders.NewApp(pool, rdb, emailQueue, mail, cfg.WebURL)
+    cardsApp.StartScheduler(rootCtx)
+    remindersApp.StartScheduler(rootCtx)
+    go emailQueue.Run(rootCtx, map[string]jobqueue.Handler{
+        cards.JobType:     cardsApp.JobHandler(),
+        reminders.JobType: remindersApp.JobHandler(),
+    }, 600*time.Millisecond)
+
     return &AppRouter{
         App:     app,
         CFG:     cfg,
@@ -75,8 +96,9 @@ func NewAppRouter(
         Register:   register.NewApp(pool, cch, applicantsApp),
         Applicants: applicantsApp,
         Devices:    devices.NewApp(pool, rdb, wa, cfg.RPID, cfg.CanonicalOrigin),
-        Attendance: attendance.NewApp(pool, cch),
+        Attendance: attendance.NewApp(pool, cch, signer),
         Pricing:    pricingApp,
+        Cards:      cardsApp,
     }
 }
 
@@ -114,4 +136,5 @@ func (r *AppRouter) SetUp() {
     r.Applicants.RegisterRoutes(org)
     r.Devices.RegisterRoutes(org)
     r.Attendance.RegisterRoutes(org)
+    r.Cards.RegisterRoutes(org)
 }

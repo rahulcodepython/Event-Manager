@@ -15,7 +15,8 @@ const (
     `
 
     // CreateApplicantAtomicQuery registers an applicant unless the event's
-    // credit has ended (or its organization is suspended), the email is already registered, or the credit's
+    // credit has ended (or its organization is suspended), its application
+    // window has closed, the email is already registered, or the credit's
     // applicant limit (or the extra cap $7, -1 for none) is reached. Run it
     // under the event's applicant lock.
     // Returns {status, applicant}.
@@ -30,6 +31,7 @@ const (
             SELECT CASE
                 WHEN NOT EXISTS (SELECT 1 FROM ent) THEN 'not_found'
                 WHEN (SELECT is_closed FROM ent) THEN 'expired'
+                WHEN EXISTS (SELECT 1 FROM event_forms WHERE event_id = $1::uuid AND expires_at <= now()) THEN 'window_closed'
                 WHEN EXISTS (SELECT 1 FROM event_applicants WHERE event_id = $1::uuid AND email = $4) THEN 'already_registered'
                 WHEN (SELECT count(*) FROM event_applicants WHERE event_id = $1::uuid)
                      >= LEAST((SELECT applicant_limit FROM ent), CASE WHEN $7::int = -1 THEN (SELECT applicant_limit FROM ent) ELSE $7::int END)
@@ -93,7 +95,10 @@ func BuildFilteredApplicantsQuery(whereClause string, limitIdx, offsetIdx, pageI
                 a.email,
                 a.phone,
                 a.data,
-                ea.created_at
+                ea.created_at,
+                ea.card_status,
+                ea.card_sent_at,
+                ea.card_error
             FROM event_applicants ea
             JOIN applicants a ON a.id = ea.user_id
             WHERE %s
@@ -108,7 +113,10 @@ func BuildFilteredApplicantsQuery(whereClause string, limitIdx, offsetIdx, pageI
                 'email', fa.email,
                 'phone', fa.phone,
                 'data', fa.data,
-                'created_at', fa.created_at
+                'created_at', fa.created_at,
+                'card_status', fa.card_status,
+                'card_sent_at', fa.card_sent_at,
+                'card_error', fa.card_error
             ) AS item
             FROM filtered_applicants fa
             ORDER BY fa.created_at DESC

@@ -49,3 +49,16 @@ export function formatTime12Hour(time: string): string {
     const hour12 = hours % 12 || 12;
     return `${hour12}:${minutes} ${period}`;
 }
+/** ISO timestamp to the local "YYYY-MM-DDTHH:MM" a datetime-local input takes. */
+export function toDatetimeLocal(iso?: string | null): string {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** A datetime-local value (local time) to an ISO timestamp. */
+export function fromDatetimeLocal(value: string): string {
+    return new Date(value).toISOString();
+}

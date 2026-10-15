@@ -38,6 +38,7 @@ import { ApplicantQrDialog } from "../../../../../components/applicants/applican
 import { BulkUploadApplicantsDialog } from "../../../../../components/applicants/bulk-upload-applicants-dialog"
 import { CreateApplicantDialog } from "../../../../../components/applicants/create-applicant-dialog"
 import { getApplicantsColumns } from "../../../../../components/applicants/applicants-columns"
+import { useCardStatusQuery } from "../../../../../query-hooks/cards.api"
 import { useEventPage } from "../../../../../components/events/event-context"
 import {
     InfiniteDataTable,
@@ -69,6 +70,10 @@ export default function EventApplicantsPage() {
         React.useState<ApplicantItem | null>(null)
 
     const deleteMutation = useDeleteApplicantMutation(eventId)
+    // Applicants are frozen once the application window closes.
+    const { data: cardStatus } = useCardStatusQuery(eventId)
+    const applicationsClosed = Boolean(cardStatus?.is_closed)
+    const cardsPublished = Boolean(cardStatus?.published_at)
 
     // 1. Fetch form schema once for column definitions & filter attributes
     const { data: formSchema } = useApplicantSchemaQuery(eventId)
@@ -125,7 +130,7 @@ export default function EventApplicantsPage() {
                     className="gap-2.5"
                 >
                     <QrCode className="size-3.5 text-primary" />
-                    <span>View QR Code</span>
+                    <span>ID Card &amp; QR Code</span>
                 </ContextMenuItem>
 
                 <ContextMenuSeparator />
@@ -165,16 +170,19 @@ export default function EventApplicantsPage() {
                     </ContextMenuItem>
                 }
 
-                <ContextMenuSeparator />
-
-                <ContextMenuItem
-                    onClick={() => setDeleteApplicant(applicant)}
-                    variant="destructive"
-                    className="gap-2.5"
-                >
-                    <Trash2 className="size-3.5" />
-                    <span>Delete Applicant</span>
-                </ContextMenuItem>
+                {
+                    !applicationsClosed && <>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                            onClick={() => setDeleteApplicant(applicant)}
+                            variant="destructive"
+                            className="gap-2.5"
+                        >
+                            <Trash2 className="size-3.5" />
+                            <span>Delete Applicant</span>
+                        </ContextMenuItem>
+                    </>
+                }
             </>
         )
     }
@@ -204,6 +212,8 @@ export default function EventApplicantsPage() {
                             type="button"
                             variant="outline"
                             onClick={() => setBulkOpen(true)}
+                            disabled={applicationsClosed}
+                            title={applicationsClosed ? "The application window has closed" : undefined}
                             className="gap-2 font-medium"
                         >
                             <Upload className="size-4" />
@@ -212,6 +222,8 @@ export default function EventApplicantsPage() {
                         <Button
                             type="button"
                             onClick={() => setCreateOpen(true)}
+                            disabled={applicationsClosed}
+                            title={applicationsClosed ? "The application window has closed" : undefined}
                             className="gap-2 font-semibold"
                         >
                             <UserPlus className="size-4" />
@@ -284,6 +296,7 @@ export default function EventApplicantsPage() {
                 viewQrApplicant && <ApplicantQrDialog
                     applicant={viewQrApplicant}
                     eventId={eventId}
+                    canResend={cardsPublished}
                     open={!!viewQrApplicant}
                     onOpenChange={(open) => {
                         if (!open) setViewQrApplicant(null)

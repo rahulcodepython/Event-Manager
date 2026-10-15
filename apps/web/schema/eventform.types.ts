@@ -15,6 +15,8 @@ export const EventFormDetailsSchema = z.object({
     locked_at: z.string().nullish(),
     max_applicants: z.number(),
     expires_at: z.string(),
+    cards_publish_at: z.string(),
+    cards_published_at: z.string().nullish(),
     total_applicants: z.number(),
     can_delete: z.boolean(),
     created_at: z.string(),

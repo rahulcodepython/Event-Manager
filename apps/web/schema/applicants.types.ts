@@ -17,6 +17,9 @@ export const ApplicantItemSchema = z.object({
     phone: z.string().default(""),
     data: z.record(z.string(), FormFieldValueSchema).nullish().default({}),
     created_at: z.string(),
+    card_status: z.enum(["pending", "queued", "sent", "failed"]).default("pending"),
+    card_sent_at: z.string().nullish(),
+    card_error: z.string().nullish(),
 });
 
 export type ApplicantItem = z.infer<typeof ApplicantItemSchema>;

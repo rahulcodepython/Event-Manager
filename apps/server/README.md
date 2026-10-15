@@ -99,8 +99,15 @@ A feature registers itself in `app.router.go` (client) or `admin.router.go`
 - **Applicant limits:** every applicant insert (dashboard, bulk, public form)
   goes through `applicants.InsertApplicant`, which checks the event's credit
   (`credit_entitlements` view) under a per-event advisory lock.
-- **Background jobs:** `retention` runs hourly inside the client API (Redis
-  lock) and deletes events past their credit's backup period.
+- **Background jobs** (inside the client API, each guarded by a Redis lock):
+  `retention` (hourly) deletes events past their credit's backup period;
+  `cards` (every minute) publishes due cards and re-queues stuck ones;
+  `reminders` (every 10 min) queues client reminder emails.
+- **Email queue:** `internal/pkg/jobqueue` on the Redis stream `jobs:email`
+  (consumer group, retry sorted set, 5 attempts, reclaim after 5 min idle),
+  sending one email per 600 ms. Handlers must be idempotent.
+- **ID cards:** `internal/pkg/idcard` renders the PDF; `internal/pkg/qrsign`
+  signs and verifies QR payloads.
 - **Scanner devices** authenticate with the `X-Device-Token` header (paired by
   PIN, optional WebAuthn), not a user session.
 - **Migrations:** plain numbered SQL in `internal/migrations`. During the

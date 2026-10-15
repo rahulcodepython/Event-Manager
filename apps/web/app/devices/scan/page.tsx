@@ -16,7 +16,7 @@ import {
     useScanApplicantMutation,
 } from "../../../query-hooks/attendance.api";
 import { useMyDeviceQuery } from "../../../query-hooks/devices.api";
-import type { ScanApplicantResponse } from "../../../schema/attendance.types";
+import { eventIdFromQR, type ScanApplicantResponse } from "../../../schema/attendance.types";
 
 export default function StandaloneDeviceScanPage() {
     const [hasDeviceToken, setHasDeviceToken] = React.useState<boolean | null>(null);
@@ -33,7 +33,7 @@ export default function StandaloneDeviceScanPage() {
 
     const { data: myDevice } = useMyDeviceQuery(Boolean(hasDeviceToken));
 
-    const scanMutation = useScanApplicantMutation(currentEventId);
+    const scanMutation = useScanApplicantMutation();
     const markEntryMutation = useMarkEntryMutation(currentEventId);
     const markExitMutation = useMarkExitMutation(currentEventId);
 
@@ -41,54 +41,19 @@ export default function StandaloneDeviceScanPage() {
         if (scanMutation.isPending) return;
         setScanError(null);
 
-        let targetEventId = currentEventId;
-        let applicantId = "";
-        let registeredAt: string | undefined = undefined;
-
-        // 1. Try decoding as Base64 encoded JSON string
-        try {
-            const binary = atob(scannedText.trim());
-            const bytes = Uint8Array.from(binary, (m) => m.charCodeAt(0));
-            const decoded = new TextDecoder().decode(bytes);
-            const parsed = JSON.parse(decoded);
-            if (parsed && typeof parsed === "object") {
-                if (parsed.eventID) targetEventId = String(parsed.eventID);
-                if (parsed.applicantID) applicantId = String(parsed.applicantID);
-                if (parsed.registeredAt) registeredAt = String(parsed.registeredAt);
-            }
-        } catch {
-            // 2. Fallback: Check if raw JSON string was scanned or pasted
-            try {
-                const parsed = JSON.parse(scannedText.trim());
-                if (parsed && typeof parsed === "object") {
-                    if (parsed.eventID) targetEventId = String(parsed.eventID);
-                    if (parsed.applicantID) applicantId = String(parsed.applicantID);
-                    if (parsed.registeredAt) registeredAt = String(parsed.registeredAt);
-                }
-            } catch {
-                // 3. Fallback: Raw text is applicant ID
-                applicantId = scannedText.trim();
-            }
-        }
-
+        // Cards carry a signed token; the server verifies it. The event id
+        // is readable from the token and picks the endpoint.
+        const qr = scannedText.trim();
+        const targetEventId = eventIdFromQR(qr);
         if (!targetEventId) {
-            setScanError("Badge does not contain a valid event ID. Please scan an authentic event badge.");
-            return;
-        }
-
-        if (!applicantId) {
-            setScanError("Invalid QR code format. Missing applicant identifier.");
+            setScanError("Not an IdentityCard badge. Please scan the QR code on the attendee's ID card.");
             return;
         }
 
         setCurrentEventId(targetEventId);
 
         try {
-            const res = await scanMutation.mutateAsync({
-                eventID: targetEventId,
-                applicantID: applicantId,
-                registeredAt,
-            });
+            const res = await scanMutation.mutateAsync({ eventId: targetEventId, qr });
             setScannedResult(res);
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "Failed to verify badge";

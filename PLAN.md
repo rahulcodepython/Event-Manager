@@ -146,10 +146,12 @@ editable from admin. To confirm: Q7.
 - **Ledger (`transactions`):** client payments (written by fulfilment) and refunds are automatic; manual income and expense entries with admin-managed categories.
 - **Business subscriptions:** CRUD; the admin confirms each renewal, which records an expense and moves the due date by the interval.
 
-### Phase 6 — ID cards, email and signed QR
-- Signed QR payload (HMAC) so cards can't be forged.
-- Card design and PDF or image generation (Q13–Q15).
-- Email delivery through a provider, with a queue, retries and a "resend" action.
+### Phase 6 — ID cards, email and signed QR ✅ done
+- **Signed QR:** `IC1.<payload>.<HMAC-SHA256>` (`internal/pkg/qrsign`, `QR_SIGNING_SECRET`). Scanners send the QR text; the server verifies it and checks the event. Unsigned QR codes are rejected.
+- **Card:** one fixed A6 PDF design (`internal/pkg/idcard`): event name and dates, applicant name and ID, QR, venue, organizer. Branding adds the event logo and drops "Powered by IdentityCard". No photo. Generated on demand, never stored.
+- **Schedule:** the form's closing date (`expires_at`) ends the application window; after it applicants cannot be added or deleted. Cards are emailed at `cards_publish_at`, which defaults to and follows the closing date and can never be earlier. Until cards are published the organizer can move both dates (a future closing date reopens the window) or close / publish manually. After publishing the schedule is frozen.
+- **Delivery:** Resend, PDF attachment only (no link). One Redis-stream queue (`internal/pkg/jobqueue`) for all email, paced under Resend's 2 req/s, 5 attempts with backoff, crash-safe reclaim; per-applicant `card_status` (pending / queued / sent / failed). Resend one, failed, or all after publishing. The organizer can download any card from the dashboard.
+- **Client reminders:** 1 day before the credit ends, 7 days before data deletion (backup > 7 days) and 1 day before deletion; each sent once (`credit_reminders`).
 
 ### Phase 7 — Sub-events
 - Design only after the sub-event questions are answered (Q16).
@@ -203,9 +205,9 @@ Q8 asks whether `admin` and `landing` should be separate apps like this.
 12. ~~**Business subscriptions**~~ Decided: the admin confirms each renewal.
 
 ### ID cards
-13. **Card design:** one fixed design, a few templates, or a designer? Which fields go on it?
-14. **Photo:** applicant photo uploaded at registration? That needs file storage again (MinIO/S3).
-15. **Delivery:** PDF attachment or link, and when to send (on registration, or on admin action)? Email provider: Resend (decided).
+13. ~~**Card design**~~ Decided: one fixed design.
+14. ~~**Photo**~~ Decided: no photo.
+15. ~~**Delivery**~~ Decided: PDF attachment by Resend at the card publishing date, after applications close.
 
 ### Sub-events
 16. Still open from v1 (Q24–Q33): real examples, own time slots and venue, how applicants pick, capacity, extra fields or fees, scanner per sub-event, admin edits. Answer these before Phase 7.

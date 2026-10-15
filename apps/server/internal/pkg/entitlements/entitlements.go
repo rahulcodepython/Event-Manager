@@ -13,6 +13,10 @@ import (
 // ErrReadOnly is returned for writes to an event whose credit has ended.
 var ErrReadOnly = errors.New("this event's credit has ended; the event is read-only")
 
+// ErrApplicationsClosed is returned for applicant changes once the event's
+// application window (event_forms.expires_at) has closed.
+var ErrApplicationsClosed = errors.New("the application window has closed; applicants can no longer change")
+
 // ErrSuspended is returned for writes to an event of a suspended organization.
 var ErrSuspended = errors.New("this organization is suspended")
 
@@ -53,6 +57,23 @@ func RequireWritable(ctx context.Context, db postgres.DBTX, eventID string) erro
     }
     if ent.IsExpired {
         return ErrReadOnly
+    }
+    return nil
+}
+
+const applicationsClosedQuery = `
+    SELECT EXISTS (SELECT 1 FROM event_forms WHERE event_id = $1::uuid AND expires_at <= now());
+`
+
+// RequireApplicationsOpen returns ErrApplicationsClosed once the event's
+// application window has closed. An event without a form has no window.
+func RequireApplicationsOpen(ctx context.Context, db postgres.DBTX, eventID string) error {
+    var closed bool
+    if err := db.QueryRow(ctx, applicationsClosedQuery, eventID).Scan(&closed); err != nil {
+        return postgres.MapPgError(err)
+    }
+    if closed {
+        return ErrApplicationsClosed
     }
     return nil
 }

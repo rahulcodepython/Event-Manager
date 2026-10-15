@@ -37,14 +37,15 @@ func (h *App) ScanApplicantHandler(c *fiber.Ctx) error {
 
     res, err := h.ScanApplicantService(c.UserContext(), eventID, token, req)
     if err != nil {
-        slog.Error("failed to scan applicant", "error", err, "eventId", eventID, "applicantId", req.ApplicantID)
+        slog.Error("failed to scan applicant", "error", err, "eventId", eventID)
         if errors.Is(err, ErrDeviceUnauthorized) {
             return utils.ErrForbidden(c, err.Error(), err)
         }
         if errors.Is(err, ErrApplicantNotRegistered) || errors.Is(err, ErrEventNotFound) || errors.Is(err, ErrNoEventDates) {
             return utils.ErrNotFound(c, err.Error(), err)
         }
-        if errors.Is(err, ErrInvalidEventID) || errors.Is(err, ErrInvalidApplicantID) {
+        if errors.Is(err, ErrInvalidEventID) || errors.Is(err, ErrInvalidApplicantID) ||
+            errors.Is(err, ErrInvalidQR) || errors.Is(err, ErrWrongEvent) {
             return utils.ErrBadRequest(c, err.Error(), err)
         }
         return utils.ErrInternal(c, "failed to process scan", err)

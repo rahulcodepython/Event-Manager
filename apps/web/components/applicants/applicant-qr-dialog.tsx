@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Check, Copy, Download, QrCode } from "lucide-react";
+import { Download, Loader2, QrCode, SendIcon } from "lucide-react";
 import QRCode from "qrcode";
-import { toast } from "sonner";
 
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
     Dialog,
@@ -15,6 +15,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "../ui/dialog";
+import { downloadCard, useApplicantQRQuery, useResendCardMutation } from "../../query-hooks/cards.api";
 import type { ApplicantItem } from "../../schema/applicants.types";
 
 interface ApplicantQrDialogProps {
@@ -22,73 +23,49 @@ interface ApplicantQrDialogProps {
     eventId: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    /** Cards are published, so the card can be emailed again. */
+    canResend: boolean;
 }
+
+const CARD_STATUS: Record<ApplicantItem["card_status"], { label: string, variant: "secondary" | "outline" | "default" | "destructive" }> = {
+    pending: { label: "Not sent", variant: "outline" },
+    queued: { label: "Sending", variant: "secondary" },
+    sent: { label: "Sent", variant: "default" },
+    failed: { label: "Failed", variant: "destructive" },
+};
 
 export function ApplicantQrDialog({
     applicant,
     eventId,
     open,
     onOpenChange,
+    canResend,
 }: ApplicantQrDialogProps) {
-    const [qrDataUrl, setQrDataUrl] = React.useState<string>("");
-    const [copiedEncoded, setCopiedEncoded] = React.useState(false);
+    const { data: qr } = useApplicantQRQuery(eventId, applicant.user_id, open);
+    const [qrDataUrl, setQrDataUrl] = React.useState("");
+    const [downloading, setDownloading] = React.useState(false);
+    const resend = useResendCardMutation(eventId);
 
-    // 1. Prepare raw JSON object
-    const rawPayload = React.useMemo(() => {
-        return {
-            eventID: eventId,
-            applicantID: applicant.user_id,
-            registeredAt: applicant.created_at,
-        };
-    }, [eventId, applicant.user_id, applicant.created_at]);
-
-    // 2. Generate encoded string from the JSON data
-    const encodedPayload = React.useMemo(() => {
-        const jsonStr = JSON.stringify(rawPayload);
-        try {
-            return typeof window !== "undefined"
-                ? btoa(unescape(encodeURIComponent(jsonStr)))
-                : Buffer.from(jsonStr).toString("base64");
-        } catch {
-            return btoa(jsonStr);
-        }
-    }, [rawPayload]);
-
-    // 3. Generate the QR code over the encoded string value
     React.useEffect(() => {
-        if (!open) return;
-
-        QRCode.toDataURL(encodedPayload, {
-            width: 320,
-            margin: 2,
-            color: {
-                dark: "#000000",
-                light: "#ffffff",
-            },
-            errorCorrectionLevel: "H",
-        })
+        if (!qr) return;
+        let cancelled = false;
+        QRCode.toDataURL(qr, { width: 320, margin: 2, errorCorrectionLevel: "M" })
             .then((url) => {
-                setQrDataUrl(url);
+                if (!cancelled) setQrDataUrl(url);
             })
-            .catch(() => {
-                toast.error("Failed to generate QR Code");
-            });
-    }, [open, encodedPayload]);
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [qr]);
 
-    const handleCopyEncoded = () => {
-        navigator.clipboard.writeText(encodedPayload);
-        setCopiedEncoded(true);
-        setTimeout(() => setCopiedEncoded(false), 2000);
-        toast.success("Encoded QR string copied to clipboard");
+    const handleDownload = async () => {
+        setDownloading(true);
+        await downloadCard(eventId, applicant.user_id);
+        setDownloading(false);
     };
 
-    const handleDownload = () => {
-        if (!qrDataUrl) return;
-        const link = document.createElement("a");
-        link.download = `qr-${applicant.user_id}.png`;
-        link.href = qrDataUrl;
-        link.click();
-    };
+    const status = CARD_STATUS[applicant.card_status];
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,10 +77,10 @@ export function ApplicantQrDialog({
                         </div>
                         <div>
                             <DialogTitle className="text-base font-semibold">
-                                Applicant QR Code
+                                ID Card
                             </DialogTitle>
                             <DialogDescription className="text-xs">
-                                Digital ticket badge generated from encoded JSON payload.
+                                The QR code is signed by the server, so it cannot be forged.
                             </DialogDescription>
                         </div>
                     </div>
@@ -112,93 +89,58 @@ export function ApplicantQrDialog({
                 <DialogBody className="space-y-4">
                     <div className="flex flex-col items-center justify-center">
                         <div className="flex size-64 items-center justify-center rounded-xl border border-border bg-white p-3 shadow-xs">
-                            {qrDataUrl ? (
-                                <img
+                            {
+                                qrDataUrl ? <img
                                     src={qrDataUrl}
                                     alt={`QR Code for ${applicant.name}`}
                                     className="size-full object-contain"
-                                />
-                            ) : (
-                                <div className="text-xs text-muted-foreground">
-                                    Generating QR Code...
-                                </div>
-                            )}
+                                /> : <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                            }
                         </div>
-                    </div>
-
-                    {/* Encoded String display */}
-                    <div className="w-full rounded-lg border bg-muted/30 p-3 text-xs space-y-1">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
-                                Encoded Payload
-                            </span>
-                            <button
-                                type="button"
-                                onClick={handleCopyEncoded}
-                                className="flex items-center gap-1 text-[10px] text-primary hover:underline font-medium cursor-pointer"
-                            >
-                                {copiedEncoded ? (
-                                    <Check className="size-3" />
-                                ) : (
-                                    <Copy className="size-3" />
-                                )}
-                                <span>
-                                    {copiedEncoded ? "Copied" : "Copy Encoded String"}
-                                </span>
-                            </button>
-                        </div>
-                        <p className="font-mono text-[10px] text-foreground/80 break-all line-clamp-2 select-all">
-                            {encodedPayload}
-                        </p>
                     </div>
 
                     <div className="w-full rounded-lg border bg-muted/20 p-3 text-xs space-y-1.5">
                         <div className="flex justify-between text-muted-foreground">
                             <span>Attendee</span>
-                            <span className="font-semibold text-foreground">
-                                {applicant.name}
-                            </span>
+                            <span className="font-semibold text-foreground">{applicant.name}</span>
                         </div>
                         <div className="flex justify-between text-muted-foreground">
                             <span>Applicant ID</span>
-                            <span className="font-mono text-foreground">
-                                {applicant.user_id}
-                            </span>
+                            <span className="font-mono text-foreground">{applicant.user_id}</span>
                         </div>
                         <div className="flex justify-between text-muted-foreground">
                             <span>Email</span>
-                            <span className="text-foreground">
-                                {applicant.email}
-                            </span>
+                            <span className="text-foreground">{applicant.email}</span>
                         </div>
-                        {applicant.phone && (
-                            <div className="flex justify-between text-muted-foreground">
-                                <span>Mobile</span>
-                                <span className="font-mono text-foreground">
-                                    {applicant.phone}
-                                </span>
-                            </div>
-                        )}
+                        <div className="flex items-center justify-between text-muted-foreground">
+                            <span>Card email</span>
+                            <Badge variant={status.variant}>{status.label}</Badge>
+                        </div>
+                        {
+                            applicant.card_status === "failed" && applicant.card_error && <p className="text-destructive break-words">
+                                {applicant.card_error}
+                            </p>
+                        }
                     </div>
                 </DialogBody>
 
                 <DialogFooter>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleCopyEncoded}
-                    >
-                        <Copy className="size-4" />
-                        <span>Copy Encoded</span>
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="default"
-                        onClick={handleDownload}
-                        disabled={!qrDataUrl}
-                    >
-                        <Download className="size-4" />
-                        <span>Download Badge</span>
+                    {
+                        canResend && <Button
+                            type="button"
+                            variant="outline"
+                            disabled={resend.isPending || applicant.card_status === "queued"}
+                            onClick={() => resend.mutate(applicant.user_id)}
+                        >
+                            <SendIcon className="size-4" />
+                            <span>Resend card</span>
+                        </Button>
+                    }
+                    <Button type="button" onClick={handleDownload} disabled={downloading}>
+                        {
+                            downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />
+                        }
+                        <span>Download card (PDF)</span>
                     </Button>
                 </DialogFooter>
             </DialogContent>

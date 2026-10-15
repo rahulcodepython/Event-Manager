@@ -1,12 +1,27 @@
 import { z } from "zod";
 
+/** The scanned QR text: a server-signed card token. */
 export const ScanApplicantRequestSchema = z.object({
-    eventID: z.string(),
-    applicantID: z.string(),
-    registeredAt: z.string().optional(),
+    qr: z.string(),
 });
 
 export type ScanApplicantRequest = z.infer<typeof ScanApplicantRequestSchema>;
+
+/**
+ * Reads the event id from a signed card QR ("IC1.<payload>.<signature>").
+ * The payload is readable; only the server checks the signature.
+ */
+export function eventIdFromQR(qr: string): string | null {
+    const parts = qr.trim().split(".");
+    if (parts.length !== 3 || parts[0] !== "IC1") return null;
+    try {
+        const json = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+        const payload = JSON.parse(json) as { e?: unknown };
+        return typeof payload.e === "string" ? payload.e : null;
+    } catch {
+        return null;
+    }
+}
 
 export const ScanApplicantInfoSchema = z.object({
     user_id: z.string(),

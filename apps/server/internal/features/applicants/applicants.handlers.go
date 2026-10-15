@@ -75,7 +75,7 @@ func (h *App) CreateApplicantHandler(c *fiber.Ctx) error {
         if errors.Is(err, ErrAlreadyRegistered) {
             return utils.ErrConflict(c, err.Error(), err)
         }
-        if errors.Is(err, ErrLimitReached) || errors.Is(err, entitlements.ErrReadOnly) {
+        if errors.Is(err, ErrLimitReached) || errors.Is(err, entitlements.ErrReadOnly) || errors.Is(err, entitlements.ErrApplicationsClosed) {
             return utils.ErrForbidden(c, err.Error(), err)
         }
         return utils.ErrInternal(c, "failed to create applicant", err)
@@ -98,6 +98,9 @@ func (h *App) BulkCreateApplicantsHandler(c *fiber.Ctx) error {
         if errors.Is(err, ErrInvalidEventID) || errors.Is(err, ErrBulkLimit) {
             return utils.ErrBadRequest(c, err.Error(), err)
         }
+        if errors.Is(err, entitlements.ErrApplicationsClosed) {
+            return utils.ErrForbidden(c, err.Error(), err)
+        }
         return utils.ErrInternal(c, "failed to upload applicants", err)
     }
 
@@ -113,6 +116,9 @@ func (h *App) DeleteApplicantHandler(c *fiber.Ctx) error {
         slog.Error("failed to delete applicant", "error", err, "eventId", eventID, "applicantId", applicantID)
         if errors.Is(err, ErrInvalidEventID) || errors.Is(err, ErrApplicantNotFound) {
             return utils.ErrBadRequest(c, err.Error(), err)
+        }
+        if errors.Is(err, entitlements.ErrApplicationsClosed) {
+            return utils.ErrForbidden(c, err.Error(), err)
         }
         return utils.ErrInternal(c, "failed to delete applicant", err)
     }

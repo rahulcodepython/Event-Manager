@@ -709,14 +709,16 @@ func seedDatabase(ctx context.Context, pool *pgxpool.Pool, ownerEmail string) er
         _, err := tx.Exec(ctx, `
             INSERT INTO event_forms (
                 id, event_id, name, fields, 
-                max_applicants, expires_at, status, is_locked, locked_at, created_at, updated_at
+                max_applicants, expires_at, cards_publish_at, status, is_locked, locked_at, created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+            VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, now(), now())
             ON CONFLICT (event_id) DO UPDATE SET
                 name = EXCLUDED.name,
                 fields = EXCLUDED.fields,
                 max_applicants = EXCLUDED.max_applicants,
                 expires_at = EXCLUDED.expires_at,
+                cards_publish_at = EXCLUDED.cards_publish_at,
+                cards_published_at = NULL,
                 status = EXCLUDED.status,
                 is_locked = EXCLUDED.is_locked,
                 locked_at = EXCLUDED.locked_at,

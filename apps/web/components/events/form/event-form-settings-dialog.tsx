@@ -226,6 +226,12 @@ export function EventFormSettingsDialog({
                                         {new Date(eventForm.expires_at).toLocaleString()}
                                     </span>
                                 </div>
+                            ) : null}
+                            <p className="text-[11px] text-muted-foreground">
+                                ID cards are emailed on {new Date(eventForm.cards_publish_at).toLocaleString()}. Change both dates under ID Cards.
+                            </p>
+                            {isLocked ? (
+                                null
                             ) : (
                                 <div className="space-y-1">
                                     <Input

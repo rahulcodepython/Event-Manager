@@ -24,6 +24,8 @@ var (
     ErrNotEnteredYet          = errors.New("applicant has not checked in yet")
     ErrAlreadyExited          = errors.New("applicant has already checked out for this date")
     ErrSessionEnded           = errors.New("cannot check in: event session time has already ended")
+    ErrInvalidQR              = errors.New("invalid or forged QR code")
+    ErrWrongEvent             = errors.New("this card belongs to a different event")
 )
 
 func (s *App) ScanApplicantService(ctx context.Context, eventID string, token string, req ScanApplicantRequest) (*ScanApplicantResponse, error) {
@@ -31,14 +33,18 @@ func (s *App) ScanApplicantService(ctx context.Context, eventID string, token st
         return nil, ErrInvalidEventID
     }
 
-    req.ApplicantID = strings.TrimSpace(req.ApplicantID)
-    if req.ApplicantID == "" {
-        return nil, ErrInvalidApplicantID
+    // Only a QR signed by this server is accepted, so cards cannot be forged.
+    payload, err := s.Signer.Verify(req.QR)
+    if err != nil {
+        return nil, ErrInvalidQR
+    }
+    if payload.EventID != eventID {
+        return nil, ErrWrongEvent
     }
 
     tokenHash := hashDeviceToken(token)
 
-    raw, err := s.ScanApplicantRepository(ctx, eventID, req.ApplicantID, tokenHash)
+    raw, err := s.ScanApplicantRepository(ctx, eventID, payload.ApplicantID, tokenHash)
     if err != nil {
         return nil, err
     }

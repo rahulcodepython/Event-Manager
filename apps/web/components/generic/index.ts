@@ -8,3 +8,4 @@ export {
     type InfiniteDataTableProps,
 } from "./infinite-data-table";
 export { PageHeader, type PageHeaderProps } from "./page-header";
+export { ConfirmButton } from "./confirm-button";

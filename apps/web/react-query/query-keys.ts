@@ -40,6 +40,10 @@ export const queryKeys = {
         byEvent: (eventId: string, filters?: { search?: string; filters?: unknown }) =>
             ["applicants", "event", eventId, filters] as const,
     },
+    cards: {
+        status: (eventId: string) => ["cards", "status", eventId] as const,
+        qr: (eventId: string, applicantId: string) => ["cards", "qr", eventId, applicantId] as const,
+    },
     devices: {
         all: ["devices"] as const,
         list: (filters?: { search?: string; page?: number; limit?: number }) =>

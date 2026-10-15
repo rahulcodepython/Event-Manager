@@ -82,18 +82,20 @@ type UpdateFormFieldsRequest struct {
 
 // EventFormDetails represents full event form metadata and associated stats.
 type EventFormDetails struct {
-    ID              string          `json:"id"`
-    EventID         string          `json:"event_id"`
-    Name            string          `json:"name"`
-    Fields          json.RawMessage `json:"fields"`
-    IsLocked        bool            `json:"is_locked"`
-    LockedAt        *time.Time      `json:"locked_at,omitempty"`
-    MaxApplicants   int             `json:"max_applicants"`
-    ExpiresAt       time.Time       `json:"expires_at"`
-    TotalApplicants int             `json:"total_applicants"`
-    CanDelete       bool            `json:"can_delete"`
-    CreatedAt       time.Time       `json:"created_at"`
-    UpdatedAt       time.Time       `json:"updated_at"`
+    ID               string          `json:"id"`
+    EventID          string          `json:"event_id"`
+    Name             string          `json:"name"`
+    Fields           json.RawMessage `json:"fields"`
+    IsLocked         bool            `json:"is_locked"`
+    LockedAt         *time.Time      `json:"locked_at,omitempty"`
+    MaxApplicants    int             `json:"max_applicants"`
+    ExpiresAt        time.Time       `json:"expires_at"`
+    CardsPublishAt   time.Time       `json:"cards_publish_at"`
+    CardsPublishedAt *time.Time      `json:"cards_published_at"`
+    TotalApplicants  int             `json:"total_applicants"`
+    CanDelete        bool            `json:"can_delete"`
+    CreatedAt        time.Time       `json:"created_at"`
+    UpdatedAt        time.Time       `json:"updated_at"`
 }
 
 // CreateEventFormRequest represents payload for creating or associating a form for an event.

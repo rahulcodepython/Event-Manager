@@ -46,6 +46,14 @@ type Config struct {
 	RazorpayKeySecret     string
 	RazorpayWebhookSecret string
 
+	// ID cards: HMAC key for QR payloads. Changing it invalidates every
+	// issued card.
+	QRSigningSecret string
+
+	// Email (Resend). Empty key: emails fail with "not configured".
+	ResendAPIKey string
+	EmailFrom    string
+
 	// WebAuthn Relying Party configuration
 	RPDisplayName   string
 	RPID            string
@@ -119,6 +127,10 @@ func Load() (*Config, error) {
 		RazorpayKeyID:         os.Getenv("RAZORPAY_KEY_ID"),
 		RazorpayKeySecret:     os.Getenv("RAZORPAY_KEY_SECRET"),
 		RazorpayWebhookSecret: os.Getenv("RAZORPAY_WEBHOOK_SECRET"),
+
+		QRSigningSecret: require("QR_SIGNING_SECRET"),
+		ResendAPIKey:    os.Getenv("RESEND_API_KEY"),
+		EmailFrom:       getOr("EMAIL_FROM", "IdentityCard <no-reply@example.com>"),
 
 		RPDisplayName:   getOr("WEBAUTHN_RP_DISPLAY_NAME", "IdentityCard Scanner"),
 		RPID:            getOr("WEBAUTHN_RP_ID", "localhost"),

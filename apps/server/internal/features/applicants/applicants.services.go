@@ -160,6 +160,8 @@ func (s *App) InsertApplicant(ctx context.Context, eventID string, req CreateApp
         return nil, ErrLimitReached
     case "expired":
         return nil, entitlements.ErrReadOnly
+    case "window_closed":
+        return nil, entitlements.ErrApplicationsClosed
     default:
         return nil, ErrInvalidEventID
     }
@@ -198,6 +200,9 @@ func (s *App) BulkCreateApplicantsService(ctx context.Context, eventID string, r
     if len(reqs) == 0 || len(reqs) > maxBulkApplicants {
         return nil, ErrBulkLimit
     }
+    if err := entitlements.RequireApplicationsOpen(ctx, s.DB, eventID); err != nil {
+        return nil, err
+    }
 
     res := &BulkCreateApplicantsResponse{Failed: []BulkApplicantError{}}
     for i, req := range reqs {
@@ -221,6 +226,9 @@ func (s *App) DeleteApplicantService(ctx context.Context, eventID, userID string
     userID = strings.TrimSpace(userID)
     if userID == "" {
         return nil, ErrApplicantNotFound
+    }
+    if err := entitlements.RequireApplicationsOpen(ctx, s.DB, eventID); err != nil {
+        return nil, err
     }
 
     if err := s.DeleteApplicantRepository(ctx, eventID, userID); err != nil {

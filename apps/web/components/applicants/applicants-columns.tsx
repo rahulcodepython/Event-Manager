@@ -6,6 +6,13 @@ import type { ApplicantItem, FormFieldSummary } from "../../schema/applicants.ty
 import { ApplicantUserIdCell } from "./applicant-user-id-cell";
 import { formatFieldValue } from "./applicants-utils";
 
+const CARD_STATUS: Record<ApplicantItem["card_status"], { label: string, variant: "outline" | "secondary" | "default" | "destructive" }> = {
+    pending: { label: "Not sent", variant: "outline" },
+    queued: { label: "Sending", variant: "secondary" },
+    sent: { label: "Sent", variant: "default" },
+    failed: { label: "Failed", variant: "destructive" },
+};
+
 export function getApplicantsColumns(
     formFields?: FormFieldSummary[],
     eventId?: string
@@ -50,6 +57,20 @@ export function getApplicantsColumns(
                         </div>
                     </div>
                 );
+            },
+        },
+        {
+            id: "card_status",
+            header: "ID Card",
+            meta: {
+                headerClassName: "min-w-[110px]",
+                cellClassName: "min-w-[110px]",
+            },
+            cell: ({ row }) => {
+                const card = CARD_STATUS[row.original.card_status];
+                return <Badge variant={card.variant} title={row.original.card_error || undefined}>
+                    {card.label}
+                </Badge>;
             },
         },
     ];

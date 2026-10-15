@@ -88,7 +88,7 @@ func (s *App) SubmitApplicationService(ctx context.Context, eventFormID string, 
         switch {
         case errors.Is(err, applicants.ErrLimitReached):
             return nil, ErrFormLimitReached
-        case errors.Is(err, entitlements.ErrReadOnly):
+        case errors.Is(err, entitlements.ErrReadOnly), errors.Is(err, entitlements.ErrApplicationsClosed):
             return nil, ErrFormExpired
         }
         return nil, err

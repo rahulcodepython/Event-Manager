@@ -9,6 +9,10 @@ type ApplicantItem struct {
     Phone     string                 `json:"phone"`
     Data      map[string]interface{} `json:"data"`
     CreatedAt time.Time              `json:"created_at"`
+    // Card delivery: pending, queued, sent or failed (see cards).
+    CardStatus string     `json:"card_status,omitempty"`
+    CardSentAt *time.Time `json:"card_sent_at,omitempty"`
+    CardError  string     `json:"card_error,omitempty"`
 }
 
 type ApplicantFilter struct {

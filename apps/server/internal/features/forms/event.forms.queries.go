@@ -12,6 +12,8 @@ const (
             'locked_at', ef.locked_at,
             'max_applicants', ef.max_applicants,
             'expires_at', ef.expires_at,
+                    'cards_publish_at', ef.cards_publish_at,
+                    'cards_published_at', ef.cards_published_at,
             'total_applicants', (SELECT count(*)::int FROM event_applicants WHERE event_id = ef.event_id),
             'can_delete', ((SELECT count(*) FROM event_applicants WHERE event_id = ef.event_id) = 0),
             'created_at', ef.created_at,
@@ -30,6 +32,7 @@ const (
                 fields,
                 max_applicants,
                 expires_at,
+                cards_publish_at,
                 is_locked
             )
             SELECT
@@ -37,6 +40,7 @@ const (
                 COALESCE(NULLIF($3, ''), ft.name),
                 ft.fields,
                 $4,
+                $5,
                 $5,
                 false
             FROM form_templates ft
@@ -75,6 +79,8 @@ const (
             'locked_at', i.locked_at,
             'max_applicants', i.max_applicants,
             'expires_at', i.expires_at,
+                    'cards_publish_at', i.cards_publish_at,
+                    'cards_published_at', i.cards_published_at,
             'total_applicants', 0,
             'can_delete', true,
             'created_at', i.created_at,
@@ -92,6 +98,7 @@ const (
                 fields,
                 max_applicants,
                 expires_at,
+                cards_publish_at,
                 is_locked
             )
             VALUES (
@@ -99,6 +106,7 @@ const (
                 $2,
                 $3::jsonb,
                 $4,
+                $5,
                 $5,
                 false
             )
@@ -135,6 +143,8 @@ const (
             'locked_at', i.locked_at,
             'max_applicants', i.max_applicants,
             'expires_at', i.expires_at,
+                    'cards_publish_at', i.cards_publish_at,
+                    'cards_published_at', i.cards_published_at,
             'total_applicants', 0,
             'can_delete', true,
             'created_at', i.created_at,
@@ -155,6 +165,13 @@ const (
                 fields = COALESCE($3::jsonb, fields),
                 max_applicants = COALESCE($4, max_applicants),
                 expires_at = COALESCE($5, expires_at),
+                -- The card date follows the closing date while it still
+                -- matches it, and is never left before it.
+                cards_publish_at = CASE
+                    WHEN $5::timestamptz IS NULL THEN cards_publish_at
+                    WHEN cards_publish_at = expires_at OR cards_publish_at < $5::timestamptz THEN $5::timestamptz
+                    ELSE cards_publish_at
+                END,
                 updated_at = now()
             WHERE event_id = $1::uuid
               AND is_locked = false
@@ -195,6 +212,8 @@ const (
                     'locked_at', u.locked_at,
                     'max_applicants', u.max_applicants,
                     'expires_at', u.expires_at,
+                    'cards_publish_at', u.cards_publish_at,
+                    'cards_published_at', u.cards_published_at,
                     'total_applicants', (SELECT count(*)::int FROM event_applicants WHERE event_id = u.event_id),
                     'can_delete', ((SELECT count(*) FROM event_applicants WHERE event_id = u.event_id) = 0),
                     'created_at', u.created_at,
@@ -236,6 +255,8 @@ const (
                     'locked_at', ef.locked_at,
                     'max_applicants', ef.max_applicants,
                     'expires_at', ef.expires_at,
+                    'cards_publish_at', ef.cards_publish_at,
+                    'cards_published_at', ef.cards_published_at,
                     'total_applicants', (SELECT count(*)::int FROM event_applicants WHERE event_id = ef.event_id),
                     'can_delete', ((SELECT count(*) FROM event_applicants WHERE event_id = ef.event_id) = 0),
                     'created_at', ef.created_at,

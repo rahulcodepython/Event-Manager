@@ -17,14 +17,15 @@ import {
     ScanApplicantResponseSchema,
 } from "../schema/attendance.types";
 
-export function useScanApplicantMutation(eventId: string) {
-    return useMutation<ScanApplicantResponse, ApiError, ScanApplicantRequest>({
-        mutationFn: async (payload) => {
+/** Scans a card; the event comes from the QR, so it is passed per call. */
+export function useScanApplicantMutation() {
+    return useMutation<ScanApplicantResponse, ApiError, ScanApplicantRequest & { eventId: string }>({
+        mutationFn: async ({ eventId, qr }) => {
             return apiRequest<ScanApplicantResponse>(
                 {
                     url: `/events/${eventId}/attendance/scan`,
                     method: "POST",
-                    data: payload,
+                    data: { qr },
                 },
                 ScanApplicantResponseSchema,
             );

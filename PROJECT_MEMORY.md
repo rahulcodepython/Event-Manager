@@ -50,7 +50,9 @@ revenue, expenses and the feature catalog.
 | register | `/public/apply/:eventFormId` | public form config (effective capacity, branding) and submission through the shared capped insert |
 | applicants | `/events/:eventId/applicants` | list with search and JSON filters, create, bulk create, delete |
 | devices | `/devices`, `/events/:eventId/devices` | PIN pairing, WebAuthn, assignment to events |
-| attendance | `/events/:eventId/attendance`, `/events/:eventId/analysis` | scan, entry, exit, verify, offline sync; metrics and attendee lists |
+| attendance | `/events/:eventId/attendance`, `/events/:eventId/analysis` | scan (signed QR only), entry, exit; metrics and attendee lists |
+| cards | `/events/:eventId/cards` (`/schedule`, `/close`, `/publish`, `/resend`), `/events/:eventId/applicants/:applicantId/card` (PDF), `.../qr`, `.../card/resend` | closing + publishing schedule, card emails, organizer download |
+| reminders | (background) | client emails before credit end and data deletion |
 
 Admin API features (`internal/features/admin/`, all behind the admin session):
 
@@ -63,7 +65,7 @@ Admin API features (`internal/features/admin/`, all behind the admin session):
 | ledger | `/categories`, `/transactions` | manual entries editable; payment rows are not |
 | subscriptions | `/subscriptions`, `/subscriptions/:id/renew` | renew = expense row + next due date |
 
-Not built yet (see `PLAN.md`): ID cards and email, sub-events, event subdomains,
+Not built yet (see `PLAN.md`): sub-events, event subdomains,
 landing page, coupons.
 
 ## Decisions still binding
@@ -121,12 +123,24 @@ landing page, coupons.
   100/min), shared across instances; fails open if Redis is down.
 - **One root `.env`** for every app and for Docker Compose. Redis requires a
   password. Razorpay (payments) and Resend (email) keys live there too.
-- **QR payload today is unsigned** base64 JSON (`eventId`, `applicantID`,
-  `registeredAt`); signing is planned with ID cards.
+- **QR codes are signed** (`qrsign`, HMAC with `QR_SIGNING_SECRET`); the
+  scan endpoint accepts only a verified token. Rotating the secret
+  invalidates every issued card.
+- **Application window:** `event_forms.expires_at` closes it; afterwards no
+  applicant can be added or removed (`entitlements.RequireApplicationsOpen`
+  and the capped insert). Cards publish at `cards_publish_at >=
+  expires_at`; once `cards_published_at` is set the schedule is frozen.
+- **Email:** Resend via `internal/pkg/mailer`; every email goes through the
+  `jobqueue` Redis stream (`jobs:email`). Handlers are idempotent and state
+  lives in Postgres (`event_applicants.card_status`, `credit_reminders`).
 
 ## Known gaps
 
 - Single timezone (server local); no overnight sessions.
+- ID card PDFs use the Go fonts (Latin, Greek, Cyrillic); names in Indic
+  scripts do not render yet. Logos must be PNG, JPEG or GIF.
+- Email pacing (600 ms per send) is per API instance; several instances
+  together can exceed Resend's 2 requests/second.
 - Many pre-existing `react-hooks/set-state-in-effect` lint errors across
   `apps/web` (dialogs, charts, scanner pages).
 

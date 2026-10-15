@@ -4,11 +4,9 @@ import (
     "time"
 )
 
-// ScanApplicantRequest is the payload received from QR code decoding.
+// ScanApplicantRequest carries the scanned QR text, a signed qrsign token.
 type ScanApplicantRequest struct {
-    EventID      string `json:"eventID"`
-    ApplicantID  string `json:"applicantID"`
-    RegisteredAt string `json:"registeredAt,omitempty"`
+    QR string `json:"qr"`
 }
 
 type ScanApplicantInfo struct {
