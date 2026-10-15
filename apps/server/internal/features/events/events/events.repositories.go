@@ -17,8 +17,8 @@ type updateEventResult struct {
 }
 
 // ListRepository queries the total count and paginated events in a single network round-trip.
-func (r *App) ListRepository(ctx context.Context, search string, page, limit, offset int) (*generic.PaginatedResponse[[]Event], error) {
-    result, err := postgres.QueryJSON[generic.PaginatedResponse[[]Event]](ctx, r.DB, ListEventsQuery, search, limit, offset, page)
+func (r *App) ListRepository(ctx context.Context, orgID, search string, page, limit, offset int) (*generic.PaginatedResponse[[]Event], error) {
+    result, err := postgres.QueryJSON[generic.PaginatedResponse[[]Event]](ctx, r.DB, ListEventsQuery, search, limit, offset, page, orgID)
     if err != nil {
         return nil, err
     }
@@ -42,7 +42,7 @@ func (r *App) GetRepository(ctx context.Context, id string) (*Event, error) {
 }
 
 // CreateRepository inserts into events and event_metadata in a single CTE network round-trip.
-func (r *App) CreateRepository(ctx context.Context, req CreateEventRequest) (*Event, error) {
+func (r *App) CreateRepository(ctx context.Context, orgID string, req CreateEventRequest) (*Event, error) {
     return postgres.QueryJSON[Event](
         ctx,
         r.DB,
@@ -50,6 +50,7 @@ func (r *App) CreateRepository(ctx context.Context, req CreateEventRequest) (*Ev
         req.StartDate,
         req.EndDate,
         strings.TrimSpace(req.Name),
+        orgID,
     )
 }
 

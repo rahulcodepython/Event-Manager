@@ -4,22 +4,15 @@
     "private": true,
     "scripts": {
         "dev": "make dev",
+        "dev:admin": "make dev-admin",
         "build": "make build",
         "seed": "make seed",
         "flush": "make flush",
-        "seeds:up": "make seeds-up",
         "seeds:regenerate": "make seeds-regenerate",
-        "seeds:regenarate": "make seeds-regenerate",
         "migrate:up": "make migrate-up",
-        "migrate-up": "make migrate-up",
         "migrate:down": "make migrate-down",
-        "migrate-down": "make migrate-down",
         "migrate:new": "make migrate-new",
-        "migrate-new": "make migrate-new",
         "migrate:force": "make migrate-force",
-        "migrate-force": "make migrate-force",
-        "sqlc:generate": "make sqlc-generate",
-        "sqlc-generate": "make sqlc-generate",
         "lint": "make lint"
     }
 }

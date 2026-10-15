@@ -1,12 +1,12 @@
+# Reads the repo-root .env. Run from the repo root:
+#   docker compose --env-file .env -f infra/docker-compose.yml up -d
+# (or `bun run docker:up`)
 name: identitycard
 
 services:
     postgres:
         image: ${POSTGRES_IMAGE:-postgres:17-alpine}
         container_name: ${POSTGRES_CONTAINER_NAME:-identitycard-postgres}
-        env_file:
-            - path: .env
-              required: false
         environment:
             POSTGRES_USER: ${POSTGRES_USER:-identitycard}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-identitycard}
@@ -17,7 +17,7 @@ services:
         volumes:
             - pgdata:/var/lib/postgresql/data
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U identitycard -d identitycard"]
+            test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
             interval: 5s
             timeout: 5s
             retries: 10
@@ -26,9 +26,6 @@ services:
     migrate:
         image: ${MIGRATE_IMAGE:-migrate/migrate:v4.19.1}
         container_name: ${MIGRATE_CONTAINER_NAME:-identitycard-migrate}
-        env_file:
-            - path: .env
-              required: false
         restart: "no"
         depends_on:
             postgres:
@@ -43,6 +40,9 @@ services:
     redis:
         image: ${REDIS_IMAGE:-redis:7-alpine}
         container_name: ${REDIS_CONTAINER_NAME:-identitycard-redis}
+        command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in the root .env}"]
+        environment:
+            REDISCLI_AUTH: ${REDIS_PASSWORD}
         ports:
             - "${REDIS_PORT:-6379}:6379"
         restart: unless-stopped

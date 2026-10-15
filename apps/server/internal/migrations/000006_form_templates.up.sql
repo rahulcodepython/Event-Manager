@@ -29,6 +29,7 @@ ON CONFLICT (type) DO NOTHING;
 -- 2. Create form_templates table
 CREATE TABLE IF NOT EXISTS form_templates (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations (id) ON DELETE CASCADE,
     name            TEXT NOT NULL,
     fields          JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -36,4 +37,4 @@ CREATE TABLE IF NOT EXISTS form_templates (
 );
 
 CREATE INDEX IF NOT EXISTS idx_form_templates_name ON form_templates (name);
-CREATE INDEX IF NOT EXISTS idx_form_templates_created_at ON form_templates (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_form_templates_organization ON form_templates (organization_id, created_at DESC);

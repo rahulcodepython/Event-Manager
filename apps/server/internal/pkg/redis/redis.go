@@ -16,22 +16,10 @@ import (
 // Redis is treated as a resilient soft dependency — if it fails to connect,
 // a warning is logged and the client is still returned so caching degrades gracefully.
 func Connect(ctx context.Context, cfg *config.Config) *redis.Client {
-	var opts *redis.Options
-
-	if cfg.RedisURL != "" {
-		parsed, err := redis.ParseURL(cfg.RedisURL)
-		if err == nil {
-			opts = parsed
-		}
-	}
-
-	if opts == nil {
-		addr := fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort)
-		opts = &redis.Options{
-			Addr:     addr,
-			Password: cfg.RedisPassword,
-			DB:       cfg.RedisDB,
-		}
+	opts := &redis.Options{
+		Addr:     fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort),
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
 	}
 
 	client := redis.NewClient(opts)

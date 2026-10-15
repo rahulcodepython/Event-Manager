@@ -11,7 +11,8 @@ const (
                 ft.created_at,
                 ft.updated_at
             FROM form_templates ft
-            WHERE ($1 = '' OR ft.name ILIKE '%' || $1 || '%')
+            WHERE ft.organization_id = $5::uuid
+              AND ($1 = '' OR ft.name ILIKE '%' || $1 || '%')
         ),
         total_count AS (
             SELECT count(*) AS count FROM filtered_templates
@@ -52,8 +53,8 @@ const (
     // CreateFormQuery creates a new form template with default seeded fields and synchronizes form_fields table.
     CreateFormQuery = `
         WITH new_template AS (
-            INSERT INTO form_templates (name, fields)
-            VALUES ($1, $2::jsonb)
+            INSERT INTO form_templates (organization_id, name, fields)
+            VALUES ($3::uuid, $1, $2::jsonb)
             RETURNING id, name, fields, created_at, updated_at
         ),
         sync_fields AS (

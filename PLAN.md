@@ -106,11 +106,12 @@ editable from admin. To confirm: Q7.
 - **Rewrite** `PROJECT_MEMORY.md` to match current code. Keep its Engineering Principles and TSX style sections. Update the READMEs.
 - Convert the JSX in files changed by commit `fb30974` to the preferred conditional style. Fix the 3 existing lint errors.
 
-### Phase 1 — Client login and organization scoping
-- Client sign-up and login (method: Q9).
-- One organization per client, created at sign-up.
-- Every client table and query gets scoped by `organization_id`. Requests without a valid session are rejected.
-- Scanner devices keep their own device auth, but are bound to an organization.
+### Phase 1 — Client login and organization scoping ✅ done
+- Google login in the Go API. Access JWT (15 min) + refresh JWT (7 days, sliding) in `HttpOnly` cookies. Refresh tokens tracked in Redis: single use, 30 s grace, reuse revokes all sessions.
+- Onboarding form after first login creates the client's one organization.
+- `events`, `form_templates`, `devices` carry `organization_id`; ownership middleware guards every id-addressed route.
+- Scanner devices keep their own device auth and belong to an organization.
+- Single root `.env` for all apps and Docker Compose; Redis password; Razorpay and Resend keys reserved.
 
 ### Phase 2 — Feature catalog and pricing engine
 - Tables `features`, `feature_rates` (and `feature_options` if needed), seeded with the 5 default features.
@@ -203,15 +204,14 @@ Q8 asks whether `admin` and `landing` should be separate apps like this.
 8. **Apps.** Should the admin web and landing page be separate Next.js apps (`apps/admin`, `apps/landing`)? Or should landing live inside `apps/web`?
 
 ### Auth and payments
-9. **Client login method:** email OTP, email + password, Google, or several? Keep better-auth, or Go-native auth?
-10. **Payment gateway:** Razorpay? GST invoice needed? INR only?
+10. **Payment gateway:** Razorpay (decided). GST invoice needed? INR only?
 11. **Admin login:** a single admin account from env/config, or an admin users table? 2FA?
 12. **Business subscriptions:** should renewals create expense rows automatically on the due date, or does the admin confirm each renewal?
 
 ### ID cards
 13. **Card design:** one fixed design, a few templates, or a designer? Which fields go on it?
 14. **Photo:** applicant photo uploaded at registration? That needs file storage again (MinIO/S3).
-15. **Delivery:** PDF attachment or link, and when to send (on registration, or on admin action)? Email provider: Resend, SES, or SMTP?
+15. **Delivery:** PDF attachment or link, and when to send (on registration, or on admin action)? Email provider: Resend (decided).
 
 ### Sub-events
 16. Still open from v1 (Q24–Q33): real examples, own time slots and venue, how applicants pick, capacity, extra fields or fees, scanner per sub-event, admin edits. Answer these before Phase 7.

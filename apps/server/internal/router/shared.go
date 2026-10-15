@@ -13,6 +13,7 @@ import (
     "github.com/gofiber/fiber/v2/middleware/cors"
     "github.com/gofiber/fiber/v2/middleware/helmet"
     "github.com/gofiber/fiber/v2/middleware/recover"
+    "github.com/redis/go-redis/v9"
 
     "identitycard-server/internal/config"
     "identitycard-server/internal/generic"
@@ -35,7 +36,7 @@ func NewFiberApp(cfg *config.Config, name string) *fiber.App {
 
 // useCommonMiddlewares installs the middleware stack and health check shared
 // by the app and admin routers. allowOrigins and allowHeaders feed CORS.
-func useCommonMiddlewares(app *fiber.App, cfg *config.Config, rootCtx context.Context, allowOrigins, allowHeaders string) {
+func useCommonMiddlewares(app *fiber.App, cfg *config.Config, rdb *redis.Client, rootCtx context.Context, allowOrigins, allowHeaders string) {
     // 1. Per-request context bounded by request timeout and server lifecycle
     app.Use(middlewares.RequestContextMiddleware(rootCtx, time.Duration(cfg.RequestTimeoutSec)*time.Second))
     // 2. Structured request logging
@@ -53,8 +54,8 @@ func useCommonMiddlewares(app *fiber.App, cfg *config.Config, rootCtx context.Co
         AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
         AllowCredentials: true,
     }))
-    // 7. Rate limiting per client IP
-    app.Use(middlewares.RateLimiterMiddleware())
+    // 7. Rate limiting: Redis token bucket per client IP
+    app.Use(middlewares.RateLimiterMiddleware(rdb))
 
     app.Get(generic.RouteHealth, func(c *fiber.Ctx) error {
         return utils.OK(c, generic.MsgStatusOk, fiber.Map{"status": generic.MsgStatusOk})

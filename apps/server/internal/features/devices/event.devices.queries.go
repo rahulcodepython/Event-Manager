@@ -46,18 +46,19 @@ const (
             d.created_at,
             d.updated_at
         FROM devices d
-        WHERE d.id NOT IN (
+        WHERE d.organization_id = (SELECT organization_id FROM events WHERE id = $1::uuid)
+          AND d.id NOT IN (
             SELECT device_id FROM event_devices WHERE event_id = $1
         )
         ORDER BY d.created_at DESC;
     `
 
     AssignEventDeviceQuery = `
-        INSERT INTO event_devices (
-            event_id,
-            device_id,
-            created_at
-        ) VALUES ($1, $2, now())
+        INSERT INTO event_devices (event_id, device_id, created_at)
+        SELECT e.id, d.id, now()
+        FROM events e
+        JOIN devices d ON d.organization_id = e.organization_id
+        WHERE e.id = $1::uuid AND d.id = $2::uuid
         ON CONFLICT (event_id, device_id) DO NOTHING;
     `
 

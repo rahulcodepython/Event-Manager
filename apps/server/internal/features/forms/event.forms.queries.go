@@ -41,6 +41,7 @@ const (
                 false
             FROM form_templates ft
             WHERE ft.id = $2::uuid
+              AND ft.organization_id = (SELECT organization_id FROM events WHERE id = $1::uuid)
             RETURNING *
         ),
         sync_fields AS (

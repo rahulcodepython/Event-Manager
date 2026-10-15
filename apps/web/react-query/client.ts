@@ -6,7 +6,11 @@ import type { ZodType, ZodTypeDef } from "zod";
 import { API_V1_PREFIX, DEFAULT_API_BASE_URL } from "../lib/constants";
 import { ResponseZod, type Response } from "../schema/common.types";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL;
+const apiOrigin = process.env.NEXT_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL;
+export const apiBaseUrl = `${apiOrigin}${API_V1_PREFIX}`;
+
+// Pages that require a logged-in user. A 401 there means the session is gone.
+const PROTECTED_PATHS = ["/dashboard", "/onboarding"];
 
 export class ApiError extends Error {
     constructor(
@@ -18,7 +22,7 @@ export class ApiError extends Error {
 }
 
 export const apiClient = axios.create({
-    baseURL: `${apiBaseUrl}${API_V1_PREFIX}`,
+    baseURL: apiBaseUrl,
     withCredentials: true,
 });
 
@@ -37,6 +41,17 @@ apiClient.interceptors.response.use(
     (res) => res,
     (error) => {
         const status = error.response?.status ?? 500;
+
+        // The API already cleared the auth cookies. A full reload on /login
+        // logs the user out and drops every cached query.
+        if (
+            status === 401 &&
+            typeof window !== "undefined" &&
+            PROTECTED_PATHS.some((p) => window.location.pathname.startsWith(p))
+        ) {
+            window.location.href = "/login";
+        }
+
         const message =
             error.response?.data?.message ||
             (typeof error.response?.data?.error === "string"

@@ -23,13 +23,13 @@ var (
 )
 
 // ListService retrieves paginated events with TTL jitter caching in a single database round-trip.
-func (s *App) ListService(ctx context.Context, search string, page, limit int) (*generic.PaginatedResponse[[]Event], error) {
+func (s *App) ListService(ctx context.Context, orgID, search string, page, limit int) (*generic.PaginatedResponse[[]Event], error) {
     search = strings.TrimSpace(search)
     offset := (page - 1) * limit
 
-    cacheKey := fmt.Sprintf("cache:events:list:s=%s:p=%d:l=%d", search, page, limit)
+    cacheKey := fmt.Sprintf("cache:events:list:o=%s:s=%s:p=%d:l=%d", orgID, search, page, limit)
     return cache.RememberWithJitter(ctx, s.Cache, cacheKey, 3*time.Minute, cache.DefaultJitterPercentage, func() (*generic.PaginatedResponse[[]Event], error) {
-        return s.ListRepository(ctx, search, page, limit, offset)
+        return s.ListRepository(ctx, orgID, search, page, limit, offset)
     })
 }
 
@@ -53,7 +53,7 @@ func (s *App) GetService(ctx context.Context, id string) (*Event, error) {
 }
 
 // CreateService validates inputs and creates an event, invalidating events list cache.
-func (s *App) CreateService(ctx context.Context, req CreateEventRequest) (*Event, error) {
+func (s *App) CreateService(ctx context.Context, orgID string, req CreateEventRequest) (*Event, error) {
     start, err := time.Parse("2006-01-02", req.StartDate)
     if err != nil {
         return nil, ErrInvalidDateFormat
@@ -66,13 +66,13 @@ func (s *App) CreateService(ctx context.Context, req CreateEventRequest) (*Event
         return nil, ErrInvalidDateRange
     }
 
-    ev, err := s.CreateRepository(ctx, req)
+    ev, err := s.CreateRepository(ctx, orgID, req)
     if err != nil {
         return nil, err
     }
 
     if s.Cache != nil {
-        _ = s.Cache.DeletePattern(ctx, "cache:events:*")
+        _ = s.Cache.DeletePattern(ctx, fmt.Sprintf("cache:events:list:o=%s:*", orgID))
     }
 
     return ev, nil

@@ -1,4 +1,7 @@
 export const queryKeys = {
+    auth: {
+        me: ["auth", "me"] as const,
+    },
     events: {
         all: ["events"] as const,
         list: (filters?: { search?: string }) => ["events", "list", filters] as const,

@@ -9,8 +9,8 @@ import (
 )
 
 // ListRepository queries total count and paginated form templates in a single network round-trip.
-func (r *App) ListRepository(ctx context.Context, search string, page, limit, offset int) (*generic.PaginatedResponse[[]Form], error) {
-    result, err := postgres.QueryJSON[generic.PaginatedResponse[[]Form]](ctx, r.DB, ListFormsQuery, search, limit, offset, page)
+func (r *App) ListRepository(ctx context.Context, orgID, search string, page, limit, offset int) (*generic.PaginatedResponse[[]Form], error) {
+    result, err := postgres.QueryJSON[generic.PaginatedResponse[[]Form]](ctx, r.DB, ListFormsQuery, search, limit, offset, page, orgID)
     if err != nil {
         return nil, err
     }
@@ -34,8 +34,8 @@ func (r *App) GetRepository(ctx context.Context, id string) (*Form, error) {
 }
 
 // CreateRepository inserts a new form template with its initial JSONB fields.
-func (r *App) CreateRepository(ctx context.Context, name string, fieldsJSON []byte) (*Form, error) {
-    return postgres.QueryJSON[Form](ctx, r.DB, CreateFormQuery, name, string(fieldsJSON))
+func (r *App) CreateRepository(ctx context.Context, orgID, name string, fieldsJSON []byte) (*Form, error) {
+    return postgres.QueryJSON[Form](ctx, r.DB, CreateFormQuery, name, string(fieldsJSON), orgID)
 }
 
 // UpdateRepository updates form template metadata (name).

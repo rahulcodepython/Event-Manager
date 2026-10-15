@@ -47,7 +47,7 @@ func main() {
     app := router.NewFiberApp(cfg, "IdentityCard API")
     router.NewAppRouter(app, cfg, pool, rdb, wa, ctx).SetUp()
 
-    if err := router.Listen(app, cfg.Port, cancel); err != nil {
+    if err := router.Listen(app, cfg.APIPort, cancel); err != nil {
         log.Fatalf("[server] listen: %v", err)
     }
 }

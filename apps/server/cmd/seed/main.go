@@ -31,6 +31,10 @@ func main() {
     }
     defer postgres.Close(pool)
 
+    if cfg.SeedClientEmail == "" && *action != "flush" {
+        log.Fatal("[seed] set SEED_CLIENT_EMAIL in the root .env (the Google account that will own the demo data)")
+    }
+
     switch *action {
     case "flush":
         if err := flushDatabase(ctx, pool); err != nil {
@@ -42,12 +46,12 @@ func main() {
             log.Fatalf("[seed] flush before regenerate failed: %v", err)
         }
         fmt.Println("✓ Database flushed.")
-        if err := seedDatabase(ctx, pool); err != nil {
+        if err := seedDatabase(ctx, pool, cfg.SeedClientEmail); err != nil {
             log.Fatalf("[seed] seed failed: %v", err)
         }
         fmt.Println("✓ Database successfully regenerated and seeded.")
     case "seed", "up":
-        if err := seedDatabase(ctx, pool); err != nil {
+        if err := seedDatabase(ctx, pool, cfg.SeedClientEmail); err != nil {
             log.Fatalf("[seed] seed failed: %v", err)
         }
         fmt.Println("✓ Database successfully seeded.")
@@ -72,7 +76,9 @@ func flushDatabase(ctx context.Context, pool *pgxpool.Pool) error {
                     form_templates, 
                     event_dates, 
                     event_metadata, 
-                    events 
+                    events,
+                    organizations,
+                    users
                 RESTART IDENTITY CASCADE;
             END IF;
         END $$;
@@ -126,12 +132,33 @@ func floatPtr(f float64) *float64 {
     return &f
 }
 
-func seedDatabase(ctx context.Context, pool *pgxpool.Pool) error {
+func seedDatabase(ctx context.Context, pool *pgxpool.Pool, ownerEmail string) error {
     tx, err := pool.Begin(ctx)
     if err != nil {
         return fmt.Errorf("begin transaction: %w", err)
     }
     defer tx.Rollback(ctx)
+
+    // -------------------------------------------------------------
+    // 0. Demo client: a user (linked to Google on first login by email)
+    //    and the organization that owns every seeded row.
+    // -------------------------------------------------------------
+    var orgID string
+    err = tx.QueryRow(ctx, `
+        WITH u AS (
+            INSERT INTO users (email, name)
+            VALUES (lower($1), 'Demo Client')
+            ON CONFLICT (email) DO UPDATE SET updated_at = now()
+            RETURNING id
+        )
+        INSERT INTO organizations (owner_id, name)
+        SELECT id, 'Demo Organization' FROM u
+        ON CONFLICT (owner_id) DO UPDATE SET updated_at = now()
+        RETURNING id::text;
+    `, ownerEmail).Scan(&orgID)
+    if err != nil {
+        return fmt.Errorf("insert demo client: %w", err)
+    }
 
     // -------------------------------------------------------------
     // 1. Seed Global Form Templates (forms)
@@ -359,13 +386,13 @@ func seedDatabase(ctx context.Context, pool *pgxpool.Pool) error {
 
     for _, f := range formsToInsert {
         _, err := tx.Exec(ctx, `
-            INSERT INTO form_templates (id, name, fields, created_at, updated_at)
-            VALUES ($1, $2, $3, now(), now())
+            INSERT INTO form_templates (id, organization_id, name, fields, created_at, updated_at)
+            VALUES ($1, $4, $2, $3, now(), now())
             ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name,
                 fields = EXCLUDED.fields,
                 updated_at = now();
-        `, f.ID, f.Name, f.Fields)
+        `, f.ID, f.Name, f.Fields, orgID)
         if err != nil {
             return fmt.Errorf("insert form_template %s: %w", f.Name, err)
         }
@@ -469,13 +496,13 @@ func seedDatabase(ctx context.Context, pool *pgxpool.Pool) error {
 
     for _, ed := range eventsData {
         _, err := tx.Exec(ctx, `
-            INSERT INTO events (id, start_date, end_date, created_at, updated_at)
-            VALUES ($1, $2, $3, now(), now())
+            INSERT INTO events (id, organization_id, start_date, end_date, created_at, updated_at)
+            VALUES ($1, $4, $2, $3, now(), now())
             ON CONFLICT (id) DO UPDATE SET
                 start_date = EXCLUDED.start_date,
                 end_date = EXCLUDED.end_date,
                 updated_at = now();
-        `, ed.ID, ed.StartDate, ed.EndDate)
+        `, ed.ID, ed.StartDate, ed.EndDate, orgID)
         if err != nil {
             return fmt.Errorf("insert event %s: %w", ed.Name, err)
         }
@@ -1092,8 +1119,8 @@ func seedDatabase(ctx context.Context, pool *pgxpool.Pool) error {
 
     for _, d := range devicesToInsert {
         _, err := tx.Exec(ctx, `
-            INSERT INTO devices (id, name, actual_name, fingerprint, pin, pin_expires_at, expires_at, last_active_at, token_hash, is_biometric_enrolled, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now())
+            INSERT INTO devices (id, organization_id, name, actual_name, fingerprint, pin, pin_expires_at, expires_at, last_active_at, token_hash, is_biometric_enrolled, created_at, updated_at)
+            VALUES ($1, $11, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now())
             ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name,
                 actual_name = EXCLUDED.actual_name,
@@ -1105,7 +1132,7 @@ func seedDatabase(ctx context.Context, pool *pgxpool.Pool) error {
                 token_hash = EXCLUDED.token_hash,
                 is_biometric_enrolled = EXCLUDED.is_biometric_enrolled,
                 updated_at = now();
-        `, d.ID, d.Name, d.ActualName, d.Fingerprint, d.PIN, d.PINExpiry, d.ExpiresAt, d.LastActive, d.TokenHash, d.IsBiometricEnrolled)
+        `, d.ID, d.Name, d.ActualName, d.Fingerprint, d.PIN, d.PINExpiry, d.ExpiresAt, d.LastActive, d.TokenHash, d.IsBiometricEnrolled, orgID)
         if err != nil {
             return fmt.Errorf("insert device %s: %w", d.Name, err)
         }

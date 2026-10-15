@@ -16,12 +16,22 @@ at the door with paired scanner devices.
 The roadmap lives in [PLAN.md](PLAN.md); project history and coding rules in
 [PROJECT_MEMORY.md](PROJECT_MEMORY.md).
 
+## Environment
+
+One `.env` at the repo root serves every app: copy `.env.example` to `.env`
+and fill in the secrets. The Go binaries find it by walking up from their
+working directory, `apps/web/next.config.ts` loads it with `@next/env`, and
+Docker Compose reads it via `--env-file .env`. `${VAR}` references expand.
+
 ## Local development
 
 ```bash
-cd infra && docker compose up -d          # postgres, migrate (runs once), redis
-cd apps/server && cp .env.example .env
-make dev                                  # client API on :8000
-make dev-admin                            # admin API on :8001
-cd apps/web && cp .env.example .env.local && bun install && bun dev   # :3000
+cp .env.example .env                      # then fill JWT secrets, Google keys, passwords
+bun run docker:up                         # postgres, migrate (runs once), redis
+cd apps/server && make dev                # client API on :8000
+cd apps/server && make dev-admin          # admin API on :8001
+cd apps/web && bun install && bun dev     # :3000
 ```
+
+Google login needs the redirect URI `${API_URL}/api/v1/auth/google/callback`
+registered on the Google OAuth client.

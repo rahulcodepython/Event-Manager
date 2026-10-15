@@ -8,6 +8,7 @@ import (
 
     "github.com/gofiber/fiber/v2"
     "identitycard-server/internal/generic"
+    "identitycard-server/internal/middlewares"
     "identitycard-server/internal/utils"
 )
 
@@ -17,7 +18,7 @@ func (h *App) CreateDeviceHandler(c *fiber.Ctx) error {
         return utils.ErrBadRequest(c, "invalid request payload", err)
     }
 
-    device, err := h.CreateDeviceService(c.UserContext(), req)
+    device, err := h.CreateDeviceService(c.UserContext(), middlewares.OrgID(c), req)
     if err != nil {
         slog.Error("failed to create device", "error", err)
         if errors.Is(err, ErrEmptyDeviceName) {
@@ -33,7 +34,7 @@ func (h *App) ListDevicesHandler(c *fiber.Ctx) error {
     page, limit := utils.PaginationParams(c)
     search := c.Query("search")
 
-    devices, total, err := h.ListDevicesService(c.UserContext(), search, page, limit)
+    devices, total, err := h.ListDevicesService(c.UserContext(), middlewares.OrgID(c), search, page, limit)
     if err != nil {
         slog.Error("failed to list devices", "error", err)
         return utils.ErrInternal(c, "failed to list devices", err)

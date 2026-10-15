@@ -1,6 +1,7 @@
 -- 1. Create devices table (global pool of scanning hardware)
 CREATE TABLE IF NOT EXISTS devices (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations (id) ON DELETE CASCADE,
     name            TEXT NOT NULL,
     actual_name     TEXT NULL,
     fingerprint     TEXT UNIQUE NULL,
@@ -22,7 +23,7 @@ CREATE TABLE IF NOT EXISTS devices (
 CREATE INDEX IF NOT EXISTS idx_devices_pin ON devices (pin) WHERE pin IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_devices_fingerprint ON devices (fingerprint) WHERE fingerprint IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_devices_webauthn_cred ON devices (webauthn_credential_id) WHERE webauthn_credential_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_devices_created_at ON devices (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_devices_organization ON devices (organization_id, created_at DESC);
 
 -- 2. Create event_devices junction table mapping devices to events
 CREATE TABLE IF NOT EXISTS event_devices (

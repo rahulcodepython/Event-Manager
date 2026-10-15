@@ -4,14 +4,18 @@ import (
     "github.com/gofiber/fiber/v2"
 )
 
-// RegisterRoutes registers all attendance and analysis routes.
-func (h *App) RegisterRoutes(r fiber.Router) {
-    attendanceGroup := r.Group("/events/:eventId/attendance")
-    attendanceGroup.Post("/scan", h.ScanApplicantHandler)
-    attendanceGroup.Post("/entry", h.MarkEntryHandler)
-    attendanceGroup.Post("/exit", h.MarkExitHandler)
+// RegisterPublicRoutes mounts the scanner endpoints, authenticated by the
+// X-Device-Token header instead of a user session.
+func (h *App) RegisterPublicRoutes(r fiber.Router) {
+    group := r.Group("/events/:eventId/attendance")
+    group.Post("/scan", h.ScanApplicantHandler)
+    group.Post("/entry", h.MarkEntryHandler)
+    group.Post("/exit", h.MarkExitHandler)
+}
 
-    analysisGroup := r.Group("/events/:eventId/analysis")
-    analysisGroup.Get("/metrics", h.GetAttendanceMetricsHandler)
-    analysisGroup.Get("/attendees", h.ListAttendeeAnalysisHandler)
+// RegisterRoutes mounts the organization's analysis endpoints.
+func (h *App) RegisterRoutes(r fiber.Router) {
+    group := r.Group("/events/:eventId/analysis")
+    group.Get("/metrics", h.GetAttendanceMetricsHandler)
+    group.Get("/attendees", h.ListAttendeeAnalysisHandler)
 }

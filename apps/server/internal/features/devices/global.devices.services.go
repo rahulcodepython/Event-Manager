@@ -26,7 +26,7 @@ type StoredWebAuthnSession struct {
     SessionData webauthn.SessionData `json:"session_data"`
 }
 
-func (s *App) CreateDeviceService(ctx context.Context, req CreateDeviceRequest) (*Device, error) {
+func (s *App) CreateDeviceService(ctx context.Context, orgID string, req CreateDeviceRequest) (*Device, error) {
     name := strings.TrimSpace(req.Name)
     if name == "" {
         return nil, ErrEmptyDeviceName
@@ -38,10 +38,10 @@ func (s *App) CreateDeviceService(ctx context.Context, req CreateDeviceRequest) 
     }
 
     pinExpiresAt := time.Now().Add(5 * time.Minute)
-    return s.CreateDeviceRepository(ctx, name, pin, pinExpiresAt, req.ExpiresAt)
+    return s.CreateDeviceRepository(ctx, orgID, name, pin, pinExpiresAt, req.ExpiresAt)
 }
 
-func (s *App) ListDevicesService(ctx context.Context, search string, page, limit int) ([]Device, int, error) {
+func (s *App) ListDevicesService(ctx context.Context, orgID, search string, page, limit int) ([]Device, int, error) {
     if limit <= 0 || limit > 100 {
         limit = 30
     }
@@ -49,7 +49,7 @@ func (s *App) ListDevicesService(ctx context.Context, search string, page, limit
         page = 1
     }
     offset := (page - 1) * limit
-    return s.ListDevicesRepository(ctx, strings.TrimSpace(search), limit, offset)
+    return s.ListDevicesRepository(ctx, orgID, strings.TrimSpace(search), limit, offset)
 }
 
 func (s *App) UpdateDeviceService(ctx context.Context, id string, req UpdateDeviceRequest) (*Device, error) {

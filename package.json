@@ -7,22 +7,21 @@
     ],
     "scripts": {
         "dev": "bun run docker:up && bun run migrate:up && bun --filter '*' dev",
-        "docker:up": "docker compose -f infra/docker-compose.yml up -d",
-        "docker:down": "docker compose -f infra/docker-compose.yml down",
-        "docker:logs": "docker compose -f infra/docker-compose.yml logs -f",
+        "docker:up": "docker compose --env-file .env -f infra/docker-compose.yml up -d",
+        "docker:down": "docker compose --env-file .env -f infra/docker-compose.yml down",
+        "docker:logs": "docker compose --env-file .env -f infra/docker-compose.yml logs -f",
         "dev:web": "bun --filter web dev",
         "dev:server": "bun --filter server dev",
         "format": "bun --filter web format",
         "typecheck": "bun --filter web typecheck",
         "seed": "bun --filter server seed",
-        "seeds:up": "bun --filter server seeds:up",
         "seeds:regenerate": "bun --filter server seeds:regenerate",
         "flush": "bun --filter server flush",
         "migrate:up": "bun --filter server migrate:up",
         "migrate:down": "bun --filter server migrate:down",
         "migrate:new": "bun --filter server migrate:new",
         "migrate:force": "bun --filter server migrate:force",
-        "sqlc:generate": "bun --filter server sqlc:generate"
+        "dev:admin": "bun --filter server dev:admin"
     },
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",

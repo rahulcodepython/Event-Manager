@@ -75,8 +75,8 @@ func scanDevices(rows pgx.Rows) ([]Device, error) {
     return devices, nil
 }
 
-func (r *App) CreateDeviceRepository(ctx context.Context, name string, pin string, pinExpiresAt time.Time, expiresAt *time.Time) (*Device, error) {
-    row := r.DB.QueryRow(ctx, InsertDeviceQuery, name, pin, pinExpiresAt, expiresAt)
+func (r *App) CreateDeviceRepository(ctx context.Context, orgID, name string, pin string, pinExpiresAt time.Time, expiresAt *time.Time) (*Device, error) {
+    row := r.DB.QueryRow(ctx, InsertDeviceQuery, name, pin, pinExpiresAt, expiresAt, orgID)
     return scanDevice(row)
 }
 
@@ -100,14 +100,14 @@ func (r *App) GetDeviceByWebAuthnCredentialIDRepository(ctx context.Context, cre
     return scanDevice(row)
 }
 
-func (r *App) ListDevicesRepository(ctx context.Context, search string, limit, offset int) ([]Device, int, error) {
+func (r *App) ListDevicesRepository(ctx context.Context, orgID, search string, limit, offset int) ([]Device, int, error) {
     var total int
-    err := r.DB.QueryRow(ctx, CountDevicesQuery, search).Scan(&total)
+    err := r.DB.QueryRow(ctx, CountDevicesQuery, search, orgID).Scan(&total)
     if err != nil {
         return nil, 0, postgres.MapPgError(err)
     }
 
-    rows, err := r.DB.Query(ctx, ListDevicesQuery, search, limit, offset)
+    rows, err := r.DB.Query(ctx, ListDevicesQuery, search, limit, offset, orgID)
     if err != nil {
         return nil, 0, postgres.MapPgError(err)
     }

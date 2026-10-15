@@ -40,6 +40,7 @@ revenue, expenses and the feature catalog.
 
 | Feature | Routes (under `/api/v1`) | Notes |
 |---|---|---|
+| auth | `/auth/google`, `/auth/google/callback`, `/auth/me`, `/auth/onboarding`, `/auth/logout` | Google login, JWT cookies, refresh rotation in Redis, onboarding creates the org |
 | events/events | `/events` | CRUD, search, pagination |
 | events/dates | `/events/:eventId/dates` | per-day hours; bulk update and override |
 | forms | `/forms`, `/events/:eventId/form` | reusable templates; event form with capacity, deadline, lock |
@@ -48,8 +49,7 @@ revenue, expenses and the feature catalog.
 | devices | `/devices`, `/events/:eventId/devices` | PIN pairing, WebAuthn, assignment to events |
 | attendance | `/events/:eventId/attendance`, `/events/:eventId/analysis` | scan, entry, exit, verify, offline sync; metrics and attendee lists |
 
-Not built yet (see `PLAN.md`): client login and org scoping, credits and
-payments, admin features, ID cards and email, sub-events, event subdomains,
+Not built yet (see `PLAN.md`): credits and payments, admin features, ID cards and email, sub-events, event subdomains,
 landing page, coupons.
 
 ## Decisions still binding
@@ -65,12 +65,19 @@ landing page, coupons.
 - **No native mobile app.** Scanning stays in the browser.
 - **Scanner devices authenticate with `X-Device-Token`**, separate from any
   user login.
+- **Auth:** Google login only, done by the Go API. Access JWT 15 min,
+  refresh JWT 7 days sliding, both in `HttpOnly` cookies; refresh tokens
+  tracked in Redis (single use, 30 s grace, reuse revokes all sessions).
+  First login goes through an onboarding form that creates the organization.
+- **Data scoping:** `events`, `form_templates` and `devices` carry
+  `organization_id`; child tables are scoped through their event.
+- **One root `.env`** for every app and for Docker Compose. Redis requires a
+  password. Razorpay (payments) and Resend (email) keys live there too.
 - **QR payload today is unsigned** base64 JSON (`eventId`, `applicantID`,
   `registeredAt`); signing is planned with ID cards.
 
 ## Known gaps
 
-- All client APIs are currently unauthenticated.
 - Single timezone (server local); no overnight sessions.
 - Many pre-existing `react-hooks/set-state-in-effect` lint errors across
   `apps/web` (dialogs, charts, scanner pages).

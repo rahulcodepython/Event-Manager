@@ -3,13 +3,14 @@ package devices
 const (
     InsertDeviceQuery = `
         INSERT INTO devices (
+            organization_id,
             name,
             pin,
             pin_expires_at,
             expires_at,
             created_at,
             updated_at
-        ) VALUES ($1, $2, $3, $4, now(), now())
+        ) VALUES ($5::uuid, $1, $2, $3, $4, now(), now())
         RETURNING
             id,
             name,
@@ -136,7 +137,8 @@ const (
             created_at,
             updated_at
         FROM devices
-        WHERE ($1 = '' OR name ILIKE '%' || $1 || '%' OR COALESCE(actual_name, '') ILIKE '%' || $1 || '%')
+        WHERE organization_id = $4::uuid
+          AND ($1 = '' OR name ILIKE '%' || $1 || '%' OR COALESCE(actual_name, '') ILIKE '%' || $1 || '%')
         ORDER BY created_at DESC
         LIMIT $2 OFFSET $3;
     `
@@ -144,7 +146,8 @@ const (
     CountDevicesQuery = `
         SELECT COUNT(*)
         FROM devices
-        WHERE ($1 = '' OR name ILIKE '%' || $1 || '%' OR COALESCE(actual_name, '') ILIKE '%' || $1 || '%');
+        WHERE organization_id = $2::uuid
+          AND ($1 = '' OR name ILIKE '%' || $1 || '%' OR COALESCE(actual_name, '') ILIKE '%' || $1 || '%');
     `
 
     UpdateDeviceQuery = `

@@ -1,64 +1,26 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import {
-    AudioLinesIcon,
-    GalleryVerticalEndIcon,
-    TerminalIcon,
-} from "lucide-react";
+import * as React from "react"
 
-import { NavItems } from "./nav-items";
-import { NavUser } from "./nav-user";
-import { TeamSwitcher } from "./team-switcher";
-import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarHeader,
-    SidebarRail,
-} from "../ui/sidebar";
-import type { SidebarData } from "../../schema/sidebar.types";
+import { NavItems } from "./nav-items"
+import { NavUser } from "./nav-user"
+import { OrgHeader } from "./org-header"
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "../ui/sidebar"
+import type { Me } from "../../schema/auth.types"
 
-// Sample dummy data
-const data: SidebarData = {
-    user: {
-        id: "000000000000000",
-        name: "shadcn",
-        email: "m@example.com",
-        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-    },
-    teams: [
-        {
-            name: "Acme Inc",
-            logo: GalleryVerticalEndIcon,
-            plan: "Enterprise",
-        },
-        {
-            name: "Acme Corp.",
-            logo: AudioLinesIcon,
-            plan: "Startup",
-        },
-        {
-            name: "Evil Corp.",
-            logo: TerminalIcon,
-            plan: "Free",
-        },
-    ],
-};
-
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ me, ...props }: React.ComponentProps<typeof Sidebar> & { me: Me }) {
     return (
         <Sidebar collapsible="icon" {...props}>
             <SidebarHeader>
-                <TeamSwitcher teams={data.teams} />
+                <OrgHeader me={me} />
             </SidebarHeader>
             <SidebarContent>
                 <NavItems />
             </SidebarContent>
             <SidebarFooter>
-                <NavUser user={data.user} />
+                <NavUser user={me.user} />
             </SidebarFooter>
             <SidebarRail />
         </Sidebar>
-    );
+    )
 }

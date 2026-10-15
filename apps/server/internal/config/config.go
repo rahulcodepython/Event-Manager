@@ -6,49 +6,70 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Env         string // "development" | "production"
-	Port        string
-	DatabaseURL string
-	WebOrigin   string // the Next.js origin allowed by CORS, e.g. http://localhost:3000
+	Env string // "development" | "production"
 
-	// Admin API (cmd/admin): separate binary on its own port
-	AdminPort      string
-	AdminWebOrigin string // the admin web UI origin allowed by CORS
+	// Ports and public URLs
+	APIPort     string
+	AdminPort   string
+	APIURL      string // public base URL of the client API, e.g. http://localhost:8000
+	WebURL      string // client web app origin, allowed by CORS
+	AdminWebURL string // admin web app origin, allowed by CORS on the admin API
+
+	// Auth
+	JWTAccessSecret    string
+	JWTRefreshSecret   string
+	AccessTokenTTL     time.Duration
+	RefreshTokenTTL    time.Duration
+	GoogleClientID     string
+	GoogleClientSecret string
 
 	// WebAuthn Relying Party configuration
-	RPDisplayName   string // WebAuthn Relying Party Display Name
-	RPID            string // WebAuthn Relying Party ID (domain/host)
-	CanonicalOrigin string // WebAuthn canonical origin URL (e.g. http://localhost:3000)
+	RPDisplayName   string
+	RPID            string
+	CanonicalOrigin string
 
-	// Redis and Cache configurations
-	RedisURL      string
-	RedisHost     string
-	RedisPort     string
-	RedisPassword string
-	RedisDB       int
-
-	// Database connection pooling & timeouts
+	// Postgres
+	DatabaseURL           string
 	DBMaxOpenConns        int
 	DBMaxIdleConns        int
 	DBConnMaxLifetimeMin  int
 	DBConnMaxIdleTimeMin  int
 	DBStatementTimeoutSec int
-	RequestTimeoutSec     int
-	TrustedProxies        []string
+
+	// Redis
+	RedisHost     string
+	RedisPort     string
+	RedisPassword string
+	RedisDB       int
+
+	RequestTimeoutSec int
+	TrustedProxies    []string
+
+	SeedClientEmail string
 }
 
-// Load reads configuration from the environment (loading a local .env file
-// first, if present) and returns an error naming every missing required
+// IsProduction reports whether the app runs with production settings
+// (e.g. Secure cookies).
+func (c *Config) IsProduction() bool {
+	return c.Env == "production"
+}
+
+// Load reads configuration from the environment, loading the repo-root .env
+// first if one is found, and returns an error naming every missing required
 // variable at once instead of failing one at a time.
 func Load() (*Config, error) {
-	_ = godotenv.Load()
+	if path := findEnvFile(); path != "" {
+		_ = godotenv.Load(path)
+	}
 
 	var missing []string
 	require := func(key string) string {
@@ -59,27 +80,41 @@ func Load() (*Config, error) {
 		return v
 	}
 
+	webURL := getOr("WEB_URL", "http://localhost:3000")
+
 	cfg := &Config{
-		Env:                   getOr("APP_ENV", "development"),
-		Port:                  getOr("PORT", "8000"),
+		Env:         getOr("APP_ENV", "development"),
+		APIPort:     getOr("API_PORT", "8000"),
+		AdminPort:   getOr("ADMIN_API_PORT", "8001"),
+		APIURL:      getOr("API_URL", "http://localhost:8000"),
+		WebURL:      webURL,
+		AdminWebURL: getOr("ADMIN_WEB_URL", "http://localhost:3001"),
+
+		JWTAccessSecret:    require("JWT_ACCESS_SECRET"),
+		JWTRefreshSecret:   require("JWT_REFRESH_SECRET"),
+		AccessTokenTTL:     15 * time.Minute,
+		RefreshTokenTTL:    7 * 24 * time.Hour,
+		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+
+		RPDisplayName:   getOr("WEBAUTHN_RP_DISPLAY_NAME", "IdentityCard Scanner"),
+		RPID:            getOr("WEBAUTHN_RP_ID", "localhost"),
+		CanonicalOrigin: webURL,
+
 		DatabaseURL:           require("DATABASE_URL"),
-		WebOrigin:             getOr("WEB_ORIGIN", "http://localhost:3000"),
-		AdminPort:             getOr("ADMIN_PORT", "8001"),
-		AdminWebOrigin:        getOr("ADMIN_WEB_ORIGIN", "http://localhost:3001"),
-		RPDisplayName:         getOr("WEBAUTHN_RP_DISPLAY_NAME", "IdentityCard Scanner"),
-		RPID:                  getOr("WEBAUTHN_RP_ID", "localhost"),
-		CanonicalOrigin:       getOr("WEB_ORIGIN", "http://localhost:3000"),
-		RedisURL:              getOr("REDIS_URL", "redis://localhost:6379"),
-		RedisHost:             getOr("REDIS_HOST", "localhost"),
-		RedisPort:             getOr("REDIS_PORT", "6379"),
-		RedisPassword:         getOr("REDIS_PASSWORD", ""),
-		RedisDB:               getInt("REDIS_DB", 0),
 		DBMaxOpenConns:        getInt("DB_MAX_OPEN_CONNS", 25),
 		DBMaxIdleConns:        getInt("DB_MAX_IDLE_CONNS", 10),
 		DBConnMaxLifetimeMin:  getInt("DB_CONN_MAX_LIFETIME_MIN", 60),
 		DBConnMaxIdleTimeMin:  getInt("DB_CONN_MAX_IDLE_TIME_MIN", 30),
 		DBStatementTimeoutSec: getInt("DB_STATEMENT_TIMEOUT_SEC", 15),
-		RequestTimeoutSec:     getInt("REQUEST_TIMEOUT_SEC", 30),
+
+		RedisHost:     getOr("REDIS_HOST", "localhost"),
+		RedisPort:     getOr("REDIS_PORT", "6379"),
+		RedisPassword: require("REDIS_PASSWORD"),
+		RedisDB:       getInt("REDIS_DB", 0),
+
+		RequestTimeoutSec: getInt("REQUEST_TIMEOUT_SEC", 30),
+		SeedClientEmail:   os.Getenv("SEED_CLIENT_EMAIL"),
 	}
 
 	defaultProxies := []string{
@@ -104,6 +139,26 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("config: missing required environment variables: %s", strings.Join(missing, ", "))
 	}
 	return cfg, nil
+}
+
+// findEnvFile walks up from the working directory to the first .env file,
+// so every binary reads the single repo-root .env wherever it is started.
+func findEnvFile() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		path := filepath.Join(dir, ".env")
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
 }
 
 func getOr(key, fallback string) string {

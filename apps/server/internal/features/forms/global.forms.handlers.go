@@ -6,6 +6,7 @@ import (
     "github.com/gofiber/fiber/v2"
 
     "identitycard-server/internal/generic"
+    "identitycard-server/internal/middlewares"
     "identitycard-server/internal/utils"
 )
 
@@ -17,7 +18,7 @@ func (h *App) ListHandler(c *fiber.Ctx) error {
     }
     search := c.Query("search")
 
-    res, err := h.ListService(c.UserContext(), search, page, limit)
+    res, err := h.ListService(c.UserContext(), middlewares.OrgID(c), search, page, limit)
     if err != nil {
         return utils.ErrInternal(c, "failed to list forms", err)
     }
@@ -50,7 +51,7 @@ func (h *App) CreateHandler(c *fiber.Ctx) error {
         return utils.ErrBadRequest(c, err.Error(), err)
     }
 
-    f, err := h.CreateService(c.UserContext(), *req)
+    f, err := h.CreateService(c.UserContext(), middlewares.OrgID(c), *req)
     if err != nil {
         if errors.Is(err, ErrInvalidFormName) {
             return utils.ErrBadRequest(c, err.Error(), err)

@@ -10,6 +10,7 @@ import (
 
     "identitycard-server/internal/config"
     "identitycard-server/internal/features/applicants"
+    "identitycard-server/internal/features/auth"
     "identitycard-server/internal/features/attendance"
     "identitycard-server/internal/features/devices"
     "identitycard-server/internal/features/events/dates"
@@ -17,6 +18,7 @@ import (
     "identitycard-server/internal/features/forms"
     "identitycard-server/internal/features/register"
     "identitycard-server/internal/generic"
+    "identitycard-server/internal/middlewares"
     "identitycard-server/internal/pkg/cache"
 )
 
@@ -24,8 +26,11 @@ import (
 type AppRouter struct {
     App     *fiber.App
     CFG     *config.Config
+    DB      *pgxpool.Pool
+    Redis   *redis.Client
     RootCtx context.Context
 
+    Auth       *auth.App
     Events     *events.App
     Dates      *dates.App
     Forms      *forms.App
@@ -51,8 +56,11 @@ func NewAppRouter(
     return &AppRouter{
         App:     app,
         CFG:     cfg,
+        DB:      pool,
+        Redis:   rdb,
         RootCtx: rootCtx,
 
+        Auth:       auth.NewApp(pool, rdb, cfg),
         Events:     events.NewApp(pool, cch),
         Dates:      dates.NewApp(pool, cch),
         Forms:      forms.NewApp(pool, cch),
@@ -64,15 +72,32 @@ func NewAppRouter(
 }
 
 func (r *AppRouter) SetUp() {
-    useCommonMiddlewares(r.App, r.CFG, r.RootCtx, r.CFG.WebOrigin, "Content-Type,Authorization,X-Device-Token")
+    useCommonMiddlewares(r.App, r.CFG, r.Redis, r.RootCtx, r.CFG.WebURL, "Content-Type,Authorization,X-Device-Token")
 
     api := r.App.Group(generic.APIV1Prefix)
 
-    r.Events.RegisterRoutes(api)
-    r.Dates.RegisterRoutes(api)
-    r.Forms.RegisterRoutes(api)
+    // 1. Public: no user session (Google login, public registration form,
+    //    scanner devices authenticated by their own device token).
+    r.Auth.RegisterPublicRoutes(api)
     r.Register.RegisterRoutes(api)
-    r.Applicants.RegisterRoutes(api)
-    r.Devices.RegisterRoutes(api)
-    r.Attendance.RegisterRoutes(api)
+    r.Devices.RegisterPublicRoutes(api)
+    r.Attendance.RegisterPublicRoutes(api)
+
+    // 2. Logged-in user, organization not required (session, onboarding).
+    authed := api.Group("", r.Auth.RequireAuth)
+    r.Auth.RegisterRoutes(authed)
+
+    // 3. Logged-in user with an organization. Any route addressing a row by
+    //    id 404s unless that row belongs to the caller's organization.
+    org := authed.Group("", middlewares.RequireOrganization)
+    org.Use("/events/:eventId", middlewares.OwnedBy(r.DB, "events", "eventId"))
+    org.Use("/forms/:formId", middlewares.OwnedBy(r.DB, "form_templates", "formId"))
+    org.Use("/devices/:deviceId", middlewares.OwnedBy(r.DB, "devices", "deviceId"))
+
+    r.Events.RegisterRoutes(org)
+    r.Dates.RegisterRoutes(org)
+    r.Forms.RegisterRoutes(org)
+    r.Applicants.RegisterRoutes(org)
+    r.Devices.RegisterRoutes(org)
+    r.Attendance.RegisterRoutes(org)
 }

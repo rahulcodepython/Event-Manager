@@ -24,13 +24,13 @@ var (
 )
 
 // ListService retrieves paginated form templates with TTL jitter caching.
-func (s *App) ListService(ctx context.Context, search string, page, limit int) (*generic.PaginatedResponse[[]Form], error) {
+func (s *App) ListService(ctx context.Context, orgID, search string, page, limit int) (*generic.PaginatedResponse[[]Form], error) {
     search = strings.TrimSpace(search)
     offset := (page - 1) * limit
 
-    cacheKey := fmt.Sprintf("cache:forms:list:s=%s:p=%d:l=%d", search, page, limit)
+    cacheKey := fmt.Sprintf("cache:forms:list:o=%s:s=%s:p=%d:l=%d", orgID, search, page, limit)
     return cache.RememberWithJitter(ctx, s.Cache, cacheKey, 5*time.Minute, cache.DefaultJitterPercentage, func() (*generic.PaginatedResponse[[]Form], error) {
-        return s.ListRepository(ctx, search, page, limit, offset)
+        return s.ListRepository(ctx, orgID, search, page, limit, offset)
     })
 }
 
@@ -54,7 +54,7 @@ func (s *App) GetService(ctx context.Context, id string) (*Form, error) {
 }
 
 // CreateService validates name and initializes form with default system fields.
-func (s *App) CreateService(ctx context.Context, req CreateFormRequest) (*Form, error) {
+func (s *App) CreateService(ctx context.Context, orgID string, req CreateFormRequest) (*Form, error) {
     trimmedName := strings.TrimSpace(req.Name)
     if trimmedName == "" {
         return nil, ErrInvalidFormName
@@ -66,13 +66,13 @@ func (s *App) CreateService(ctx context.Context, req CreateFormRequest) (*Form, 
         return nil, err
     }
 
-    f, err := s.CreateRepository(ctx, trimmedName, fieldsJSON)
+    f, err := s.CreateRepository(ctx, orgID, trimmedName, fieldsJSON)
     if err != nil {
         return nil, err
     }
 
     if s.Cache != nil {
-        _ = s.Cache.DeletePattern(ctx, "cache:forms:*")
+        _ = s.Cache.DeletePattern(ctx, fmt.Sprintf("cache:forms:list:o=%s:*", orgID))
     }
 
     return f, nil

@@ -38,5 +38,5 @@ func NewAdminRouter(
 }
 
 func (r *AdminRouter) SetUp() {
-    useCommonMiddlewares(r.App, r.CFG, r.RootCtx, r.CFG.AdminWebOrigin, "Content-Type,Authorization")
+    useCommonMiddlewares(r.App, r.CFG, r.Redis, r.RootCtx, r.CFG.AdminWebURL, "Content-Type,Authorization")
 }

@@ -16,7 +16,8 @@ const (
                 e.updated_at
             FROM events e
             JOIN event_metadata em ON em.id = e.id
-            WHERE ($1 = '' OR em.name ILIKE '%' || $1 || '%' OR COALESCE(em.venue, '') ILIKE '%' || $1 || '%')
+            WHERE e.organization_id = $5::uuid
+              AND ($1 = '' OR em.name ILIKE '%' || $1 || '%' OR COALESCE(em.venue, '') ILIKE '%' || $1 || '%')
         ),
         total_count AS (
             SELECT count(*) AS count FROM filtered_events
@@ -45,7 +46,7 @@ const (
         );
     `
 
-    // GetEventBySlugQuery fetches a single event by ID or slug along with its metadata in a single JSON document.
+    // GetEventQuery fetches a single event with its metadata.
     GetEventQuery = `
         SELECT jsonb_build_object(
             'id', e.id,
@@ -60,10 +61,7 @@ const (
         )
         FROM events e
         JOIN event_metadata em ON em.id = e.id
-        WHERE e.id::text = $1
-           OR trim(both '-' from lower(regexp_replace(em.name, '[^a-zA-Z0-9]+', '-', 'g'))) = lower(trim(both '-' from $1))
-           OR lower(em.name) = lower(replace($1, '-', ' '))
-        LIMIT 1;
+        WHERE e.id = $1::uuid;
     `
 
     // CreateEventQuery atomically inserts into events and event_metadata in a single CTE statement.
@@ -71,12 +69,14 @@ const (
         WITH ins_event AS (
             INSERT INTO events (
                 id,
+                organization_id,
                 start_date,
                 end_date,
                 created_at,
                 updated_at
             ) VALUES (
                 gen_random_uuid(),
+                $4::uuid,
                 $1::date,
                 $2::date,
                 now(),

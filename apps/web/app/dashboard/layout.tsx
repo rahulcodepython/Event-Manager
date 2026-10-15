@@ -1,9 +1,12 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
+import { FullPageLoader } from "../../components/auth/full-page-loader"
 import { AppSidebar } from "../../components/sidebar/app-sidebar"
 import BreadcrumbBar from "../../components/sidebar/breadcrumb"
 import { Separator } from "../../components/ui/separator"
+import { useMeQuery } from "../../query-hooks/auth.api"
 import {
     SidebarInset,
     SidebarProvider,
@@ -15,9 +18,22 @@ export default function DashboardLayout({
 }: {
     children: React.ReactNode
 }) {
+    const router = useRouter()
+    const { data: me } = useMeQuery()
+    const needsOnboarding = Boolean(me && !me.organization)
+
+    // A 401 from /auth/me is handled globally (redirect to /login).
+    React.useEffect(() => {
+        if (needsOnboarding) router.replace("/onboarding")
+    }, [needsOnboarding, router])
+
+    if (!me || needsOnboarding) {
+        return <FullPageLoader label="Loading your workspace..." />
+    }
+
     return (
         <SidebarProvider>
-            <AppSidebar />
+            <AppSidebar me={me} />
             <SidebarInset>
                 <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
                     <div className="flex items-center gap-2 px-4">

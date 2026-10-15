@@ -7,17 +7,30 @@ the browser.
 
 ## Setup
 
+Env comes from the repo-root `.env`, loaded in `next.config.ts`.
+
 ```bash
-cp .env.example .env.local    # NEXT_PUBLIC_API_BASE_URL, defaults to :8000
 bun install
 bun dev                       # http://localhost:3000
 ```
+
+## Auth
+
+- `/login` sends the browser to the API's Google login. The API sets
+  `HttpOnly` cookies and redirects back to `/dashboard`, or `/onboarding` on
+  first login.
+- `useMeQuery` (`query-hooks/auth.api.ts`) is the session. The dashboard
+  layout waits for it and sends users without an organization to onboarding.
+- Any 401 on `/dashboard` or `/onboarding` pages makes the axios client
+  reload on `/login`, which logs out and drops all cached data.
+- Requests carry cookies (`withCredentials`); the token refresh happens on the
+  API side, so the client never handles tokens.
 
 ## Structure
 
 | Path | What lives there |
 |---|---|
-| `app/` | routes; `app/dashboard/events/[eventId]/layout.tsx` loads the event once for all event pages |
+| `app/` | routes; `login`, `onboarding`, `dashboard/` (guarded), `apply/` and `devices/` (public) |
 | `components/<domain>/` | feature components (`applicants`, `events`, `forms`, `devices`, `analysis`, ...) |
 | `components/generic/` | shared building blocks: `PageHeader`, `InfiniteDataTable`, `DebouncedInput` |
 | `components/ui/` | shadcn/ui primitives (`@base-ui/react`, use `render={...}`, not `asChild`) |

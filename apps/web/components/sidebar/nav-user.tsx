@@ -1,20 +1,9 @@
 "use client"
 
 import * as React from "react"
-import {
-    BadgeCheckIcon,
-    BellIcon,
-    ChevronsUpDownIcon,
-    CreditCardIcon,
-    LogOutIcon,
-    SparklesIcon,
-} from "lucide-react"
+import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react"
 
-import {
-    Avatar,
-    AvatarFallback,
-    AvatarImage,
-} from "../ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -24,16 +13,37 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "../ui/dropdown-menu"
-import {
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    useSidebar,
-} from "../ui/sidebar"
-import type { NavUserProps } from "../../schema/sidebar.types"
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "../ui/sidebar"
+import { useLogoutMutation } from "../../query-hooks/auth.api"
+import type { AuthUser } from "../../schema/auth.types"
 
-export function NavUser({ user }: NavUserProps) {
+function initials(name: string, email: string) {
+    const source = name.trim() || email
+    return source
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join("")
+}
+
+function UserSummary({ user }: { user: AuthUser }) {
+    return (
+        <>
+            <Avatar>
+                <AvatarImage src={user.avatar_url} alt={user.name} />
+                <AvatarFallback>{initials(user.name, user.email)}</AvatarFallback>
+            </Avatar>
+            <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{user.name || user.email}</span>
+                <span className="truncate text-xs">{user.email}</span>
+            </div>
+        </>
+    )
+}
+
+export function NavUser({ user }: { user: AuthUser }) {
     const { isMobile } = useSidebar()
+    const logout = useLogoutMutation()
 
     return (
         <SidebarMenu>
@@ -42,14 +52,7 @@ export function NavUser({ user }: NavUserProps) {
                     <DropdownMenuTrigger render={
                         <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
                     }>
-                        <Avatar>
-                            <AvatarImage src={user.avatar} alt={user.name} />
-                            <AvatarFallback>CN</AvatarFallback>
-                        </Avatar>
-                        <div className="grid flex-1 text-left text-sm leading-tight">
-                            <span className="truncate font-medium">{user.name}</span>
-                            <span className="truncate text-xs">{user.email}</span>
-                        </div>
+                        <UserSummary user={user} />
                         <ChevronsUpDownIcon className="ml-auto size-4" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
@@ -61,41 +64,12 @@ export function NavUser({ user }: NavUserProps) {
                         <DropdownMenuGroup>
                             <DropdownMenuLabel className="p-0 font-normal">
                                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                                    <Avatar>
-                                        <AvatarImage src={user.avatar} alt={user.name} />
-                                        <AvatarFallback>CN</AvatarFallback>
-                                    </Avatar>
-                                    <div className="grid flex-1 text-left text-sm leading-tight">
-                                        <span className="truncate font-medium">{user.name}</span>
-                                        <span className="truncate text-xs">{user.email}</span>
-                                    </div>
+                                    <UserSummary user={user} />
                                 </div>
                             </DropdownMenuLabel>
                         </DropdownMenuGroup>
                         <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                            <DropdownMenuItem>
-                                <SparklesIcon />
-                                Upgrade to Pro
-                            </DropdownMenuItem>
-                        </DropdownMenuGroup>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                            <DropdownMenuItem>
-                                <BadgeCheckIcon />
-                                Account
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                                <CreditCardIcon />
-                                Billing
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                                <BellIcon />
-                                Notifications
-                            </DropdownMenuItem>
-                        </DropdownMenuGroup>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem disabled={logout.isPending} onClick={() => logout.mutate()}>
                             <LogOutIcon />
                             Log out
                         </DropdownMenuItem>
