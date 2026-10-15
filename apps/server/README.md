@@ -6,6 +6,7 @@ Go + Fiber API over Postgres (pgx) and Redis. One codebase, two binaries:
 |---|---|---|---|---|
 | client API | `cmd/server/main.go` | `internal/router/app.router.go` | `API_PORT` (8000) | dashboard, public registration, scanner |
 | admin API | `cmd/admin/main.go` | `internal/router/admin.router.go` | `ADMIN_API_PORT` (8001) | platform admin |
+| sites | `cmd/sites/main.go` | `internal/router/sites.router.go` | `SITES_PORT` (8002) | uploaded event sites at `<slug>.<SITES_DOMAIN>` |
 
 `internal/router/shared.go` holds what both binaries share: Fiber defaults
 (`NewFiberApp`), the middleware stack and `/health`, and graceful shutdown
@@ -20,6 +21,7 @@ bun run docker:up   # from the repo root; runs migrations once via the migrate s
 cd apps/server
 make dev            # client API
 make dev-admin      # admin API
+make dev-sites      # event sites
 make seed           # optional demo data (cmd/seed: -action=seed|flush|regenerate)
 ```
 

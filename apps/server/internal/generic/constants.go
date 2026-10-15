@@ -224,4 +224,5 @@ const (
     FeatureKeyBranding   = "branding"
     FeatureKeySubEvents  = "sub_events"
     FeatureKeyBackupDays = "backup_days"
+    FeatureKeyEventSite  = "event_site"
 )

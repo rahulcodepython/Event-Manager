@@ -5,6 +5,7 @@
     "scripts": {
         "dev": "make dev",
         "dev:admin": "make dev-admin",
+        "dev:sites": "make dev-sites",
         "build": "make build",
         "seed": "make seed",
         "flush": "make flush",

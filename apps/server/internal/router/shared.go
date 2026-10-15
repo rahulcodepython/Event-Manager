@@ -21,12 +21,19 @@ import (
     "identitycard-server/internal/utils"
 )
 
+// Request body limits: the client API takes event-site zips (10 MB plus
+// multipart overhead); the other binaries only take small JSON bodies.
+const (
+    DefaultBodyLimit = 1 << 20
+    UploadBodyLimit  = 11 << 20
+)
+
 // NewFiberApp creates a Fiber app with the defaults shared by every binary.
-func NewFiberApp(cfg *config.Config, name string) *fiber.App {
+func NewFiberApp(cfg *config.Config, name string, bodyLimit int) *fiber.App {
     return fiber.New(fiber.Config{
         AppName:                 name,
         ErrorHandler:            utils.ErrorHandler,
-        BodyLimit:               1 * 1024 * 1024,
+        BodyLimit:               bodyLimit,
         ReadBufferSize:          16 * 1024,
         EnableTrustedProxyCheck: true,
         TrustedProxies:          cfg.TrustedProxies,

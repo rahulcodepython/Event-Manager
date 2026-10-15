@@ -1,6 +1,8 @@
 package events
 
 import (
+    "context"
+
     "github.com/jackc/pgx/v5/pgxpool"
 
     "identitycard-server/internal/pkg/cache"
@@ -10,6 +12,9 @@ import (
 type App struct {
     DB    *pgxpool.Pool
     Cache *cache.Cache
+    // OnDelete hooks clean up data outside Postgres (e.g. site files) after
+    // an event is deleted, by the organizer or by retention.
+    OnDelete []func(ctx context.Context, eventID string)
 }
 
 // NewApp wires together repository, service, and handler for events.

@@ -54,6 +54,19 @@ type Config struct {
 	ResendAPIKey string
 	EmailFrom    string
 
+	// Event sites (cmd/sites). URL template has a {slug} placeholder.
+	SitesPort        string
+	SitesDomain      string
+	SitesURLTemplate string
+
+	// S3-compatible object storage (MinIO, R2, S3).
+	S3Endpoint  string
+	S3UseSSL    bool
+	S3Region    string
+	S3Bucket    string
+	S3AccessKey string
+	S3SecretKey string
+
 	// WebAuthn Relying Party configuration
 	RPDisplayName   string
 	RPID            string
@@ -131,6 +144,17 @@ func Load() (*Config, error) {
 		QRSigningSecret: require("QR_SIGNING_SECRET"),
 		ResendAPIKey:    os.Getenv("RESEND_API_KEY"),
 		EmailFrom:       getOr("EMAIL_FROM", "IdentityCard <no-reply@example.com>"),
+
+		SitesPort:        getOr("SITES_PORT", "8002"),
+		SitesDomain:      getOr("SITES_DOMAIN", "sites.localhost"),
+		SitesURLTemplate: getOr("SITES_URL_TEMPLATE", "http://{slug}.sites.localhost:8002"),
+
+		S3Endpoint:  getOr("S3_ENDPOINT", "localhost:9100"),
+		S3UseSSL:    os.Getenv("S3_USE_SSL") == "true",
+		S3Region:    getOr("S3_REGION", "us-east-1"),
+		S3Bucket:    getOr("S3_BUCKET", "identitycard"),
+		S3AccessKey: os.Getenv("S3_ACCESS_KEY"),
+		S3SecretKey: os.Getenv("S3_SECRET_KEY"),
 
 		RPDisplayName:   getOr("WEBAUTHN_RP_DISPLAY_NAME", "IdentityCard Scanner"),
 		RPID:            getOr("WEBAUTHN_RP_ID", "localhost"),

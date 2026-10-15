@@ -164,9 +164,11 @@ editable from admin. To confirm: Q7.
 - **Attendance:** the scanner switches to a sub-event; only enrolled applicants pass, entry/exit per sub-event day. Analysis can be filtered to one sub-event; the event's own figures exclude sub-event attendance.
 - **ID card** lists the applicant's sub-events.
 
-### Phase 8 — Event subdomain sites
-- One subdomain per event, claimed in event settings, validated for uniqueness and reserved names.
-- Serving method and safety depend on Q17.
+### Phase 8 — Event subdomain sites ✅ done
+- **Feature:** new catalog feature "Event website" (`event_site`, on/off, flat price; placeholder ₹999 and trial 0, set in admin).
+- **Subdomain:** `<slug>.<SITES_DOMAIN>`, a domain separate from the app. 3–40 chars `a-z 0-9 -`, no `--`, reserved names; changeable anytime (old name freed at once); freed when the event is deleted or pruned.
+- **Upload:** zip with `index.html` at the top (or in one folder), 10 MB / 300 files, HTML/CSS/JS/images/fonts/JSON. Each upload replaces the site: new files go to a fresh version folder, the site switches in one update, the old folder is deleted. Files live in S3-compatible storage (MinIO locally, R2/S3 in production).
+- **Serving:** third binary `cmd/sites` (`SITES_PORT`, 8002) maps the Host to a site; `/register` and `/register/<sub-event id>` redirect to the registration form. Online until the credit ends (then an "event ended" page). Caddy on-demand TLS asks `/__tls-check` so certificates are issued only for existing sites.
 
 ### Phase 9 — Landing page app
 - Public marketing site (Next.js): product, pricing calculator (uses the quote endpoint), sign-up.
@@ -221,7 +223,7 @@ Q8 asks whether `admin` and `landing` should be separate apps like this.
 16. ~~Sub-events~~ Decided (see Phase 7).
 
 ### Subdomains
-17. **Site content:** uploaded static HTML, a built-in template page, or both? OK to use a separate domain for these sites (abuse safety)? Is the subdomain freed when the event's data is pruned?
+17. ~~**Site content**~~ Decided: uploaded static sites on a separate domain (see Phase 8).
 
 ### Coupons
 18. **Coupon types:** percent and/or flat amount? Usage limits per coupon and per client? Expiry date? Restricted to certain features?

@@ -33,8 +33,10 @@ revenue, expenses and the feature catalog.
 - `apps/admin` — admin web app, same stack as `apps/web`, port 3001.
 - `apps/server` — Go + Fiber v2, Postgres via pgx with raw SQL returning
   JSON, Redis (cache, sessions, rate limits, device sessions).
-  Two binaries: `cmd/server` (client API) and `cmd/admin` (admin API).
-- `infra` — Docker Compose: Postgres, a one-shot `migrate` service, Redis.
+  Three binaries: `cmd/server` (client API), `cmd/admin` (admin API),
+  `cmd/sites` (event sites).
+- `infra` — Docker Compose: Postgres, a one-shot `migrate` service, Redis,
+  MinIO (event site files).
 - Monorepo with bun workspaces.
 
 ## Current features (server `internal/features/`)
@@ -53,6 +55,7 @@ revenue, expenses and the feature catalog.
 | attendance | `/events/:eventId/attendance`, `/events/:eventId/analysis` | scan (signed QR only), entry, exit; metrics and attendee lists |
 | cards | `/events/:eventId/cards` (`/schedule`, `/close`, `/publish`, `/resend`), `/events/:eventId/applicants/:applicantId/card` (PDF), `.../qr`, `.../card/resend` | closing + publishing schedule, card emails, organizer download |
 | subevents | `/events/:eventId/sub-events`, `.../sub-events/:subEventId` (+ `/applicants`, `/dates`), `/events/:eventId/sub-event-settings` | sub-events, enrollment, form choice settings; public form takes `sub_event_ids` / `sub_event_link` |
+| sites | `/events/:eventId/site` (`/check`, `/upload`) | claim subdomain, upload zip, delete |
 | reminders | (background) | client emails before credit end and data deletion |
 
 Admin API features (`internal/features/admin/`, all behind the admin session):
@@ -66,7 +69,7 @@ Admin API features (`internal/features/admin/`, all behind the admin session):
 | ledger | `/categories`, `/transactions` | manual entries editable; payment rows are not |
 | subscriptions | `/subscriptions`, `/subscriptions/:id/renew` | renew = expense row + next due date |
 
-Not built yet (see `PLAN.md`): event subdomains,
+Not built yet (see `PLAN.md`):
 landing page, coupons.
 
 ## Decisions still binding
@@ -138,6 +141,11 @@ landing page, coupons.
   with `sub_event_id`; scans, metrics and analysis take a scope (event or
   sub-event). Enrollment goes through `subevents.EnrollTx` (per-sub-event
   advisory lock, hard cap), also inside the public form's transaction.
+- **Event sites** are served by `cmd/sites` (`internal/features/sitehost`),
+  on a separate domain so site scripts cannot reach app cookies. Files are
+  in object storage (`internal/pkg/storage`, S3 API) under
+  `sites/<event>/<version>/`; `events.App.OnDelete` hooks remove them when
+  an event is deleted or pruned.
 
 ## Known gaps
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowLeft, BarChart3, Calendar, CalendarDays, FileText, IdCard, Layers, LayoutDashboard, Settings, Smartphone, TicketIcon, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, Calendar, CalendarDays, FileText, Globe, IdCard, Layers, LayoutDashboard, Settings, Smartphone, TicketIcon, Users } from "lucide-react";
 
 import { useEventQuery } from "../query-hooks/events.api";
 import type { NavItem, NavNode } from "../schema/sidebar.types";
@@ -42,6 +42,7 @@ export function getEventSections(eventId: string): NavItem[] {
         { title: "ID Cards", url: `${basePath}/cards`, icon: IdCard, description: "Close applications and email ID cards" },
         { title: "Devices", url: `${basePath}/devices`, icon: Smartphone, description: "Scanner terminals assigned to this event" },
         { title: "Analysis", url: `${basePath}/analysis`, icon: BarChart3, description: "Turnout, trends and punctuality" },
+        { title: "Website", url: `${basePath}/website`, icon: Globe, description: "Your own site at a custom subdomain" },
         { title: "Settings", url: `${basePath}/settings`, icon: Settings, description: "Event name, dates, venue and organizer" },
     ];
 }

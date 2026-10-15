@@ -213,6 +213,9 @@ func (s *App) DeleteService(ctx context.Context, id string) error {
         _ = s.Cache.Delete(ctx, fmt.Sprintf("cache:events:detail:%s", id))
         _ = s.Cache.DeletePattern(ctx, "cache:events:*")
     }
+    for _, hook := range s.OnDelete {
+        hook(ctx, id)
+    }
 
     return nil
 }

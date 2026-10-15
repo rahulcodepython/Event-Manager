@@ -31,6 +31,7 @@ type Event struct {
     BackupDays     int       `json:"backup_days"`
     PruneAt        time.Time `json:"prune_at"`
     IsSuspended    bool      `json:"is_suspended"`
+    HasEventSite   bool      `json:"has_event_site"`
 }
 
 const forEventQuery = `

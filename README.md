@@ -11,9 +11,9 @@ at the door with paired scanner devices.
 - `apps/admin` — platform admin web app (Next.js, same stack as `apps/web`):
   dashboard, clients, ledger, subscriptions, pricing catalog.
 - `apps/server` — Go/Fiber API. Two binaries share one codebase:
-  `cmd/server` (client API, port 8000) and `cmd/admin` (platform admin API,
-  port 8001).
-- `infra` — local Postgres, migrations and Redis via Docker Compose.
+  `cmd/server` (client API, port 8000), `cmd/admin` (platform admin API,
+  port 8001) and `cmd/sites` (uploaded event sites, port 8002).
+- `infra` — local Postgres, migrations, Redis and MinIO via Docker Compose.
 
 The roadmap lives in [PLAN.md](PLAN.md); project history and coding rules in
 [PROJECT_MEMORY.md](PROJECT_MEMORY.md).
@@ -32,6 +32,7 @@ cp .env.example .env                      # then fill JWT secrets, Google keys, 
 bun run docker:up                         # postgres, migrate (runs once), redis
 cd apps/server && make dev                # client API on :8000
 cd apps/server && make dev-admin          # admin API on :8001
+cd apps/server && make dev-sites          # event sites on :8002 (http://<slug>.sites.localhost:8002)
 cd apps/web && bun install && bun dev     # :3000
 cd apps/admin && bun dev                  # admin web on :3001
 ```

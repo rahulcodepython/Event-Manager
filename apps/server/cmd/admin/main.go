@@ -36,7 +36,7 @@ func main() {
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
-    app := router.NewFiberApp(cfg, "IdentityCard Admin API")
+    app := router.NewFiberApp(cfg, "IdentityCard Admin API", router.DefaultBodyLimit)
     router.NewAdminRouter(app, cfg, pool, rdb, ctx).SetUp()
 
     if err := router.Listen(app, cfg.AdminPort, cancel); err != nil {

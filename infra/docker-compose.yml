@@ -52,6 +52,29 @@ services:
             timeout: 5s
             retries: 5
 
+    # S3-compatible storage for uploaded event sites (R2/S3 in production).
+    # The API creates the bucket on first start.
+    minio:
+        image: ${MINIO_IMAGE:-minio/minio:latest}
+        container_name: ${MINIO_CONTAINER_NAME:-identitycard-minio}
+        command: server /data --console-address ":9001"
+        environment:
+            MINIO_ROOT_USER: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY in the root .env}
+            MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?set S3_SECRET_KEY in the root .env}
+        ports:
+            - "${MINIO_API_PORT:-9100}:9000"
+            - "${MINIO_CONSOLE_PORT:-9101}:9001"
+        restart: unless-stopped
+        volumes:
+            - miniodata:/data
+        healthcheck:
+            test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+            start_period: 5s
+
 volumes:
     pgdata:
+    miniodata:
 

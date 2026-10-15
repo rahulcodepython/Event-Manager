@@ -46,6 +46,10 @@ export const queryKeys = {
         dates: (subEventId: string) => ["subEvents", "dates", subEventId] as const,
         device: ["subEvents", "device"] as const,
     },
+    sites: {
+        detail: (eventId: string) => ["sites", "detail", eventId] as const,
+        check: (eventId: string, slug: string) => ["sites", "check", eventId, slug] as const,
+    },
     cards: {
         status: (eventId: string) => ["cards", "status", eventId] as const,
         qr: (eventId: string, applicantId: string) => ["cards", "qr", eventId, applicantId] as const,

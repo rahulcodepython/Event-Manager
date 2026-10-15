@@ -6,7 +6,7 @@ export PATH := $(GOBIN):$(GOPATH_BIN):$(PATH)
 ROOT_ENV := ../../.env
 LOAD_ENV := set -a; [ -f $(ROOT_ENV) ] && . $(ROOT_ENV); set +a;
 
-.PHONY: dev dev-admin build build-admin seed flush seeds-regenerate migrate-up migrate-down migrate-new migrate-force lint
+.PHONY: dev dev-admin dev-sites build build-admin build-sites seed flush seeds-regenerate migrate-up migrate-down migrate-new migrate-force lint
 
 dev:
 	go run ./cmd/server
@@ -14,11 +14,17 @@ dev:
 dev-admin:
 	go run ./cmd/admin
 
+dev-sites:
+	go run ./cmd/sites
+
 build:
 	go build -o bin/server ./cmd/server
 
 build-admin:
 	go build -o bin/admin ./cmd/admin
+
+build-sites:
+	go build -o bin/sites ./cmd/sites
 
 seed:
 	go run ./cmd/seed -action=seed

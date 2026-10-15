@@ -22,7 +22,8 @@
         "migrate:new": "bun --filter server migrate:new",
         "migrate:force": "bun --filter server migrate:force",
         "dev:admin": "bun --filter server dev:admin",
-        "dev:admin-web": "bun --filter admin dev"
+        "dev:admin-web": "bun --filter admin dev",
+        "dev:sites": "bun --filter server dev:sites"
     },
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",

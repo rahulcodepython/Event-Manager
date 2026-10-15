@@ -23,6 +23,7 @@ import (
     "identitycard-server/internal/features/register"
     "identitycard-server/internal/features/reminders"
     "identitycard-server/internal/features/retention"
+    "identitycard-server/internal/features/sites"
     "identitycard-server/internal/features/subevents"
     "identitycard-server/internal/generic"
     "identitycard-server/internal/middlewares"
@@ -30,6 +31,7 @@ import (
     "identitycard-server/internal/pkg/jobqueue"
     "identitycard-server/internal/pkg/mailer"
     "identitycard-server/internal/pkg/qrsign"
+    "identitycard-server/internal/pkg/storage"
 )
 
 // AppRouter wires the client-facing API (cmd/server).
@@ -52,6 +54,7 @@ type AppRouter struct {
     Pricing    *pricing.App
     Cards      *cards.App
     SubEvents  *subevents.App
+    Sites      *sites.App
 }
 
 func NewAppRouter(
@@ -67,6 +70,8 @@ func NewAppRouter(
 
     applicantsApp := applicants.NewApp(pool, cch)
     eventsApp := events.NewApp(pool, cch)
+    sitesApp := sites.NewApp(pool, cch, storage.Connect(rootCtx, cfg), cfg)
+    eventsApp.OnDelete = append(eventsApp.OnDelete, sitesApp.OnEventDeleted)
     retention.NewApp(pool, rdb, eventsApp).StartWorker(rootCtx)
 
     // Emails (ID cards, client reminders) go through one Redis-stream queue,
@@ -103,6 +108,7 @@ func NewAppRouter(
         Pricing:    pricingApp,
         Cards:      cardsApp,
         SubEvents:  subEventsApp,
+        Sites:      sitesApp,
     }
 }
 
@@ -142,4 +148,5 @@ func (r *AppRouter) SetUp() {
     r.Devices.RegisterRoutes(org)
     r.Attendance.RegisterRoutes(org)
     r.Cards.RegisterRoutes(org)
+    r.Sites.RegisterRoutes(org)
 }
