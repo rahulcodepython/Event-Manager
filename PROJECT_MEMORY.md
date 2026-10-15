@@ -47,13 +47,15 @@ revenue, expenses and the feature catalog.
 | Feature | Routes (under `/api/v1`) | Notes |
 |---|---|---|
 | auth | `/auth/google`, `/auth/google/callback`, `/auth/me`, `/auth/onboarding`, `/auth/logout` | Google login, JWT cookies, refresh rotation in Redis, onboarding creates the org |
-| credits | `/credits`, `/credits/trial`, `/credits/trial/skip`, `/credits/orders`, `/credits/orders/verify`, `/payments/razorpay/webhook` | trial credit, Razorpay purchase, rename; events require a credit |
+| credits | `/credits`, `/credits/trial`, `/credits/trial/skip`, `/credits/orders`, `/credits/orders/verify`, `/payments/razorpay/webhook` | trial credit, Razorpay purchase, rename; events require a credit. The webhook hands orders it does not know to applyflow (`OnOtherOrder`) |
 | pricing | `/pricing/catalog`, `/pricing/quote` | public; feature catalog with option prices; server-side quote (base fee + features + GST) |
 | events/events | `/events` | CRUD, search, pagination |
 | events/dates | `/events/:eventId/dates` | per-day hours; bulk update and override |
 | forms | `/forms`, `/events/:eventId/form` | reusable templates; event form with capacity, deadline, lock |
-| register | `/public/apply/:eventFormId` | public form config (effective capacity, branding) and submission through the shared capped insert |
-| applicants | `/events/:eventId/applicants` | list with search and JSON filters, create, bulk create, delete |
+| register | `GET /public/apply/:eventFormId` | public form config (effective capacity, branding); `SubmitApplicationService` (shared capped insert) is called by applyflow only — no anonymous submit |
+| applyflow | `/public/apply/google/callback`, `/public/apply/:eventFormId/` (`intent`, `session`, `state`, `draft`, `submit`, `enroll`, `pay`, `pay/back`, `pay/verify`); org: `/events/:eventId/application-fee`, `/events/:eventId/drafts`, `/events/:eventId/applicants/:applicantId/refund` | Google sign-in (ID token + nonce, `pkg/googleid`), applicant cookie (`pkg/applicantsession`), server drafts (`application_drafts`), seat hold, Razorpay order per draft, `Finalize` (advisory lock per order → register → Route transfer → ledger → email; auto-refund if it cannot register), reconcile on `state`, hourly draft sweep |
+| payouts | `/payouts` (GET, POST) | Razorpay Route linked account per org (`payout_accounts`, `pkg/razorpay` v2); only last 4 bank digits stored; status refreshed while pending |
+| applicants | `/events/:eventId/applicants` | list with search and JSON filters (+ `paid_amount`), create, bulk create, delete (refused for paid applicants: refund instead) |
 | devices | `/devices`, `/events/:eventId/devices` | PIN pairing, WebAuthn, assignment to events |
 | attendance | `/events/:eventId/attendance`, `/events/:eventId/analysis` | scan (signed QR only), entry, exit; metrics and attendee lists |
 | cards | `/events/:eventId/cards` (`/schedule`, `/close`, `/publish`, `/resend`), `/events/:eventId/applicants/:applicantId/card` (PDF), `.../qr`, `.../card/resend` | closing + publishing schedule, card emails, organizer download |
@@ -74,8 +76,9 @@ Admin API features (`internal/features/admin/`, all behind the admin session):
 | subscriptions | `/subscriptions`, `/subscriptions/:id/renew` | renew = expense row + next due date |
 | coupons | `/coupons`, `/coupons/:couponId` | CRUD; used coupons can only be deactivated |
 
-Not built yet (see `PLAN.md`):
-landing page, coupons.
+Application fees: the applicant pays the listed fee; the organizer gets
+fee − Razorpay fee − `PLATFORM_FEE_PERCENT` by Route transfer; the platform
+share is a ledger row with source `application_fee` (reversed on refund).
 
 ## Decisions still binding
 

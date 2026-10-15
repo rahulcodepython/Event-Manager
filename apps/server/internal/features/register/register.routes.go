@@ -8,5 +8,5 @@ func (h *App) RegisterRoutes(r fiber.Router) {
     group := r.Group("/public/apply")
 
     group.Get("/:eventFormId", h.GetPublicApplyConfigHandler)
-    group.Post("/:eventFormId", h.SubmitApplicationHandler)
+    // Submissions go through applyflow (Google sign-in + draft).
 }

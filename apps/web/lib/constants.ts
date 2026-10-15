@@ -35,6 +35,7 @@ export const APP_ROUTES = {
     FORMS: "/dashboard/forms",
     FORM_DESIGNER: (formId: string) => `/dashboard/forms/${formId}/design`,
     DEVICES: "/dashboard/devices",
+    PAYOUTS: "/dashboard/payouts",
     DEVICE_PAIR: "/devices/pair",
     DEVICE_SCAN: "/devices/scan",
     PUBLIC_APPLY: (formId: string) => `/apply/${formId}`,

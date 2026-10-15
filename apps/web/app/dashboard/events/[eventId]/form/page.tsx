@@ -14,6 +14,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "../../../../../components/ui/alert-dialog";
+import { ApplicationFeeDialog } from "../../../../../components/events/form/application-fee-dialog";
 import { EventFormHeader } from "../../../../../components/events/form/event-form-header";
 import { EventFormSettingsDialog } from "../../../../../components/events/form/event-form-settings-dialog";
 import { EventFormSetupCards } from "../../../../../components/events/form/event-form-setup-cards";
@@ -44,6 +45,7 @@ export default function EventFormPage() {
     const designerFields = draftFields ?? eventForm?.fields ?? [];
     const [isSharingOpen, setIsSharingOpen] = React.useState(false);
     const [isConfigOpen, setIsConfigOpen] = React.useState(false);
+    const [isFeeOpen, setIsFeeOpen] = React.useState(false);
     const [isLockPrompt, setIsLockPrompt] = React.useState(false);
     const [isLockConfirmOpen, setIsLockConfirmOpen] = React.useState(false);
     const [hasSavedSettings, setHasSavedSettings] = React.useState(false);
@@ -194,6 +196,7 @@ export default function EventFormPage() {
                     setIsConfigOpen(true);
                 }}
                 onOpenShare={() => setIsSharingOpen(true)}
+                onOpenFee={() => setIsFeeOpen(true)}
                 hasUnsavedChanges={hasUnsavedChanges}
                 onSaveChanges={handleSaveDesignerFields}
                 isSaving={updateMutation.isPending}
@@ -222,6 +225,8 @@ export default function EventFormPage() {
                     />
                 </section>
             </main>
+
+            <ApplicationFeeDialog eventId={eventId} open={isFeeOpen} onOpenChange={setIsFeeOpen} />
 
             {/* Registration Config Dialog */}
             <EventFormSettingsDialog

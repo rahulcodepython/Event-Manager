@@ -6,6 +6,7 @@ import type { ApplicantItem, FormFieldSummary } from "../../schema/applicants.ty
 import { ApplicantImage } from "./applicant-image";
 import { ApplicantUserIdCell } from "./applicant-user-id-cell";
 import { formatFieldValue } from "./applicants-utils";
+import { formatMoney } from "../../lib/money";
 
 const CARD_STATUS: Record<ApplicantItem["card_status"], { label: string, variant: "outline" | "secondary" | "default" | "destructive" }> = {
     pending: { label: "Not sent", variant: "outline" },
@@ -92,6 +93,15 @@ export function getApplicantsColumns(
                     {card.label}
                 </Badge>;
             },
+        },
+        {
+            id: "paid_amount",
+            header: "Paid",
+            meta: {
+                headerClassName: "min-w-[90px]",
+                cellClassName: "min-w-[90px]",
+            },
+            cell: ({ row }) => row.original.paid_amount > 0 ? <span className="font-medium">{formatMoney(row.original.paid_amount)}</span> : <span className="text-muted-foreground">—</span>,
         },
     ];
 

@@ -184,7 +184,7 @@ editable from admin. To confirm: Q7.
 - **Counting:** a use counts when the purchase is paid; refunds keep the use. Limits are checked when the order is created, so two simultaneous purchases can exceed a limit by one.
 - **Zero total:** Razorpay cannot take ₹0, so a fully discounted purchase skips Razorpay: the credit is created at once, recorded as a ₹0 paid payment with the coupon, and our own receipt is emailed.
 
-### Phase 11 — Applicant Google sign-in, drafts and application fees (planned)
+### Phase 11 — Applicant Google sign-in, drafts and application fees ✅ done
 
 **Goal.** Every public application starts with "Continue with Google". The application is a server-side **draft** that auto-saves; the applicant can reload or come back later and resume at the last finished step. A draft becomes a real applicant only when it is confirmed: at the end of the form when there is no fee, or when the payment succeeds.
 
@@ -214,7 +214,7 @@ editable from admin. To confirm: Q7.
 - Capacity, application window and credit checks run again at conversion.
 
 **Application fees (Razorpay).**
-- Organizer sets a fee on the event form (optionally a fee per sub-event).
+- Organizer sets one fee on the event form ("Application Fee" on the form page; ₹1 minimum, 0 = free). A fee needs an active payout account.
 - "Pay" creates one Razorpay order per draft (reused if the applicant retries; amount always computed on the server).
 - **Seat hold:** a draft in `awaiting_payment` holds a seat for 15 minutes so a full event cannot take more payments than seats; expired holds free the seat.
 - **Reload during or after payment:** on load, a draft with an open order asks Razorpay for the order's status; if it is paid, the draft is converted there and then (no wait for the webhook). The confirmation email covers the case where the applicant closed the tab.
@@ -222,9 +222,10 @@ editable from admin. To confirm: Q7.
 - Payouts through Razorpay Route (see Decisions).
 
 **Organizer side.**
-- Form settings: fee and optional per-sub-event fees.
-- Applicants list unchanged (only confirmed applicants); a "Drafts / awaiting payment" view for follow-up.
-- Payments per applicant, refunds, and fees in the event's figures.
+- Form page: "Application Fee" dialog.
+- Dashboard → Payouts: Route onboarding (business, address, bank) and the account status.
+- Applicants list: only confirmed applicants, a "Paid" column, "Refund & Remove" (with a reason) for paid applicants; plain delete is refused for them. "In Progress" lists drafts, applicants paying and refunds.
+- The platform's share (`PLATFORM_FEE_PERCENT`) is written to the admin ledger as source `application_fee` (and reversed on refund).
 
 **What changes for existing behaviour.**
 - The single-page public form is replaced by the step flow on every form.
@@ -241,6 +242,15 @@ editable from admin. To confirm: Q7.
 | `APPLICANT_SESSION_TTL` | `24h` | applicant cookie lifetime |
 | `APPLICATION_SEAT_HOLD` | `15m` | seat hold at the payment step |
 | `APPLICATION_DRAFT_TTL` | `168h` | unfinished drafts are deleted after this |
+| `APPLICANT_SESSION_SECRET` | random | signs the applicant cookie |
+| `GOOGLE_CERTS_URL` | `https://www.googleapis.com/oauth2/v3/certs` | Google keys for ID-token checks |
+| `APPLICATION_DRAFT_SWEEP_EVERY` | `1h` | how often stale drafts are deleted |
+| `APPLICANT_SIGNIN_TTL` | `10m` | a started sign-in (nonce cookie) stays valid this long |
+| `NEXT_PUBLIC_GOOGLE_GSI_SCRIPT_URL` | `https://accounts.google.com/gsi/client` | Google sign-in script in the browser |
+| `PLATFORM_FEE_PERCENT` | `5` (placeholder) | platform share of application fees |
+| `RAZORPAY_V2_BASE_URL` | `https://api.razorpay.com/v2` | Route linked accounts (onboarding) |
+| `RAZORPAY_ROUTE_CATEGORY`, `RAZORPAY_ROUTE_SUBCATEGORY` | `education`, `event_management` | business category of linked accounts |
+| `PAYOUT_STATUS_REFRESH` | `5m` | a pending payout account re-checks its status this often |
 | `RAZORPAY_BASE_URL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | existing | orders, payment status, refunds, Route transfers |
 | `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_WEBHOOK_URL` | `${API_URL}/api/v1/payments/razorpay/webhook` | payment confirmations (one webhook for credits and application fees) |
 | `NEXT_PUBLIC_RAZORPAY_CHECKOUT_URL` | `https://checkout.razorpay.com/v1/checkout.js` | checkout in the browser |
@@ -249,7 +259,7 @@ Google Cloud Console, on the OAuth client:
 - **Authorized JavaScript origins:** `WEB_URL` (the public form runs there).
 - **Authorized redirect URIs:** `GOOGLE_REDIRECT_URL` and `APPLICANT_GOOGLE_LOGIN_URI`.
 
-Razorpay dashboard: webhook `RAZORPAY_WEBHOOK_URL` with events `payment.captured`, `order.paid`, `refund.processed`, `transfer.processed`; Route enabled on the account.
+Razorpay dashboard: webhook `RAZORPAY_WEBHOOK_URL` with events `payment.captured` and `order.paid` (refunds and transfers are recorded when we create them); Route enabled on the account.
 
 **Build order.**
 1. Google ID-token verification, applicant session cookie, `application_drafts`, auto-save + resume, confirm for free forms.
@@ -264,7 +274,10 @@ Razorpay dashboard: webhook `RAZORPAY_WEBHOOK_URL` with events `payment.captured
 - Refunds: the organizer can refund any paid applicant from the dashboard (the applicant is removed); payments that arrive when the event is already full are refunded automatically.
 - Seat hold 15 minutes at the payment step; unfinished drafts are deleted after 7 days or when the application window closes, whichever is first.
 
-**Still open.** Platform fee (percent / flat, and whether it is a catalog feature); per-sub-event fees; what the applicant sees after a refund; Route onboarding UX for organizers.
+- Platform fee: a percent of each application fee, `PLATFORM_FEE_PERCENT` in `.env`. Razorpay's own fee is also deducted from the organizer's transfer.
+- One application fee per form; sub-events are free to join.
+- Organizers onboard to Route in the dashboard (business + bank details → linked account created through Razorpay's API; status shown).
+- After a refund the applicant is removed, their card stops working, and they get an email; signing in again shows "Refunded" (no re-apply).
 
 ---
 

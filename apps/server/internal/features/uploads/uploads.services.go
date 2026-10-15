@@ -5,7 +5,10 @@ import (
     "context"
     "errors"
     "fmt"
+    "io"
     "log/slog"
+    "net/http"
+    "net/url"
     "path"
     "strings"
     "time"
@@ -131,7 +134,13 @@ func (s *App) UploadService(ctx context.Context, ip, formID, fieldKey string, da
 type Claim struct {
     // Keys: the stored images, to delete if the submission fails.
     Keys []string
+    // HasPhotoField: the form has its own Photo field.
+    HasPhotoField bool
 }
+
+// GooglePhotoKey is the data key holding the photo taken from the
+// applicant's Google picture (forms without a Photo field).
+const GooglePhotoKey = "_photo"
 
 // ClaimImages replaces each image field's token in data with the stored
 // image's key (copied to applicants/<event>/), checks required images, and
@@ -142,7 +151,11 @@ func (s *App) ClaimImages(ctx context.Context, formID string, data map[string]an
     if err != nil {
         return nil, err
     }
+    delete(data, GooglePhotoKey) // only the server sets it
     for _, f := range form.Fields {
+        if f.Type == "photo" {
+            claim.HasPhotoField = true
+        }
         token, _ := data[f.Key].(string)
         delete(data, f.Key)
         if strings.TrimSpace(token) == "" {
@@ -236,4 +249,59 @@ func (s *App) ApplicantFile(ctx context.Context, eventID, applicantID, fieldKey 
         return "", postgres.ErrNotFound
     }
     return key, nil
+}
+
+var remoteClient = &http.Client{Timeout: 10 * time.Second}
+
+// StoreRemotePhoto downloads a Google profile picture (asking Google for a
+// larger size), normalizes it like an uploaded photo and stores it for the
+// event. Small pictures are accepted.
+func (s *App) StoreRemotePhoto(ctx context.Context, eventID, pictureURL string) (string, error) {
+    u, err := url.Parse(pictureURL)
+    if err != nil || u.Scheme != "https" || !strings.HasSuffix(u.Hostname(), ".googleusercontent.com") {
+        return "", errors.New("not a Google picture URL")
+    }
+    if i := strings.LastIndex(u.Path, "="); i >= 0 {
+        u.Path = u.Path[:i] + "=s600-c"
+    }
+    req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+    if err != nil {
+        return "", err
+    }
+    resp, err := remoteClient.Do(req)
+    if err != nil {
+        return "", err
+    }
+    defer resp.Body.Close()
+    if resp.StatusCode != http.StatusOK {
+        return "", fmt.Errorf("google picture: status %d", resp.StatusCode)
+    }
+    data, err := io.ReadAll(io.LimitReader(resp.Body, imageproc.MaxUploadBytes+1))
+    if err != nil {
+        return "", err
+    }
+    img, err := imageproc.Process(imageproc.Photo, data, 1, 1)
+    if err != nil {
+        return "", err
+    }
+    key := EventPrefix(eventID) + uuid.NewString() + "." + img.Ext
+    if err := s.Store.Put(ctx, key, bytes.NewReader(img.Data), int64(len(img.Data)), img.ContentType); err != nil {
+        return "", err
+    }
+    return key, nil
+}
+
+// CheckRequired reports a required image field left empty, before money is
+// taken for an application.
+func (s *App) CheckRequired(ctx context.Context, formID string, data map[string]any) error {
+    form, err := s.formImages(ctx, formID)
+    if err != nil {
+        return err
+    }
+    for _, f := range form.Fields {
+        if token, _ := data[f.Key].(string); f.Required && strings.TrimSpace(token) == "" {
+            return fmt.Errorf("%w: %s", ErrImageRequired, f.Label)
+        }
+    }
+    return nil
 }

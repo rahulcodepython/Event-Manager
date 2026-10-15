@@ -30,6 +30,14 @@ export const queryKeys = {
         all: ["eventForm"] as const,
         detail: (eventId: string) => ["eventForm", "detail", eventId] as const,
     },
+    payouts: {
+        status: ["payouts", "status"] as const,
+        fee: (eventId: string) => ["payouts", "fee", eventId] as const,
+        drafts: (eventId: string) => ["payouts", "drafts", eventId] as const,
+    },
+    applyFlow: {
+        state: (eventFormId: string) => ["applyFlow", "state", eventFormId] as const,
+    },
     publicApply: {
         all: ["publicApply"] as const,
         detail: (eventFormId: string) => ["publicApply", "detail", eventFormId] as const,

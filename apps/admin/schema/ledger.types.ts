@@ -20,7 +20,7 @@ export type CategoryInput = { name: string, kind: CategoryKind }
 export const TransactionSchema = z.object({
     id: z.string(),
     kind: z.enum(["income", "expense", "refund"]),
-    source: z.enum(["payment", "manual", "subscription"]),
+    source: z.enum(["payment", "application_fee", "manual", "subscription"]),
     amount: z.number(),
     currency: z.string(),
     description: z.string(),

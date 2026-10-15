@@ -12,6 +12,7 @@ import (
     "github.com/jackc/pgx/v5/pgxpool"
     "github.com/redis/go-redis/v9"
 
+    "identitycard-server/internal/pkg/applicantsession"
     "identitycard-server/internal/pkg/storage"
 )
 
@@ -25,6 +26,9 @@ type App struct {
     Redis *redis.Client
     Store *storage.Store
     key   []byte
+
+    // Sessions: uploads need the applicant signed in on that form.
+    Sessions *applicantsession.Manager
 
     maxPerHour int           // uploads per IP per hour (UPLOAD_MAX_PER_HOUR)
     pendingTTL time.Duration // unclaimed uploads are deleted after this

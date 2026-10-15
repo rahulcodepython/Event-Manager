@@ -21,6 +21,8 @@ export const ApplicantItemSchema = z.object({
     card_sent_at: z.string().nullish(),
     card_error: z.string().nullish(),
     sub_events: z.array(z.object({ id: z.string(), name: z.string() })).default([]),
+    /** Application fee paid in paise (0 = none). */
+    paid_amount: z.number().default(0),
 });
 
 export type ApplicantItem = z.infer<typeof ApplicantItemSchema>;

@@ -41,6 +41,18 @@ type Config struct {
 	// Google OAuth client (GOOGLE_REDIRECT_URL).
 	GoogleRedirectURL string
 	GoogleUserInfoURL string
+	GoogleCertsURL    string // Google's keys for ID-token checks
+
+	// Applicant sign-in and drafts on the public form.
+	ApplicantGoogleLoginURI string        // GIS redirect-mode callback
+	ApplicantSessionSecret  string        // signs the applicant cookie
+	ApplicantSessionTTL     time.Duration // applicant cookie lifetime
+	ApplicationSeatHold     time.Duration // seat hold at the payment step
+	ApplicationDraftTTL     time.Duration // unfinished drafts are deleted after this
+	ApplicationDraftSweep   time.Duration // how often stale drafts are deleted
+	ApplicantSigninTTL      time.Duration // a started Google sign-in stays valid this long
+	PlatformFeePercent      float64       // platform share of application fees
+	PayoutStatusRefresh     time.Duration // pending payout accounts re-check Razorpay this often
 
 	// Abuse limits.
 	RateLimitPerMinute    int           // sustained requests per IP
@@ -65,6 +77,10 @@ type Config struct {
 	RazorpayKeySecret     string
 	RazorpayWebhookSecret string
 	RazorpayBaseURL       string // REST API base, e.g. https://api.razorpay.com/v1
+	RazorpayV2BaseURL     string // Route linked accounts, e.g. https://api.razorpay.com/v2
+	// Business classification sent when creating organizers' linked accounts.
+	RouteCategory    string
+	RouteSubcategory string
 
 	// ID cards: HMAC key for QR payloads. Changing it invalidates every
 	// issued card.
@@ -159,6 +175,17 @@ func Load() (*Config, error) {
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 		GoogleRedirectURL:  getOr("GOOGLE_REDIRECT_URL", getOr("API_URL", "http://localhost:8000")+"/api/v1/auth/google/callback"),
 		GoogleUserInfoURL:  getOr("GOOGLE_USERINFO_URL", "https://openidconnect.googleapis.com/v1/userinfo"),
+		GoogleCertsURL:     getOr("GOOGLE_CERTS_URL", "https://www.googleapis.com/oauth2/v3/certs"),
+
+		ApplicantGoogleLoginURI: getOr("APPLICANT_GOOGLE_LOGIN_URI", getOr("API_URL", "http://localhost:8000")+"/api/v1/public/apply/google/callback"),
+		ApplicantSessionSecret:  require("APPLICANT_SESSION_SECRET"),
+		ApplicantSessionTTL:     getDuration("APPLICANT_SESSION_TTL", 24*time.Hour),
+		ApplicationSeatHold:     getDuration("APPLICATION_SEAT_HOLD", 15*time.Minute),
+		ApplicationDraftTTL:     getDuration("APPLICATION_DRAFT_TTL", 7*24*time.Hour),
+		ApplicationDraftSweep:   getDuration("APPLICATION_DRAFT_SWEEP_EVERY", time.Hour),
+		ApplicantSigninTTL:      getDuration("APPLICANT_SIGNIN_TTL", 10*time.Minute),
+		PlatformFeePercent:      getFloat("PLATFORM_FEE_PERCENT", 0),
+		PayoutStatusRefresh:     getDuration("PAYOUT_STATUS_REFRESH", 5*time.Minute),
 
 		RateLimitPerMinute:    getInt("RATE_LIMIT_PER_MINUTE", 100),
 		RateLimitBurst:        getInt("RATE_LIMIT_BURST", 100),
@@ -178,8 +205,11 @@ func Load() (*Config, error) {
 		RazorpayKeySecret:     os.Getenv("RAZORPAY_KEY_SECRET"),
 		RazorpayWebhookSecret: os.Getenv("RAZORPAY_WEBHOOK_SECRET"),
 		RazorpayBaseURL:       strings.TrimRight(getOr("RAZORPAY_BASE_URL", "https://api.razorpay.com/v1"), "/"),
+		RazorpayV2BaseURL:     strings.TrimRight(getOr("RAZORPAY_V2_BASE_URL", "https://api.razorpay.com/v2"), "/"),
+		RouteCategory:         getOr("RAZORPAY_ROUTE_CATEGORY", "education"),
+		RouteSubcategory:      getOr("RAZORPAY_ROUTE_SUBCATEGORY", "event_management"),
 
-		QRSigningSecret: require("QR_SIGNING_SECRET"),
+		QRSigningSecret:   require("QR_SIGNING_SECRET"),
 		ResendAPIKey:      os.Getenv("RESEND_API_KEY"),
 		ResendBaseURL:     strings.TrimRight(getOr("RESEND_BASE_URL", "https://api.resend.com"), "/"),
 		EmailFrom:         getOr("EMAIL_FROM", "IdentityCard <no-reply@example.com>"),
@@ -314,4 +344,16 @@ func getDuration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return d
+}
+
+func getFloat(key string, fallback float64) float64 {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil || f < 0 {
+		return fallback
+	}
+	return f
 }

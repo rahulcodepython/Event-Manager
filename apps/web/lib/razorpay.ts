@@ -40,8 +40,8 @@ function loadCheckoutScript(): Promise<void> {
  * payment result to verify on the server, or null if the user closed it.
  */
 export async function openRazorpayCheckout(
-    order: CreateOrderResponse,
-    details: { description: string; email?: string; name?: string },
+    order: Pick<CreateOrderResponse, "order_id" | "key_id" | "amount" | "currency">,
+    details: { description: string; email?: string; name?: string; title?: string },
 ): Promise<RazorpayPaymentResult | null> {
     await loadCheckoutScript()
     const Razorpay = window.Razorpay
@@ -53,7 +53,7 @@ export async function openRazorpayCheckout(
             order_id: order.order_id,
             amount: order.amount,
             currency: order.currency,
-            name: "IdentityCard",
+            name: details.title || "IdentityCard",
             description: details.description,
             prefill: { email: details.email, name: details.name },
             handler: (result) => resolve(result),

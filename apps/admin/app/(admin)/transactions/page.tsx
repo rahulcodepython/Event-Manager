@@ -37,11 +37,13 @@ const KIND_ITEMS = [
 const SOURCE_ITEMS = [
     { value: ALL, label: "All sources" },
     { value: "payment", label: "Client payments" },
+    { value: "application_fee", label: "Application fees" },
     { value: "manual", label: "Manual" },
     { value: "subscription", label: "Subscriptions" },
 ]
 const SOURCE_LABEL: Record<Transaction["source"], string> = {
     payment: "Payment",
+    application_fee: "Application fee",
     manual: "Manual",
     subscription: "Subscription",
 }
@@ -188,7 +190,7 @@ export default function TransactionsPage() {
                                                         />
                                                     }
                                                     {
-                                                        t.source !== "payment" && <ConfirmButton
+                                                        t.source !== "payment" && t.source !== "application_fee" && <ConfirmButton
                                                             trigger={
                                                                 <Button size="icon-sm" variant="ghost" aria-label="Delete">
                                                                     <Trash2Icon />

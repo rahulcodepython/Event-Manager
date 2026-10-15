@@ -120,6 +120,9 @@ func (h *App) DeleteApplicantHandler(c *fiber.Ctx) error {
         if errors.Is(err, entitlements.ErrApplicationsClosed) {
             return utils.ErrForbidden(c, err.Error(), err)
         }
+        if errors.Is(err, ErrApplicantPaid) {
+            return utils.ErrConflict(c, err.Error(), err)
+        }
         return utils.ErrInternal(c, "failed to delete applicant", err)
     }
 

@@ -133,6 +133,10 @@ func (s *App) WebhookService(ctx context.Context, body []byte, signature string,
     }
     _, err := s.fulfill(ctx, entity.OrderID, entity.ID, "")
     if errors.Is(err, ErrOrderNotFound) {
+        if s.OnOtherOrder != nil {
+            _, err := s.OnOtherOrder(ctx, entity.OrderID, entity.ID)
+            return err
+        }
         return nil // not one of our orders
     }
     return err

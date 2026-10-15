@@ -53,7 +53,10 @@ per IP per 15 min) and guards every other admin route with
 `app.router.go` mounts routes in three tiers:
 
 1. **Public:** Google login, public registration form, scanner devices
-   (authenticated by `X-Device-Token`, not a user session).
+   (authenticated by `X-Device-Token`, not a user session). The public
+   application flow (`features/applyflow`) uses its own signed
+   `applicant_session` cookie, set after Google sign-in and scoped to
+   `/api/v1/public/apply`.
 2. **Logged in:** `/auth/me`, `/auth/onboarding`.
 3. **Logged in with an organization:** everything else. `middlewares.OwnedBy`
    404s any `/events/:eventId`, `/forms/:formId` or `/devices/:deviceId` path

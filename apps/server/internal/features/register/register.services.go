@@ -13,6 +13,7 @@ import (
 
     "identitycard-server/internal/features/applicants"
     "identitycard-server/internal/features/subevents"
+    "identitycard-server/internal/features/uploads"
     "identitycard-server/internal/pkg/cache"
     "identitycard-server/internal/pkg/entitlements"
     "identitycard-server/internal/pkg/postgres"
@@ -58,7 +59,8 @@ func (s *App) GetPublicApplyConfigService(ctx context.Context, eventFormID strin
 }
 
 // SubmitApplicationService checks the form is open, then registers through
-// the same capped insert as the dashboard (applicants.InsertApplicant).
+// the same capped insert as the dashboard (applicants.InsertApplicant). The
+// public form reaches it only by confirming a draft (see applyflow).
 func (s *App) SubmitApplicationService(ctx context.Context, eventFormID string, req SubmitApplicationRequest) (*SubmitApplicationResponse, error) {
     if _, err := uuid.Parse(eventFormID); err != nil {
         return nil, ErrInvalidEventFormID
@@ -92,6 +94,13 @@ func (s *App) SubmitApplicationService(ctx context.Context, eventFormID string, 
     claim, err := s.Uploads.ClaimImages(ctx, eventFormID, req.Data)
     if err != nil {
         return nil, err
+    }
+    // Without a Photo field, the Google picture is the applicant's photo.
+    if req.GooglePicture != "" && !claim.HasPhotoField {
+        if key, err := s.Uploads.StoreRemotePhoto(ctx, cfg.Event.ID, req.GooglePicture); err == nil {
+            req.Data[uploads.GooglePhotoKey] = key
+            claim.Keys = append(claim.Keys, key)
+        }
     }
 
     var (

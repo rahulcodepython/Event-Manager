@@ -1,6 +1,7 @@
 package credits
 
 import (
+    "context"
     "net/http"
     "time"
 
@@ -17,6 +18,9 @@ type App struct {
     Cfg     *config.Config
     Pricing *pricing.App
     HTTP    *http.Client
+    // OnOtherOrder handles paid orders that are not credit purchases
+    // (application fees); it reports whether it recognized the order.
+    OnOtherOrder func(ctx context.Context, orderID, paymentID string) (bool, error)
     // Queue and Mailer send receipts of free (fully discounted) purchases.
     Queue  *jobqueue.Queue
     Mailer *mailer.Mailer

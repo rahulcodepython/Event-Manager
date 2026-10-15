@@ -17,6 +17,11 @@ type UploadResponse struct {
 }
 
 func (h *App) UploadHandler(c *fiber.Ctx) error {
+    if h.Sessions != nil {
+        if _, err := h.Sessions.Get(c, c.Params("eventFormId")); err != nil {
+            return utils.ErrUnauthorized(c, err.Error(), err)
+        }
+    }
     fh, err := c.FormFile("file")
     if err != nil {
         return utils.ErrBadRequest(c, "attach the image in the 'file' field", err)

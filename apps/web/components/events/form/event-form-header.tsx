@@ -4,6 +4,7 @@ import * as React from "react"
 import {
     AlertTriangle,
     Calendar,
+    IndianRupee,
     Loader2,
     Lock,
     QrCode,
@@ -39,6 +40,7 @@ interface EventFormHeaderProps {
     isDeleting: boolean
     onOpenConfig: () => void
     onOpenShare: () => void
+    onOpenFee: () => void
     hasUnsavedChanges: boolean
     onSaveChanges: () => void
     isSaving: boolean
@@ -53,6 +55,7 @@ export function EventFormHeader({
     isDeleting,
     onOpenConfig,
     onOpenShare,
+    onOpenFee,
     hasUnsavedChanges,
     onSaveChanges,
     isSaving,
@@ -124,6 +127,16 @@ export function EventFormHeader({
                     >
                         <SlidersHorizontal className="size-3.5 text-primary" />
                         <span>Registration Config</span>
+                    </Button>
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onOpenFee}
+                        className="gap-1.5 text-xs font-medium"
+                    >
+                        <IndianRupee className="size-3.5 text-primary" />
+                        <span>Application Fee</span>
                     </Button>
 
                     {/* 2. Unlocked Actions */}

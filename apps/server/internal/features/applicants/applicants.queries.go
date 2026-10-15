@@ -81,7 +81,8 @@ const (
         DELETE FROM applicants
         WHERE id = $2
           AND EXISTS (SELECT 1 FROM deleted_association)
-          AND NOT EXISTS (SELECT 1 FROM event_applicants WHERE user_id = $2);
+          -- The CTE's delete is not visible here, so skip this event's row.
+          AND NOT EXISTS (SELECT 1 FROM event_applicants WHERE user_id = $2 AND event_id <> $1::uuid);
     `
 )
 
@@ -118,6 +119,10 @@ func BuildFilteredApplicantsQuery(whereClause string, limitIdx, offsetIdx, pageI
                 'card_status', fa.card_status,
                 'card_sent_at', fa.card_sent_at,
                 'card_error', fa.card_error,
+                'paid_amount', (
+                    SELECT d.amount FROM application_drafts d
+                    WHERE d.event_id = fa.event_id AND d.applicant_id = fa.user_id AND d.status = 'confirmed' AND d.paid_at IS NOT NULL
+                ),
                 'sub_events', COALESCE((
                     SELECT jsonb_agg(jsonb_build_object('id', se.id, 'name', se.name) ORDER BY se.created_at)
                     FROM sub_event_applicants sea JOIN sub_events se ON se.id = sea.sub_event_id

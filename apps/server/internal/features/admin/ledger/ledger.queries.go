@@ -96,9 +96,9 @@ const (
         SELECT ` + transactionJSON + ` FROM t;
     `
 
-    // Payment rows mirror Razorpay and cannot be deleted; manual entries and
-    // subscription renewals can.
+    // Payment and application-fee rows mirror Razorpay and cannot be
+    // deleted; manual entries and subscription renewals can.
     DeleteTransactionQuery = `
-        DELETE FROM transactions WHERE id = $1::uuid AND source <> 'payment';
+        DELETE FROM transactions WHERE id = $1::uuid AND source NOT IN ('payment', 'application_fee');
     `
 )

@@ -42,6 +42,9 @@ type SubmitApplicationRequest struct {
     // SubEventLink: the sub-event of the link the form was opened with. An
     // email already registered for the event is then enrolled, not refused.
     SubEventLink string `json:"sub_event_link"`
+    // GooglePicture is the signed-in applicant's Google picture; it is
+    // stored as their photo when the form has no Photo field.
+    GooglePicture string `json:"-"`
 }
 
 // PublicSubEvents: how the form offers sub-events. Mode: off, one, many.

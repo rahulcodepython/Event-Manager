@@ -6,10 +6,12 @@ import {
     Copy,
     Eye,
     FileText,
+    Hourglass,
     Loader2,
     Mail,
     Phone,
     QrCode,
+    RotateCcw,
     Trash2,
     Upload,
     UserPlus,
@@ -34,6 +36,8 @@ import {
 import { ApplicantDataDialog } from "../../../../../components/applicants/applicant-data-dialog"
 import { ApplicantFilterBadges } from "../../../../../components/applicants/applicant-filter-badges"
 import { ApplicantFilterForm } from "../../../../../components/applicants/applicant-filter-form"
+import { ApplicationsInProgressDialog } from "../../../../../components/applicants/applications-in-progress-dialog"
+import { RefundApplicantDialog } from "../../../../../components/applicants/refund-applicant-dialog"
 import { ApplicantQrDialog } from "../../../../../components/applicants/applicant-qr-dialog"
 import { BulkUploadApplicantsDialog } from "../../../../../components/applicants/bulk-upload-applicants-dialog"
 import { CreateApplicantDialog } from "../../../../../components/applicants/create-applicant-dialog"
@@ -68,6 +72,9 @@ export default function EventApplicantsPage() {
         React.useState<ApplicantItem | null>(null)
     const [deleteApplicant, setDeleteApplicant] =
         React.useState<ApplicantItem | null>(null)
+    const [refundApplicant, setRefundApplicant] =
+        React.useState<ApplicantItem | null>(null)
+    const [inProgressOpen, setInProgressOpen] = React.useState(false)
 
     const deleteMutation = useDeleteApplicantMutation(eventId)
     // Applicants are frozen once the application window closes.
@@ -171,7 +178,21 @@ export default function EventApplicantsPage() {
                 }
 
                 {
-                    !applicationsClosed && <>
+                    applicant.paid_amount > 0 && <>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                            onClick={() => setRefundApplicant(applicant)}
+                            variant="destructive"
+                            className="gap-2.5"
+                        >
+                            <RotateCcw className="size-3.5" />
+                            <span>Refund &amp; Remove</span>
+                        </ContextMenuItem>
+                    </>
+                }
+
+                {
+                    !applicationsClosed && applicant.paid_amount === 0 && <>
                         <ContextMenuSeparator />
                         <ContextMenuItem
                             onClick={() => setDeleteApplicant(applicant)}
@@ -207,6 +228,15 @@ export default function EventApplicantsPage() {
                         >
                             <FileText className="size-4" />
                             <span>Registration Form</span>
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setInProgressOpen(true)}
+                            className="gap-2 font-medium"
+                        >
+                            <Hourglass className="size-4" />
+                            <span>In Progress</span>
                         </Button>
                         <Button
                             type="button"
@@ -304,6 +334,20 @@ export default function EventApplicantsPage() {
                     }}
                 />
             }
+
+            <RefundApplicantDialog
+                eventId={eventId}
+                applicant={refundApplicant}
+                onOpenChange={(open) => {
+                    if (!open) setRefundApplicant(null)
+                }}
+            />
+
+            <ApplicationsInProgressDialog
+                eventId={eventId}
+                open={inProgressOpen}
+                onOpenChange={setInProgressOpen}
+            />
 
             <AlertDialog
                 open={!!deleteApplicant}

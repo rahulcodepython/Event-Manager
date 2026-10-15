@@ -10,6 +10,7 @@ import (
 
     "identitycard-server/internal/config"
     "identitycard-server/internal/features/applicants"
+    "identitycard-server/internal/features/applyflow"
     "identitycard-server/internal/features/auth"
     "identitycard-server/internal/features/cards"
     "identitycard-server/internal/features/contact"
@@ -19,6 +20,7 @@ import (
     "identitycard-server/internal/features/events/dates"
     "identitycard-server/internal/features/events/events"
     "identitycard-server/internal/features/forms"
+    "identitycard-server/internal/features/payouts"
     "identitycard-server/internal/features/pricing"
     "identitycard-server/internal/features/register"
     "identitycard-server/internal/features/reminders"
@@ -32,6 +34,7 @@ import (
     "identitycard-server/internal/pkg/jobqueue"
     "identitycard-server/internal/pkg/mailer"
     "identitycard-server/internal/pkg/qrsign"
+    "identitycard-server/internal/pkg/razorpay"
     "identitycard-server/internal/pkg/storage"
 )
 
@@ -58,6 +61,8 @@ type AppRouter struct {
     Sites      *sites.App
     Contact    *contact.App
     Uploads    *uploads.App
+    Apply      *applyflow.App
+    Payouts    *payouts.App
 }
 
 func NewAppRouter(
@@ -79,19 +84,29 @@ func NewAppRouter(
     uploadsApp.StartSweeper(rootCtx)
     eventsApp.OnDelete = append(eventsApp.OnDelete, sitesApp.OnEventDeleted, uploadsApp.OnEventDeleted)
     applicantsApp.OnDelete = append(applicantsApp.OnDelete, uploadsApp.DeleteFiles)
-    retention.NewApp(pool, rdb, eventsApp).StartWorker(rootCtx)
-
-    // Emails (ID cards, client reminders) go through one Redis-stream queue,
-    // sent one at a time to stay under Resend's 2 requests/second.
-    signer := qrsign.New(cfg.QRSigningSecret)
+    // Emails (ID cards, reminders, receipts, applications) share one queue.
     mail := mailer.New(cfg.ResendAPIKey, cfg.EmailFrom, cfg.ResendBaseURL)
     emailQueue := jobqueue.New(rdb, "email")
+    registerApp := register.NewApp(pool, cch, applicantsApp, uploadsApp)
+    rp := razorpay.New(cfg.RazorpayKeyID, cfg.RazorpayKeySecret, cfg.RazorpayBaseURL, cfg.RazorpayV2BaseURL)
+    payoutsApp := payouts.NewApp(pool, rp, cfg.RouteCategory, cfg.RouteSubcategory, cfg.PayoutStatusRefresh)
+    applyApp := applyflow.NewApp(pool, cfg, applyflow.Deps{
+        Register: registerApp, Applicants: applicantsApp, Uploads: uploadsApp,
+        Payouts: payoutsApp, Razorpay: rp, Queue: emailQueue, Mailer: mail,
+    })
+    uploadsApp.Sessions = applyApp.Sessions
+    applyApp.StartSweeper(rootCtx)
+    retention.NewApp(pool, rdb, eventsApp).StartWorker(rootCtx)
+
+    // The email queue sends one email per EMAIL_SEND_INTERVAL.
+    signer := qrsign.New(cfg.QRSigningSecret)
     subEventsApp := subevents.NewApp(pool, cch)
     cardsApp := cards.NewApp(pool, rdb, cch, emailQueue, mail, signer, store)
     remindersApp := reminders.NewApp(pool, rdb, emailQueue, mail, cfg.WebURL)
     contactApp := contact.NewApp(pool, rdb, emailQueue, mail, cfg.ContactEmail, cfg.ContactMaxPerHour)
     creditsApp := credits.NewApp(pool, cfg, pricingApp)
     creditsApp.Queue, creditsApp.Mailer = emailQueue, mail
+    creditsApp.OnOtherOrder = applyApp.HandleOrderPaid
     cardsApp.StartScheduler(rootCtx)
     remindersApp.StartScheduler(rootCtx)
     go emailQueue.Run(rootCtx, map[string]jobqueue.Handler{
@@ -99,6 +114,8 @@ func NewAppRouter(
         reminders.JobType:      remindersApp.JobHandler(),
         contact.JobType:        contactApp.JobHandler(),
         credits.ReceiptJobType: creditsApp.ReceiptJobHandler(),
+        applyflow.JobConfirmed: applyApp.ConfirmedJobHandler(),
+        applyflow.JobRefunded:  applyApp.RefundedJobHandler(),
     }, cfg.EmailSendInterval)
 
     return &AppRouter{
@@ -113,7 +130,9 @@ func NewAppRouter(
         Events:     eventsApp,
         Dates:      dates.NewApp(pool, cch),
         Forms:      forms.NewApp(pool, cch),
-        Register:   register.NewApp(pool, cch, applicantsApp, uploadsApp),
+        Register:   registerApp,
+        Apply:      applyApp,
+        Payouts:    payoutsApp,
         Applicants: applicantsApp,
         Devices:    devices.NewApp(pool, rdb, wa, cfg.RPID, cfg.CanonicalOrigin, cfg.DevicePINTTL),
         Attendance: attendance.NewApp(pool, cch, signer, store),
@@ -139,6 +158,7 @@ func (r *AppRouter) SetUp() {
     r.Contact.RegisterPublicRoutes(api)
     r.Uploads.RegisterPublicRoutes(api)
     r.Credits.RegisterPublicRoutes(api)
+    r.Apply.RegisterRoutes(api) // before Register: owns /public/apply/google/callback
     r.Register.RegisterRoutes(api)
     r.Devices.RegisterPublicRoutes(api)
     api.Use("/events/:eventId/attendance", middlewares.EventWritable(r.DB))
@@ -167,4 +187,6 @@ func (r *AppRouter) SetUp() {
     r.Cards.RegisterRoutes(org)
     r.Sites.RegisterRoutes(org)
     r.Uploads.RegisterRoutes(org)
+    r.Apply.RegisterOrgRoutes(org)
+    r.Payouts.RegisterRoutes(org)
 }

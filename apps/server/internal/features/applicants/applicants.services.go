@@ -24,6 +24,7 @@ var (
     ErrAlreadyRegistered  = errors.New("an applicant with this email is already registered for this event")
     ErrApplicantNotFound  = errors.New("applicant not found")
     ErrLimitReached       = errors.New("applicant limit of this event's credit reached")
+    ErrApplicantPaid      = errors.New("this applicant paid an application fee: refund them instead")
 )
 
 func (s *App) ListApplicantsService(ctx context.Context, eventID, search string, filters []ApplicantFilter, page, limit int) (*ListApplicantsResponse, error) {
@@ -243,6 +244,17 @@ func (s *App) DeleteApplicantService(ctx context.Context, eventID, userID string
     if err := entitlements.RequireApplicationsOpen(ctx, s.DB, eventID); err != nil {
         return nil, err
     }
+    // Paid applicants leave through a refund, so the fee goes back too.
+    var paid bool
+    if err := s.DB.QueryRow(ctx, `
+        SELECT EXISTS (SELECT 1 FROM application_drafts
+                       WHERE event_id = $1::uuid AND applicant_id = $2 AND status = 'confirmed' AND amount > 0)
+    `, eventID, userID).Scan(&paid); err != nil {
+        return nil, err
+    }
+    if paid {
+        return nil, ErrApplicantPaid
+    }
 
     var data map[string]any
     _ = s.DB.QueryRow(ctx, `SELECT data FROM applicants WHERE id = $1`, userID).Scan(&data)
@@ -260,4 +272,25 @@ func (s *App) DeleteApplicantService(ctx context.Context, eventID, userID string
         UserID:  userID,
         Message: "Applicant deleted successfully",
     }, nil
+}
+
+// Validate checks an applicant's name, email and phone without saving.
+func Validate(req CreateApplicantRequest) error {
+    _, err := normalizeApplicant(req)
+    return err
+}
+
+// RemoveApplicant deletes an applicant regardless of the application window
+// (used when a paid registration is refunded) and runs the delete hooks.
+func (s *App) RemoveApplicant(ctx context.Context, eventID, userID string) error {
+    var data map[string]any
+    _ = s.DB.QueryRow(ctx, `SELECT data FROM applicants WHERE id = $1`, userID).Scan(&data)
+    if err := s.DeleteApplicantRepository(ctx, eventID, userID); err != nil {
+        return err
+    }
+    for _, hook := range s.OnDelete {
+        hook(ctx, eventID, data)
+    }
+    s.InvalidateCaches(ctx, eventID)
+    return nil
 }

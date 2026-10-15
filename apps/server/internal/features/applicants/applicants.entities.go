@@ -13,6 +13,8 @@ type ApplicantItem struct {
     CardStatus string     `json:"card_status,omitempty"`
     CardSentAt *time.Time `json:"card_sent_at,omitempty"`
     CardError  string     `json:"card_error,omitempty"`
+    // PaidAmount: application fee paid, in paise (list only; nil = none).
+    PaidAmount *int64 `json:"paid_amount,omitempty"`
     // SubEvents the applicant is enrolled in (list only).
     SubEvents []SubEventRef `json:"sub_events,omitempty"`
 }

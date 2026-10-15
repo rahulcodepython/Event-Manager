@@ -100,9 +100,11 @@ export function ApplicantDataDialog({
                                     const fieldDef = formFields?.find(
                                         (f) => f.key === key
                                     );
-                                    const displayLabel =
-                                        fieldDef?.label ||
-                                        key.replace(/_/g, " ");
+                                    // "_photo": the Google picture, used when the form has no Photo field.
+                                    const isGooglePhoto = key === "_photo";
+                                    const displayLabel = isGooglePhoto
+                                        ? "Photo (Google)"
+                                        : fieldDef?.label || key.replace(/_/g, " ");
                                     const displayVal = fieldDef
                                         ? formatFieldValue(
                                               fieldDef,
@@ -125,12 +127,12 @@ export function ApplicantDataDialog({
                                                 {displayLabel}:
                                             </span>
                                             {
-                                                eventId && (fieldDef?.type === "photo" || fieldDef?.type === "signature") ? <ApplicantImage
+                                                eventId && (isGooglePhoto || fieldDef?.type === "photo" || fieldDef?.type === "signature") ? <ApplicantImage
                                                     eventId={eventId}
                                                     applicantId={applicant.user_id}
                                                     fieldKey={key}
-                                                    type={fieldDef.type}
-                                                    className={fieldDef.type === "photo" ? "size-24 rounded-md object-cover" : "h-14 max-w-48 rounded border bg-white object-contain"}
+                                                    type={isGooglePhoto ? "photo" : fieldDef?.type ?? "photo"}
+                                                    className={isGooglePhoto || fieldDef?.type === "photo" ? "size-24 rounded-md object-cover" : "h-14 max-w-48 rounded border bg-white object-contain"}
                                                 /> : <span className="font-medium text-foreground text-right break-all">
                                                     {displayVal}
                                                 </span>
