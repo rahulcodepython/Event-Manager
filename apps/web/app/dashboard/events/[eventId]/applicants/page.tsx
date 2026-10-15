@@ -152,8 +152,8 @@ export default function EventApplicantsPage() {
                     <span>Copy Email Address</span>
                 </ContextMenuItem>
 
-                {applicant.phone && (
-                    <ContextMenuItem
+                {
+                    applicant.phone && <ContextMenuItem
                         onClick={() => {
                             navigator.clipboard.writeText(applicant.phone)
                             toast.success("Mobile number copied")
@@ -163,7 +163,7 @@ export default function EventApplicantsPage() {
                         <Phone className="size-3.5" />
                         <span>Copy Mobile Number</span>
                     </ContextMenuItem>
-                )}
+                }
 
                 <ContextMenuSeparator />
 
@@ -269,8 +269,8 @@ export default function EventApplicantsPage() {
                 onOpenChange={setCreateOpen}
             />
 
-            {viewDataApplicant && (
-                <ApplicantDataDialog
+            {
+                viewDataApplicant && <ApplicantDataDialog
                     applicant={viewDataApplicant}
                     formFields={formFields}
                     open={!!viewDataApplicant}
@@ -278,10 +278,10 @@ export default function EventApplicantsPage() {
                         if (!open) setViewDataApplicant(null)
                     }}
                 />
-            )}
+            }
 
-            {viewQrApplicant && (
-                <ApplicantQrDialog
+            {
+                viewQrApplicant && <ApplicantQrDialog
                     applicant={viewQrApplicant}
                     eventId={eventId}
                     open={!!viewQrApplicant}
@@ -289,7 +289,7 @@ export default function EventApplicantsPage() {
                         if (!open) setViewQrApplicant(null)
                     }}
                 />
-            )}
+            }
 
             <AlertDialog
                 open={!!deleteApplicant}
@@ -323,9 +323,9 @@ export default function EventApplicantsPage() {
                             disabled={deleteMutation.isPending}
                             className="bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-1.5"
                         >
-                            {deleteMutation.isPending && (
-                                <Loader2 className="size-4 animate-spin" />
-                            )}
+                            {
+                                deleteMutation.isPending && <Loader2 className="size-4 animate-spin" />
+                            }
                             <span>
                                 {deleteMutation.isPending
                                     ? "Deleting..."

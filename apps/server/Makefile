@@ -7,13 +7,19 @@ include .env
 export
 endif
 
-.PHONY: dev build seed flush seeds-up seeds-regenerate migrate-up migrate-down migrate-new migrate-force lint
+.PHONY: dev dev-admin build build-admin seed flush seeds-up seeds-regenerate migrate-up migrate-down migrate-new migrate-force lint
 
 dev:
 	go run ./cmd/server
 
+dev-admin:
+	go run ./cmd/admin
+
 build:
 	go build -o bin/server ./cmd/server
+
+build-admin:
+	go build -o bin/admin ./cmd/admin
 
 seed:
 	go run ./cmd/seed -action=seed

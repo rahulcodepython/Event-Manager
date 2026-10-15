@@ -76,24 +76,24 @@ export default function GlobalDevicesPage() {
             </div>
 
             {/* Loading / Error States */}
-            {isLoading && (
-                <div className="flex h-64 w-full items-center justify-center">
+            {
+                isLoading && <div className="flex h-64 w-full items-center justify-center">
                     <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground">
                         <Loader2 className="size-6 animate-spin text-primary" />
                         <span>Loading scanner devices...</span>
                     </div>
                 </div>
-            )}
+            }
 
-            {isError && (
-                <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-6 text-center text-xs text-destructive">
+            {
+                isError && <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-6 text-center text-xs text-destructive">
                     {error?.message || "Failed to load scanner devices"}
                 </div>
-            )}
+            }
 
             {/* Empty State */}
-            {!isLoading && !isError && devices.length === 0 && (
-                <Card className="p-12 text-center flex flex-col items-center justify-center gap-3">
+            {
+                !isLoading && !isError && devices.length === 0 && <Card className="p-12 text-center flex flex-col items-center justify-center gap-3">
                     <div className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
                         <ScanLine className="size-6" />
                     </div>
@@ -107,8 +107,8 @@ export default function GlobalDevicesPage() {
                                 : "Create your first scanner device terminal to generate a 5-minute pairing PIN."}
                         </p>
                     </div>
-                    {!search && (
-                        <Button
+                    {
+                        !search && <Button
                             type="button"
                             variant="default"
                             onClick={() => setIsCreateOpen(true)}
@@ -117,14 +117,14 @@ export default function GlobalDevicesPage() {
                             <Plus className="size-3.5" />
                             <span>Create First Device</span>
                         </Button>
-                    )}
+                    }
                 </Card>
-            )}
+            }
 
             {/* Table */}
-            {!isLoading && !isError && devices.length > 0 && (
-                <GlobalDevicesTable devices={devices} />
-            )}
+            {
+                !isLoading && !isError && devices.length > 0 && <GlobalDevicesTable devices={devices} />
+            }
 
             {/* Create Device Dialog */}
             <CreateDeviceDialog

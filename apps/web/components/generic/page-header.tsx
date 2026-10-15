@@ -24,17 +24,17 @@ export function PageHeader({
                     </h1>
                     {badge}
                 </div>
-                {description && (
-                    <div className="text-xs text-muted-foreground">
+                {
+                    description && <div className="text-xs text-muted-foreground">
                         {description}
                     </div>
-                )}
+                }
             </div>
-            {actions && (
-                <div className="flex flex-wrap items-center gap-2">
+            {
+                actions && <div className="flex flex-wrap items-center gap-2">
                     {actions}
                 </div>
-            )}
+            }
         </div>
     )
 }

@@ -293,8 +293,8 @@ export function BulkUploadApplicantsDialog({
                 </DialogHeader>
 
                 <DialogBody className="space-y-4">
-                    {step === "format" ? (
-                        <>
+                    {
+                        step === "format" ? <>
                             <div className="overflow-hidden rounded-md border">
                                 <table className="w-full text-xs">
                                     <thead className="bg-muted/50 text-left">
@@ -311,19 +311,19 @@ export function BulkUploadApplicantsDialog({
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {columns.map((c) => (
-                                            <tr
+                                        {
+                                            columns.map((c) => <tr
                                                 key={c.key}
                                                 className="border-t"
                                             >
                                                 <td className="px-3 py-2 font-mono">
                                                     {c.key}
-                                                    {c.required && (
-                                                        <span className="text-destructive">
+                                                    {
+                                                        c.required && <span className="text-destructive">
                                                             {" "}
                                                             *
                                                         </span>
-                                                    )}
+                                                    }
                                                 </td>
                                                 <td className="px-3 py-2">
                                                     {c.label}
@@ -332,7 +332,8 @@ export function BulkUploadApplicantsDialog({
                                                     {c.hint}
                                                 </td>
                                             </tr>
-                                        ))}
+                                            )
+                                        }
                                     </tbody>
                                 </table>
                             </div>
@@ -340,9 +341,7 @@ export function BulkUploadApplicantsDialog({
                                 CSV: first row is the header. JSON: an array of
                                 objects using the same keys.
                             </p>
-                        </>
-                    ) : (
-                        <>
+                        </> : <>
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -366,48 +365,49 @@ export function BulkUploadApplicantsDialog({
                                 </span>
                             </Button>
 
-                            {parseError && (
-                                <div className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
+                            {
+                                parseError && <div className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
                                     <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
                                     <span>{parseError}</span>
                                 </div>
-                            )}
+                            }
 
-                            {fileName && !parseError && (
-                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                            {
+                                fileName && !parseError && <div className="flex flex-wrap items-center gap-2 text-xs">
                                     <Badge variant="secondary">
                                         {applicants.length} ready
                                     </Badge>
-                                    {rowErrors.length > 0 && (
-                                        <Badge variant="destructive">
+                                    {
+                                        rowErrors.length > 0 && <Badge variant="destructive">
                                             {rowErrors.length} invalid (skipped)
                                         </Badge>
-                                    )}
-                                    {result && (
-                                        <Badge>{result.created} uploaded</Badge>
-                                    )}
-                                    {result && result.failed.length > 0 && (
-                                        <Badge variant="destructive">
+                                    }
+                                    {
+                                        result && <Badge>{result.created} uploaded</Badge>
+                                    }
+                                    {
+                                        result && result.failed.length > 0 && <Badge variant="destructive">
                                             {result.failed.length} rejected
                                         </Badge>
-                                    )}
+                                    }
                                 </div>
-                            )}
+                            }
 
-                            {problems.length > 0 && (
-                                <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border bg-muted/30 p-2.5 text-xs text-muted-foreground">
-                                    {problems.map((p, i) => (
-                                        <li key={i}>{p}</li>
-                                    ))}
+                            {
+                                problems.length > 0 && <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border bg-muted/30 p-2.5 text-xs text-muted-foreground">
+                                    {
+                                        problems.map((p, i) => <li key={i}>{p}</li>
+                                        )
+                                    }
                                 </ul>
-                            )}
+                            }
                         </>
-                    )}
+                    }
                 </DialogBody>
 
                 <DialogFooter>
-                    {step === "format" ? (
-                        <>
+                    {
+                        step === "format" ? <>
                             <Button
                                 type="button"
                                 variant="outline"
@@ -424,16 +424,12 @@ export function BulkUploadApplicantsDialog({
                             >
                                 <span>Continue</span>
                             </Button>
-                        </>
-                    ) : result ? (
-                        <Button
+                        </> : result ? <Button
                             type="button"
                             onClick={() => handleOpenChange(false)}
                         >
                             Done
-                        </Button>
-                    ) : (
-                        <>
+                        </Button> : <>
                             <Button
                                 type="button"
                                 variant="outline"
@@ -452,17 +448,15 @@ export function BulkUploadApplicantsDialog({
                                 }
                                 onClick={handleUpload}
                             >
-                                {mutation.isPending ? (
-                                    <Loader2 className="size-4 animate-spin" />
-                                ) : (
-                                    <Upload className="size-4" />
-                                )}
+                                {
+                                    mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />
+                                }
                                 <span>
                                     Upload {applicants.length || ""} Applicants
                                 </span>
                             </Button>
                         </>
-                    )}
+                    }
                 </DialogFooter>
             </DialogContent>
         </Dialog>

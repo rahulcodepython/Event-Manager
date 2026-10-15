@@ -56,19 +56,14 @@ export function ApplicantFilterBadges({
 
     return (
         <div className="no-scrollbar flex h-8 items-center gap-1.5 overflow-x-auto">
-            {filters.length === 0 ? (
-                <span className="text-xs text-muted-foreground">
+            {
+                filters.length === 0 ? <span className="text-xs text-muted-foreground">
                     No filters applied
-                </span>
-            ) : (
-                <>
-                    {filters.map((filter, idx) => {
-                        const { label, value } = describeFilter(
-                            filter,
-                            allFields,
-                        )
-                        return (
-                            <Badge
+                </span> : <>
+                    {
+                        filters.map((filter, idx) => {
+                            const { label, value } = describeFilter(filter, allFields)
+                            return <Badge
                                 key={`${filter.field}-${filter.op}-${filter.value}-${idx}`}
                                 variant="secondary"
                                 className="shrink-0 gap-1.5 border pr-1 pl-2.5 text-[11px] font-normal"
@@ -84,8 +79,8 @@ export function ApplicantFilterBadges({
                                     <X className="size-3" />
                                 </button>
                             </Badge>
-                        )
-                    })}
+                        })
+                    }
                     <Button
                         type="button"
                         variant="ghost"
@@ -96,7 +91,7 @@ export function ApplicantFilterBadges({
                         Clear all
                     </Button>
                 </>
-            )}
+            }
         </div>
     )
 }

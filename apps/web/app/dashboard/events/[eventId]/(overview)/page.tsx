@@ -46,25 +46,25 @@ export default function EventOverviewPage() {
                             {formatDate(event.start_date)} -{" "}
                             {formatDate(event.end_date)}
                         </span>
-                        {event.venue && (
-                            <span className="flex items-center gap-1">
+                        {
+                            event.venue && <span className="flex items-center gap-1">
                                 <MapPin className="size-3.5" />
                                 {event.venue}
                             </span>
-                        )}
-                        {event.organizer && (
-                            <span className="flex items-center gap-1">
+                        }
+                        {
+                            event.organizer && <span className="flex items-center gap-1">
                                 <Users className="size-3.5" />
                                 {event.organizer}
                             </span>
-                        )}
+                        }
                     </div>
                 }
             />
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {sections.map((section) => (
-                    <Card
+                {
+                    sections.map((section) => <Card
                         key={section.url}
                         className="transition-colors hover:bg-muted/40"
                     >
@@ -84,7 +84,8 @@ export default function EventOverviewPage() {
                             </div>
                         </Link>
                     </Card>
-                ))}
+                    )
+                }
             </div>
         </>
     )

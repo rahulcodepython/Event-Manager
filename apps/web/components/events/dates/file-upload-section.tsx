@@ -206,8 +206,8 @@ export function FileUploadSection({
                 <span className="leading-tight">{statusMessage}</span>
             </div>
 
-            {status === "accepted" && parsedItems.length > 0 && (
-                <div className="flex items-center gap-2 pt-1">
+            {
+                status === "accepted" && parsedItems.length > 0 && <div className="flex items-center gap-2 pt-1">
                     <Button
                         type="button"
                         variant="outline"
@@ -227,7 +227,7 @@ export function FileUploadSection({
                         <span>{primaryLabel}</span>
                     </Button>
                 </div>
-            )}
+            }
 
             <StagedDatesPreviewDialog
                 open={previewOpen}

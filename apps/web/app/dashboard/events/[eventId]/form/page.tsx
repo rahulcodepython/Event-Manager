@@ -39,30 +39,24 @@ export default function EventFormPage() {
     const lockMutation = useLockEventFormMutation();
     const deleteMutation = useDeleteEventFormMutation();
 
-
-    // Designer fields state
-    const [designerFields, setDesignerFields] = React.useState<FormField[]>([]);
+    // Local edits to the form fields; null means "no edits, show the saved fields"
+    const [draftFields, setDraftFields] = React.useState<FormField[] | null>(null);
+    const designerFields = draftFields ?? eventForm?.fields ?? [];
     const [isSharingOpen, setIsSharingOpen] = React.useState(false);
     const [isConfigOpen, setIsConfigOpen] = React.useState(false);
     const [isLockPrompt, setIsLockPrompt] = React.useState(false);
     const [isLockConfirmOpen, setIsLockConfirmOpen] = React.useState(false);
     const [hasSavedSettings, setHasSavedSettings] = React.useState(false);
 
-    // Sync fields when eventForm loads or changes
-    React.useEffect(() => {
-        if (eventForm?.fields) {
-            setDesignerFields(eventForm.fields);
-        }
-    }, [eventForm?.fields]);
+    const hasUnsavedChanges =
+        Boolean(eventForm) &&
+        !eventForm?.is_locked &&
+        draftFields !== null &&
+        JSON.stringify(draftFields) !== JSON.stringify(eventForm?.fields);
 
-    const hasUnsavedChanges = React.useMemo(() => {
-        if (!eventForm) return false;
-        if (eventForm.is_locked) return false;
-        return JSON.stringify(designerFields) !== JSON.stringify(eventForm.fields);
-    }, [designerFields, eventForm]);
-
-    // Check if configuration has been configured and valid
-    const isConfigSet = React.useMemo(() => {
+    // Whether capacity and deadline are configured and still valid. Called
+    // from the lock handler, so reading the clock here is fine.
+    const isConfigSet = () => {
         if (!eventForm) return false;
         if (!eventForm.expires_at) return false;
         const expiryTime = new Date(eventForm.expires_at).getTime();
@@ -83,7 +77,7 @@ export default function EventFormPage() {
             return false;
         }
         return true;
-    }, [eventForm, hasSavedSettings]);
+    };
 
     // Sensible default expiration (event end date or 30 days in future)
     const getDefaultExpiresAt = React.useCallback(() => {
@@ -128,6 +122,7 @@ export default function EventFormPage() {
             eventId,
             fields: designerFields,
         });
+        setDraftFields(null);
     };
 
     const handleSaveSettings = async (settings: {
@@ -144,7 +139,7 @@ export default function EventFormPage() {
     };
 
     const handleLockClick = () => {
-        if (!isConfigSet) {
+        if (!isConfigSet()) {
             setIsLockPrompt(true);
             setIsConfigOpen(true);
         } else {
@@ -211,7 +206,7 @@ export default function EventFormPage() {
                     <FormDesignerCanvas
                         form={{ name: eventForm.name }}
                         fields={designerFields}
-                        onFieldsChange={setDesignerFields}
+                        onFieldsChange={setDraftFields}
                         onSave={handleSaveDesignerFields}
                         isSaving={updateMutation.isPending}
                         hasUnsavedChanges={hasUnsavedChanges}

@@ -18,6 +18,10 @@ type Config struct {
 	DatabaseURL string
 	WebOrigin   string // the Next.js origin allowed by CORS, e.g. http://localhost:3000
 
+	// Admin API (cmd/admin): separate binary on its own port
+	AdminPort      string
+	AdminWebOrigin string // the admin web UI origin allowed by CORS
+
 	// WebAuthn Relying Party configuration
 	RPDisplayName   string // WebAuthn Relying Party Display Name
 	RPID            string // WebAuthn Relying Party ID (domain/host)
@@ -60,6 +64,8 @@ func Load() (*Config, error) {
 		Port:                  getOr("PORT", "8000"),
 		DatabaseURL:           require("DATABASE_URL"),
 		WebOrigin:             getOr("WEB_ORIGIN", "http://localhost:3000"),
+		AdminPort:             getOr("ADMIN_PORT", "8001"),
+		AdminWebOrigin:        getOr("ADMIN_WEB_ORIGIN", "http://localhost:3001"),
 		RPDisplayName:         getOr("WEBAUTHN_RP_DISPLAY_NAME", "IdentityCard Scanner"),
 		RPID:                  getOr("WEBAUTHN_RP_ID", "localhost"),
 		CanonicalOrigin:       getOr("WEB_ORIGIN", "http://localhost:3000"),
@@ -117,16 +123,4 @@ func getInt(key string, fallback int) int {
 		return fallback
 	}
 	return n
-}
-
-func getBool(key string, fallback bool) bool {
-	v := os.Getenv(key)
-	if v == "" {
-		return fallback
-	}
-	b, err := strconv.ParseBool(v)
-	if err != nil {
-		return fallback
-	}
-	return b
 }

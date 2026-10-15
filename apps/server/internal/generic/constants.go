@@ -6,7 +6,6 @@ package generic
 const (
     APIV1Prefix       = "/api/v1"
     RouteHealth       = "/health"
-    RouteDocs         = "/docs"
     RouteEvents       = "/events"
     RouteEventDates   = "/dates"
     RouteForms        = "/forms"

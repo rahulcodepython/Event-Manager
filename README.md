@@ -1,27 +1,27 @@
 # Identity Card
 
-Identity card generator + attendance tracker for organizations running
-events (established or flash) with optional sub-events.
+Event registration, QR identity and attendance platform. Organizers create an
+event, publish a registration form, collect applicants, and scan their QR codes
+at the door with paired scanner devices.
 
 ## Layout
 
-- `apps/web` — Next.js app (App Router, shadcn/ui, react-hook-form + zod).
-  Owns auth entirely, via [better-auth](https://better-auth.com).
-- `apps/server` — Go/Fiber API (Postgres via sqlc + pgx). Verifies
-  bearer JWTs against `apps/web`'s JWKS endpoint; issues none itself.
-- `infra` — local dev infrastructure (Postgres, Redis via Docker Compose).
+- `apps/web` — client dashboard, public registration form and scanner UI
+  (Next.js App Router, shadcn/ui, TanStack Query, react-hook-form + zod).
+- `apps/server` — Go/Fiber API. Two binaries share one codebase:
+  `cmd/server` (client API, port 8000) and `cmd/admin` (platform admin API,
+  port 8001).
+- `infra` — local Postgres, migrations and Redis via Docker Compose.
 
-See `apps/web/README.md` and `apps/server/README.md` for per-app setup.
+The roadmap lives in [PLAN.md](PLAN.md); project history and coding rules in
+[PROJECT_MEMORY.md](PROJECT_MEMORY.md).
 
 ## Local development
 
 ```bash
-cd infra && docker compose up -d      # postgres, migrate, redis
-cd apps/server && make dev            # migrates on boot
-cd apps/web && bun install && bun dev
+cd infra && docker compose up -d          # postgres, migrate (runs once), redis
+cd apps/server && cp .env.example .env
+make dev                                  # client API on :8000
+make dev-admin                            # admin API on :8001
+cd apps/web && cp .env.example .env.local && bun install && bun dev   # :3000
 ```
-
-## Architecture & Billing Documentation
-
-For a detailed explanation of the credit-based event permission model, payment flows, subscription lifecycle, and event creation authorization, see [BILLING_SYSTEM.md](BILLING_SYSTEM.md).
-

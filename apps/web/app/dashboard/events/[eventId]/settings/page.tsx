@@ -90,8 +90,8 @@ export default function SettingsPage() {
                             <FormField
                                 control={form.control}
                                 name="name"
-                                render={({ field }) => (
-                                    <FormItem>
+                                render={
+                                    ({ field }) => <FormItem>
                                         <FormLabel>Event Name</FormLabel>
                                         <FormControl>
                                             <Input
@@ -101,43 +101,43 @@ export default function SettingsPage() {
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
-                                )}
+                                }
                             />
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <FormField
                                     control={form.control}
                                     name="start_date"
-                                    render={({ field }) => (
-                                        <FormItem>
+                                    render={
+                                        ({ field }) => <FormItem>
                                             <FormLabel>Start Date</FormLabel>
                                             <FormControl>
                                                 <Input type="date" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
-                                    )}
+                                    }
                                 />
                                 <FormField
                                     control={form.control}
                                     name="end_date"
-                                    render={({ field }) => (
-                                        <FormItem>
+                                    render={
+                                        ({ field }) => <FormItem>
                                             <FormLabel>End Date</FormLabel>
                                             <FormControl>
                                                 <Input type="date" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
-                                    )}
+                                    }
                                 />
                             </div>
 
                             <FormField
                                 control={form.control}
                                 name="venue"
-                                render={({ field }) => (
-                                    <FormItem>
+                                render={
+                                    ({ field }) => <FormItem>
                                         <FormLabel>Venue</FormLabel>
                                         <FormControl>
                                             <Input
@@ -147,14 +147,14 @@ export default function SettingsPage() {
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
-                                )}
+                                }
                             />
 
                             <FormField
                                 control={form.control}
                                 name="organizer"
-                                render={({ field }) => (
-                                    <FormItem>
+                                render={
+                                    ({ field }) => <FormItem>
                                         <FormLabel>Organizer</FormLabel>
                                         <FormControl>
                                             <Input
@@ -164,7 +164,7 @@ export default function SettingsPage() {
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
-                                )}
+                                }
                             />
 
                             <div className="flex justify-end flex-1 w-full">

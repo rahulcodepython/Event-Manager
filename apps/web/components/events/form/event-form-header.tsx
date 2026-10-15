@@ -79,22 +79,18 @@ export function EventFormHeader({
         <PageHeader
             title={eventForm.name || "Event Registration Form"}
             badge={
-                isLocked ? (
-                    <Badge
+                isLocked ? <Badge
                         variant="default"
                         className="bg-emerald-600 hover:bg-emerald-600 text-[10px] gap-1 font-semibold"
                     >
                         <Lock className="size-3" />
                         <span>Locked & Live</span>
-                    </Badge>
-                ) : (
-                    <Badge
+                    </Badge> : <Badge
                         variant="secondary"
                         className="text-[10px] gap-1 font-normal text-muted-foreground"
                     >
                         <span>Draft (Unlocked)</span>
                     </Badge>
-                )
             }
             description={
                 <div className="flex flex-wrap items-center gap-2">
@@ -131,8 +127,8 @@ export function EventFormHeader({
                     </Button>
 
                     {/* 2. Unlocked Actions */}
-                    {!isLocked ? (
-                        <>
+                    {
+                        !isLocked ? <>
                             {/* Delete Form Dialog */}
                             <AlertDialog>
                                 <AlertDialogTrigger
@@ -150,11 +146,9 @@ export function EventFormHeader({
                                         />
                                     }
                                 >
-                                    {isDeleting ? (
-                                        <Loader2 className="size-3.5 animate-spin" />
-                                    ) : (
-                                        <Trash2 className="size-3.5" />
-                                    )}
+                                    {
+                                        isDeleting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />
+                                    }
                                     <span>Delete Form</span>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
@@ -188,22 +182,20 @@ export function EventFormHeader({
                             </AlertDialog>
 
                             {/* Save Changes Button */}
-                            {hasUnsavedChanges && (
-                                <Button
+                            {
+                                hasUnsavedChanges && <Button
                                     type="button"
                                     variant="secondary"
                                     disabled={isSaving}
                                     onClick={onSaveChanges}
                                     className="gap-1.5 text-xs font-semibold"
                                 >
-                                    {isSaving ? (
-                                        <Loader2 className="size-3.5 animate-spin" />
-                                    ) : (
-                                        <Save className="size-3.5" />
-                                    )}
+                                    {
+                                        isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />
+                                    }
                                     <span>Save</span>
                                 </Button>
-                            )}
+                            }
 
                             {/* Lock Form Trigger Button */}
                             <Button
@@ -213,15 +205,12 @@ export function EventFormHeader({
                                 onClick={onLockClick}
                                 className="gap-1.5 text-xs font-semibold"
                             >
-                                {isLocking ? (
-                                    <Loader2 className="size-3.5 animate-spin" />
-                                ) : (
-                                    <Lock className="size-3.5" />
-                                )}
+                                {
+                                    isLocking ? <Loader2 className="size-3.5 animate-spin" /> : <Lock className="size-3.5" />
+                                }
                                 <span>Lock Form</span>
                             </Button>
-                        </>
-                    ) : (
+                        </> : (
                         /* 3. Locked Actions: QR Code & Share */
                         <Button
                             type="button"

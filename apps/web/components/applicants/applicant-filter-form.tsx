@@ -104,25 +104,26 @@ export function ApplicantFilterForm({
                     <SelectValue placeholder="Attribute" />
                 </SelectTrigger>
                 <SelectContent>
-                    {filterable.map((f) => (
-                        <SelectItem key={f.key} value={f.key}>
+                    {
+                        filterable.map((f) => <SelectItem key={f.key} value={f.key}>
                             {f.label}
                         </SelectItem>
-                    ))}
+                        )
+                    }
                 </SelectContent>
             </Select>
 
-            {kind === "text" && (
-                <Input
+            {
+                kind === "text" && <Input
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
                     placeholder={`Filter by ${field.label.toLowerCase()}...`}
                     className="w-48"
                 />
-            )}
+            }
 
-            {(kind === "options" || kind === "boolean") && (
-                <Select
+            {
+                (kind === "options" || kind === "boolean") && <Select
                     value={value}
                     items={options}
                     onValueChange={(v) => setValue(v ?? "")}
@@ -131,17 +132,18 @@ export function ApplicantFilterForm({
                         <SelectValue placeholder="Choose value" />
                     </SelectTrigger>
                     <SelectContent>
-                        {options.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
+                        {
+                            options.map((opt) => <SelectItem key={opt.value} value={opt.value}>
                                 {opt.label}
                             </SelectItem>
-                        ))}
+                            )
+                        }
                     </SelectContent>
                 </Select>
-            )}
+            }
 
-            {kind === "range" && (
-                <>
+            {
+                kind === "range" && <>
                     <Input
                         type={field.type}
                         value={value}
@@ -158,7 +160,7 @@ export function ApplicantFilterForm({
                         className="w-36"
                     />
                 </>
-            )}
+            }
 
             <Button
                 type="submit"

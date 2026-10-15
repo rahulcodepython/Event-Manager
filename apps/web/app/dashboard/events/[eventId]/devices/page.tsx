@@ -58,24 +58,24 @@ export default function EventDevicesPage() {
             />
 
             {/* Loading / Error States */}
-            {isLoading && (
-                <div className="flex h-64 w-full items-center justify-center">
+            {
+                isLoading && <div className="flex h-64 w-full items-center justify-center">
                     <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground">
                         <Loader2 className="size-6 animate-spin text-primary" />
                         <span>Loading event devices...</span>
                     </div>
                 </div>
-            )}
+            }
 
-            {isError && (
-                <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-6 text-center text-xs text-destructive">
+            {
+                isError && <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-6 text-center text-xs text-destructive">
                     {error?.message || "Failed to load event devices"}
                 </div>
-            )}
+            }
 
             {/* Empty State */}
-            {!isLoading && !isError && assignments.length === 0 && (
-                <Card className="p-12 text-center flex flex-col items-center justify-center gap-3">
+            {
+                !isLoading && !isError && assignments.length === 0 && <Card className="p-12 text-center flex flex-col items-center justify-center gap-3">
                     <div className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
                         <ScanLine className="size-6" />
                     </div>
@@ -100,15 +100,15 @@ export default function EventDevicesPage() {
                         </Button>
                     </div>
                 </Card>
-            )}
+            }
 
             {/* Table */}
-            {!isLoading && !isError && assignments.length > 0 && (
-                <EventDevicesTable
+            {
+                !isLoading && !isError && assignments.length > 0 && <EventDevicesTable
                     assignments={assignments}
                     eventId={eventId}
                 />
-            )}
+            }
 
             {/* Assign Global Devices Dialog */}
             <AssignDevicesDialog
