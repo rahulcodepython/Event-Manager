@@ -13,6 +13,8 @@ type Organization struct {
     ID    string `json:"id"`
     Name  string `json:"name"`
     Phone string `json:"phone"`
+    // TrialChoice is nil until the client claims or skips the free trial.
+    TrialChoice *string `json:"trial_choice"`
 }
 
 type MeResponse struct {

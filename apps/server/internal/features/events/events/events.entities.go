@@ -13,12 +13,30 @@ type Event struct {
     Venue     *string   `json:"venue,omitempty"`
     Logo      *string   `json:"logo,omitempty"`
     Organizer *string   `json:"organizer,omitempty"`
+    Credit    *EventCredit `json:"credit"`
     CreatedAt time.Time `json:"created_at"`
     UpdatedAt time.Time `json:"updated_at"`
 }
 
+// EventCredit is the credit an event runs on.
+type EventCredit struct {
+    ID     string    `json:"id"`
+    Name   string    `json:"name"`
+    Kind   string    `json:"kind"`
+    EndsAt time.Time `json:"ends_at"`
+}
+
+// creditCheck is the result of CheckCreditQuery.
+type creditCheck struct {
+    Status       string `json:"status"`
+    StartsOn     string `json:"starts_on"`
+    EndsOn       string `json:"ends_on"`
+    TrialMaxDays int    `json:"trial_max_days"`
+}
+
 // CreateEventRequest payload for creating a new event.
 type CreateEventRequest struct {
+    CreditID  string `json:"credit_id" validate:"required"`
     Name      string `json:"name" validate:"required"`
     StartDate string `json:"start_date" validate:"required"`
     EndDate   string `json:"end_date" validate:"required"`

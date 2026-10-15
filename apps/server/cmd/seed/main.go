@@ -77,6 +77,9 @@ func flushDatabase(ctx context.Context, pool *pgxpool.Pool) error {
                     event_dates, 
                     event_metadata, 
                     events,
+                    payments,
+                    credit_features,
+                    credits,
                     organizations,
                     users
                 RESTART IDENTITY CASCADE;
@@ -151,8 +154,8 @@ func seedDatabase(ctx context.Context, pool *pgxpool.Pool, ownerEmail string) er
             ON CONFLICT (email) DO UPDATE SET updated_at = now()
             RETURNING id
         )
-        INSERT INTO organizations (owner_id, name)
-        SELECT id, 'Demo Organization' FROM u
+        INSERT INTO organizations (owner_id, name, trial_choice)
+        SELECT id, 'Demo Organization', 'skipped' FROM u
         ON CONFLICT (owner_id) DO UPDATE SET updated_at = now()
         RETURNING id::text;
     `, ownerEmail).Scan(&orgID)
@@ -495,14 +498,34 @@ func seedDatabase(ctx context.Context, pool *pgxpool.Pool, ownerEmail string) er
     }
 
     for _, ed := range eventsData {
-        _, err := tx.Exec(ctx, `
-            INSERT INTO events (id, organization_id, start_date, end_date, created_at, updated_at)
-            VALUES ($1, $4, $2, $3, now(), now())
+        // Each demo event runs on its own paid credit whose window covers
+        // the event, with every feature at its default value.
+        var creditID string
+        err := tx.QueryRow(ctx, `
+            WITH c AS (
+                INSERT INTO credits (organization_id, name, kind, starts_at, ends_at)
+                VALUES ($1, 'Demo credit: ' || $2, 'paid', LEAST(now(), $3::date - 1), GREATEST(now(), $4::date + 30))
+                RETURNING id
+            ), cf AS (
+                INSERT INTO credit_features (credit_id, feature_id, value, label)
+                SELECT c.id, f.id, f.default_value, COALESCE(o.label, f.default_value::text)
+                FROM c CROSS JOIN features f
+                LEFT JOIN feature_options o ON o.feature_id = f.id AND o.value = f.default_value
+            )
+            SELECT id::text FROM c;
+        `, orgID, ed.Name, ed.StartDate, ed.EndDate).Scan(&creditID)
+        if err != nil {
+            return fmt.Errorf("insert credit for %s: %w", ed.Name, err)
+        }
+
+        _, err = tx.Exec(ctx, `
+            INSERT INTO events (id, organization_id, credit_id, start_date, end_date, created_at, updated_at)
+            VALUES ($1, $4, $5, $2, $3, now(), now())
             ON CONFLICT (id) DO UPDATE SET
                 start_date = EXCLUDED.start_date,
                 end_date = EXCLUDED.end_date,
                 updated_at = now();
-        `, ed.ID, ed.StartDate, ed.EndDate, orgID)
+        `, ed.ID, ed.StartDate, ed.EndDate, orgID, creditID)
         if err != nil {
             return fmt.Errorf("insert event %s: %w", ed.Name, err)
         }

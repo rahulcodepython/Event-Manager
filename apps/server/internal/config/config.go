@@ -32,6 +32,11 @@ type Config struct {
 	GoogleClientID     string
 	GoogleClientSecret string
 
+	// Razorpay (payments). Empty keys disable purchases.
+	RazorpayKeyID         string
+	RazorpayKeySecret     string
+	RazorpayWebhookSecret string
+
 	// WebAuthn Relying Party configuration
 	RPDisplayName   string
 	RPID            string
@@ -96,6 +101,10 @@ func Load() (*Config, error) {
 		RefreshTokenTTL:    7 * 24 * time.Hour,
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+
+		RazorpayKeyID:         os.Getenv("RAZORPAY_KEY_ID"),
+		RazorpayKeySecret:     os.Getenv("RAZORPAY_KEY_SECRET"),
+		RazorpayWebhookSecret: os.Getenv("RAZORPAY_WEBHOOK_SECRET"),
 
 		RPDisplayName:   getOr("WEBAUTHN_RP_DISPLAY_NAME", "IdentityCard Scanner"),
 		RPID:            getOr("WEBAUTHN_RP_ID", "localhost"),

@@ -20,7 +20,50 @@ var (
     ErrInvalidDateRange  = errors.New("end_date must be greater than or equal to start_date")
     ErrEventEnded        = errors.New("cannot update an event that has already ended")
     ErrEventNotFound     = errors.New("event not found")
+    ErrCreditNotFound    = errors.New("credit not found")
+    ErrCreditExpired     = errors.New("this credit has expired")
+    ErrCreditInUse       = errors.New("this credit is already used by another event; delete that event first")
+    ErrOutsideCredit     = errors.New("event dates are outside the credit's validity")
+    ErrTrialTooLong      = errors.New("event is too long for a trial credit")
 )
+
+// checkCredit enforces the credit rules for an event's dates: the credit
+// belongs to the organization, has not expired, serves no other event, and
+// the dates fit its window (plus the trial length cap).
+func (s *App) checkCredit(ctx context.Context, creditID, orgID, eventID, start, end string) error {
+    if _, err := uuid.Parse(creditID); err != nil {
+        return ErrCreditNotFound
+    }
+    res, err := s.CheckCreditRepository(ctx, creditID, orgID, eventID, start, end)
+    if err != nil {
+        return err
+    }
+    switch res.Status {
+    case "ok":
+        return nil
+    case "not_found":
+        return ErrCreditNotFound
+    case "expired":
+        return ErrCreditExpired
+    case "in_use":
+        return ErrCreditInUse
+    case "outside_window":
+        return fmt.Errorf("%w: dates must be between %s and %s", ErrOutsideCredit, res.StartsOn, res.EndsOn)
+    case "trial_too_long":
+        return fmt.Errorf("%w: at most %d days", ErrTrialTooLong, res.TrialMaxDays)
+    }
+    return fmt.Errorf("unexpected credit status %q", res.Status)
+}
+
+// IsCreditError reports whether err is a credit rule violation (a 400).
+func IsCreditError(err error) bool {
+    for _, target := range []error{ErrCreditNotFound, ErrCreditExpired, ErrCreditInUse, ErrOutsideCredit, ErrTrialTooLong} {
+        if errors.Is(err, target) {
+            return true
+        }
+    }
+    return false
+}
 
 // ListService retrieves paginated events with TTL jitter caching in a single database round-trip.
 func (s *App) ListService(ctx context.Context, orgID, search string, page, limit int) (*generic.PaginatedResponse[[]Event], error) {
@@ -65,8 +108,14 @@ func (s *App) CreateService(ctx context.Context, orgID string, req CreateEventRe
     if end.Before(start) {
         return nil, ErrInvalidDateRange
     }
+    if err := s.checkCredit(ctx, req.CreditID, orgID, "", req.StartDate, req.EndDate); err != nil {
+        return nil, err
+    }
 
     ev, err := s.CreateRepository(ctx, orgID, req)
+    if errors.Is(err, postgres.ErrConflict) {
+        return nil, ErrCreditInUse // lost a race for the same credit
+    }
     if err != nil {
         return nil, err
     }
@@ -79,7 +128,7 @@ func (s *App) CreateService(ctx context.Context, orgID string, req CreateEventRe
 }
 
 // UpdateService validates inputs and delegates atomic check-and-update to repository.
-func (s *App) UpdateService(ctx context.Context, id string, req UpdateEventRequest) (*Event, error) {
+func (s *App) UpdateService(ctx context.Context, orgID, id string, req UpdateEventRequest) (*Event, error) {
     if _, err := uuid.Parse(id); err != nil {
         return nil, ErrInvalidEventID
     }
@@ -103,6 +152,31 @@ func (s *App) UpdateService(ctx context.Context, id string, req UpdateEventReque
 
     if req.StartDate != nil && req.EndDate != nil && end.Before(start) {
         return nil, ErrInvalidDateRange
+    }
+
+    if req.StartDate != nil || req.EndDate != nil {
+        current, err := s.GetRepository(ctx, id)
+        if err != nil {
+            if errors.Is(err, postgres.ErrNotFound) {
+                return nil, ErrEventNotFound
+            }
+            return nil, err
+        }
+        newStart, newEnd := current.StartDate, current.EndDate
+        if req.StartDate != nil {
+            newStart = *req.StartDate
+        }
+        if req.EndDate != nil {
+            newEnd = *req.EndDate
+        }
+        if newEnd < newStart {
+            return nil, ErrInvalidDateRange
+        }
+        if current.Credit != nil {
+            if err := s.checkCredit(ctx, current.Credit.ID, orgID, id, newStart, newEnd); err != nil {
+                return nil, err
+            }
+        }
     }
 
     ev, err := s.UpdateRepository(ctx, id, req)

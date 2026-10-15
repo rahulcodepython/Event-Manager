@@ -6,7 +6,6 @@ import { ApiError, apiRequest } from "../react-query/client";
 import { queryKeys } from "../react-query/query-keys";
 import { DeleteResponseZod, SuccessResponseZod, type DeleteResponse, type SuccessResponse } from "../schema/common.types";
 import {
-    AssignEventDevicesSchema,
     type AssignEventDevicesValues,
     type CreateDeviceValues,
     type Device,

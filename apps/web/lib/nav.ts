@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowLeft, BarChart3, Calendar, CalendarDays, FileText, LayoutDashboard, Settings, Smartphone, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, Calendar, CalendarDays, FileText, LayoutDashboard, Settings, Smartphone, TicketIcon, Users } from "lucide-react";
 
 import { useEventQuery } from "../query-hooks/events.api";
 import type { NavItem, NavNode } from "../schema/sidebar.types";
@@ -22,6 +22,7 @@ const ROOT_NAV_LAYOUT: NavNode[] = [
         type: "group",
         items: [
             { title: "Events", url: "/dashboard/events", icon: Calendar },
+            { title: "Credits", url: "/dashboard/credits", icon: TicketIcon },
             { title: "Forms", url: "/dashboard/forms", icon: FileText },
             { title: "Devices", url: "/dashboard/devices", icon: Smartphone },
         ],

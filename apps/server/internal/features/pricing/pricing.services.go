@@ -42,6 +42,7 @@ func (s *App) CatalogService(ctx context.Context) (*CatalogResponse, error) {
         BaseFee:   c.BaseFee,
         TaxName:   c.TaxName,
         TaxRateBP: c.TaxRateBP,
+        TrialMaxEventDays: c.TrialMaxEventDays,
         Features:  make([]CatalogFeature, 0, len(c.Features)),
     }
     for _, f := range c.Features {
@@ -57,6 +58,7 @@ func (s *App) CatalogService(ctx context.Context) (*CatalogResponse, error) {
             ValueType:    f.ValueType,
             Unit:         f.Unit,
             DefaultValue: f.DefaultValue,
+            TrialValue:   f.TrialValue,
             Options:      options,
         })
     }

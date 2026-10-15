@@ -32,7 +32,7 @@ export default function OnboardingPage() {
     const onSubmit = async (values: OnboardingValues) => {
         try {
             await onboarding.mutateAsync(values)
-            router.replace("/dashboard")
+            router.replace("/onboarding/trial")
         } catch {
             // Handled by mutation toast
         }

@@ -20,14 +20,15 @@ export default function DashboardLayout({
 }) {
     const router = useRouter()
     const { data: me } = useMeQuery()
-    const needsOnboarding = Boolean(me && !me.organization)
+    // First visit: create the organization, then decide on the free trial.
+    const nextStep = !me ? null : !me.organization ? "/onboarding" : !me.organization.trial_choice ? "/onboarding/trial" : null
 
     // A 401 from /auth/me is handled globally (redirect to /login).
     React.useEffect(() => {
-        if (needsOnboarding) router.replace("/onboarding")
-    }, [needsOnboarding, router])
+        if (nextStep) router.replace(nextStep)
+    }, [nextStep, router])
 
-    if (!me || needsOnboarding) {
+    if (!me || nextStep) {
         return <FullPageLoader label="Loading your workspace..." />
     }
 

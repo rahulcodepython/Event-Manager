@@ -41,7 +41,7 @@ const (
                 'avatar_url', u.avatar_url
             ),
             'organization', (
-                SELECT jsonb_build_object('id', o.id, 'name', o.name, 'phone', o.phone)
+                SELECT jsonb_build_object('id', o.id, 'name', o.name, 'phone', o.phone, 'trial_choice', o.trial_choice)
                 FROM organizations o
                 WHERE o.owner_id = u.id
             )
@@ -56,6 +56,6 @@ const (
         INSERT INTO organizations (owner_id, name, phone)
         VALUES ($1::uuid, $2, $3)
         ON CONFLICT (owner_id) DO NOTHING
-        RETURNING jsonb_build_object('id', id, 'name', name, 'phone', phone);
+        RETURNING jsonb_build_object('id', id, 'name', name, 'phone', phone, 'trial_choice', trial_choice);
     `
 )

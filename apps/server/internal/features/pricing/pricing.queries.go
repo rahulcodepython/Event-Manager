@@ -9,6 +9,7 @@ const (
             'base_fee', ps.base_fee,
             'tax_name', ps.tax_name,
             'tax_rate_bp', ps.tax_rate_bp,
+            'trial_max_event_days', ps.trial_max_event_days,
             'features', COALESCE((
                 SELECT jsonb_agg(jsonb_build_object(
                     'id', f.id,
@@ -19,6 +20,7 @@ const (
                     'unit', f.unit,
                     'pricing_type', f.pricing_type,
                     'default_value', f.default_value,
+                    'trial_value', f.trial_value,
                     'options', COALESCE((
                         SELECT jsonb_agg(jsonb_build_object('value', o.value, 'label', o.label) ORDER BY o.sort_order, o.value)
                         FROM feature_options o

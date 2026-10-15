@@ -11,6 +11,7 @@ export const OrganizationSchema = z.object({
     id: z.string(),
     name: z.string(),
     phone: z.string(),
+    trial_choice: z.enum(["claimed", "skipped"]).nullable(),
 })
 
 export const MeSchema = z.object({

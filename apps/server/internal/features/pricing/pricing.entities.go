@@ -2,11 +2,12 @@ package pricing
 
 // catalog is the active pricing data as loaded from the database.
 type catalog struct {
-    Currency  string    `json:"currency"`
-    BaseFee   int64     `json:"base_fee"`
-    TaxName   string    `json:"tax_name"`
-    TaxRateBP int       `json:"tax_rate_bp"`
-    Features  []feature `json:"features"`
+    Currency          string    `json:"currency"`
+    BaseFee           int64     `json:"base_fee"`
+    TaxName           string    `json:"tax_name"`
+    TaxRateBP         int       `json:"tax_rate_bp"`
+    TrialMaxEventDays int       `json:"trial_max_event_days"`
+    Features          []feature `json:"features"`
 }
 
 type feature struct {
@@ -18,6 +19,7 @@ type feature struct {
     Unit         string   `json:"unit"`
     PricingType  string   `json:"pricing_type"`
     DefaultValue int      `json:"default_value"`
+    TrialValue   int      `json:"trial_value"`
     Options      []option `json:"options"`
     Rates        []rate   `json:"rates"`
 }
@@ -28,20 +30,22 @@ type option struct {
 }
 
 type rate struct {
-    MinValue int    `json:"min_value"`
-    MaxValue *int   `json:"max_value"`
-    UnitSize int    `json:"unit_size"`
-    Price    int64  `json:"price"`
+    MinValue int   `json:"min_value"`
+    MaxValue *int  `json:"max_value"`
+    UnitSize int   `json:"unit_size"`
+    Price    int64 `json:"price"`
 }
 
 // CatalogResponse is what the purchase form renders. Amounts are in the
 // smallest currency unit (paise).
 type CatalogResponse struct {
-    Currency  string            `json:"currency"`
-    BaseFee   int64             `json:"base_fee"`
-    TaxName   string            `json:"tax_name"`
-    TaxRateBP int               `json:"tax_rate_bp"`
-    Features  []CatalogFeature  `json:"features"`
+    Currency  string `json:"currency"`
+    BaseFee   int64  `json:"base_fee"`
+    TaxName   string `json:"tax_name"`
+    TaxRateBP int    `json:"tax_rate_bp"`
+    // Free trial: each feature's TrialValue, events capped at this length.
+    TrialMaxEventDays int              `json:"trial_max_event_days"`
+    Features          []CatalogFeature `json:"features"`
 }
 
 type CatalogFeature struct {
@@ -52,6 +56,7 @@ type CatalogFeature struct {
     ValueType    string          `json:"value_type"`
     Unit         string          `json:"unit"`
     DefaultValue int             `json:"default_value"`
+    TrialValue   int             `json:"trial_value"`
     Options      []CatalogOption `json:"options"`
 }
 

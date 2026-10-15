@@ -36,6 +36,12 @@ export default function EventSingleLayout({
     return (
         <EventProvider event={event} eventId={eventId}>
             <div className="container flex min-w-0 flex-1 flex-col gap-6 pb-8">
+                {
+                    event.credit?.kind === "trial" && <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
+                        Trial event: for testing only, not for real use. It will be deleted when the trial ends on{" "}
+                        {new Date(event.credit.ends_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.
+                    </div>
+                }
                 {children}
             </div>
         </EventProvider>

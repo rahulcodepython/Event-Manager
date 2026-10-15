@@ -51,7 +51,18 @@ func (r *App) CreateRepository(ctx context.Context, orgID string, req CreateEven
         req.EndDate,
         strings.TrimSpace(req.Name),
         orgID,
+        req.CreditID,
     )
+}
+
+// CheckCreditRepository validates a credit for an event's dates. eventID is
+// empty when creating.
+func (r *App) CheckCreditRepository(ctx context.Context, creditID, orgID, eventID, start, end string) (*creditCheck, error) {
+    var excluded *string
+    if eventID != "" {
+        excluded = &eventID
+    }
+    return postgres.QueryJSON[creditCheck](ctx, r.DB, CheckCreditQuery, creditID, orgID, excluded, start, end)
 }
 
 // UpdateRepository modifies events and event_metadata in a single CTE network round-trip,

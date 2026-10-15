@@ -6,6 +6,7 @@ const (
         WITH filtered_events AS (
             SELECT
                 e.id,
+                e.credit_id,
                 em.name,
                 to_char(e.start_date, 'YYYY-MM-DD') AS start_date,
                 to_char(e.end_date, 'YYYY-MM-DD') AS end_date,
@@ -31,6 +32,10 @@ const (
                 'venue', fe.venue,
                 'logo', fe.logo,
                 'organizer', fe.organizer,
+                'credit', (
+                    SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at)
+                    FROM credits cr WHERE cr.id = fe.credit_id
+                ),
                 'created_at', fe.created_at,
                 'updated_at', fe.updated_at
             ) AS item
@@ -56,6 +61,10 @@ const (
             'venue', em.venue,
             'logo', em.logo,
             'organizer', em.organizer,
+            'credit', (
+                SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at)
+                FROM credits cr WHERE cr.id = e.credit_id
+            ),
             'created_at', e.created_at,
             'updated_at', e.updated_at
         )
@@ -70,6 +79,7 @@ const (
             INSERT INTO events (
                 id,
                 organization_id,
+                credit_id,
                 start_date,
                 end_date,
                 created_at,
@@ -77,12 +87,13 @@ const (
             ) VALUES (
                 gen_random_uuid(),
                 $4::uuid,
+                $5::uuid,
                 $1::date,
                 $2::date,
                 now(),
                 now()
             )
-            RETURNING id, start_date, end_date, created_at, updated_at
+            RETURNING id, credit_id, start_date, end_date, created_at, updated_at
         ),
         ins_meta AS (
             INSERT INTO event_metadata (
@@ -103,6 +114,10 @@ const (
             'venue', m.venue,
             'logo', m.logo,
             'organizer', m.organizer,
+            'credit', (
+                SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at)
+                FROM credits cr WHERE cr.id = e.credit_id
+            ),
             'created_at', e.created_at,
             'updated_at', e.updated_at
         )
@@ -125,7 +140,7 @@ const (
                 end_date = COALESCE($3::date, end_date),
                 updated_at = now()
             WHERE id = (SELECT id FROM target_event WHERE end_date >= CURRENT_DATE)
-            RETURNING id, start_date, end_date, created_at, updated_at
+            RETURNING id, credit_id, start_date, end_date, created_at, updated_at
         ),
         upd_meta AS (
             UPDATE event_metadata
@@ -152,6 +167,10 @@ const (
                     'venue', m.venue,
                     'logo', m.logo,
                     'organizer', m.organizer,
+                    'credit', (
+                        SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at)
+                        FROM credits cr WHERE cr.id = e.credit_id
+                    ),
                     'created_at', e.created_at,
                     'updated_at', e.updated_at
                 )
@@ -169,5 +188,31 @@ const (
             RETURNING id
         )
         SELECT id FROM del;
+    `
+
+    // CheckCreditQuery validates a credit for an event's dates. $1 credit,
+    // $2 organization, $3 the event being updated (NULL on create), $4/$5
+    // start and end date. Returns the status and the credit's date window.
+    CheckCreditQuery = `
+        SELECT jsonb_build_object(
+            'status', CASE
+                WHEN c.id IS NULL THEN 'not_found'
+                WHEN c.ends_at <= now() THEN 'expired'
+                WHEN EXISTS (
+                    SELECT 1 FROM events e
+                    WHERE e.credit_id = c.id AND e.id IS DISTINCT FROM $3::uuid
+                ) THEN 'in_use'
+                WHEN $4::date < c.starts_at::date OR $5::date > c.ends_at::date THEN 'outside_window'
+                WHEN c.kind = 'trial'
+                     AND ($5::date - $4::date + 1) > (SELECT trial_max_event_days FROM pricing_settings WHERE id = 1)
+                     THEN 'trial_too_long'
+                ELSE 'ok'
+            END,
+            'starts_on', to_char(c.starts_at, 'YYYY-MM-DD'),
+            'ends_on', to_char(c.ends_at, 'YYYY-MM-DD'),
+            'trial_max_days', (SELECT trial_max_event_days FROM pricing_settings WHERE id = 1)
+        )
+        FROM (SELECT 1) AS one
+        LEFT JOIN credits c ON c.id = $1::uuid AND c.organization_id = $2::uuid;
     `
 )

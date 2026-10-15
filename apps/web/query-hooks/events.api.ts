@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { apiClient, apiRequest } from "../react-query/client";
+import { apiRequest } from "../react-query/client";
 import { queryKeys } from "../react-query/query-keys";
 import { DeleteResponseZod, type DeleteResponse } from "../schema/common.types";
 import {
@@ -95,6 +95,7 @@ export function useCreateEventMutation() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.credits.all });
             toast.success("Event created successfully");
         },
         onError: (error) => {
@@ -144,6 +145,7 @@ export function useDeleteEventMutation() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.credits.all });
             toast.success("Event deleted successfully");
         },
         onError: (error) => {

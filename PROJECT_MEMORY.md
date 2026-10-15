@@ -41,6 +41,7 @@ revenue, expenses and the feature catalog.
 | Feature | Routes (under `/api/v1`) | Notes |
 |---|---|---|
 | auth | `/auth/google`, `/auth/google/callback`, `/auth/me`, `/auth/onboarding`, `/auth/logout` | Google login, JWT cookies, refresh rotation in Redis, onboarding creates the org |
+| credits | `/credits`, `/credits/trial`, `/credits/trial/skip`, `/credits/orders`, `/credits/orders/verify`, `/payments/razorpay/webhook` | trial credit, Razorpay purchase, rename; events require a credit |
 | pricing | `/pricing/catalog`, `/pricing/quote` | public; feature catalog with option prices; server-side quote (base fee + features + GST) |
 | events/events | `/events` | CRUD, search, pagination |
 | events/dates | `/events/:eventId/dates` | per-day hours; bulk update and override |
@@ -76,6 +77,12 @@ landing page, coupons.
   plus one `pricing_settings` row (base fee, GST). Pricing types: flat,
   per_unit, tiered. Money is stored in paise (BIGINT). Only the server
   computes payable amounts (`pricing.QuoteService`).
+- **Credits:** a credit's window is purchase date + duration days; event dates
+  must fit in it; one event per credit at a time (unique `events.credit_id`),
+  deleting the event frees the credit. One-time free trial (values in
+  `features.trial_value`, cap in `pricing_settings.trial_max_event_days`);
+  trial events are test-only. Payments: Razorpay order from the server
+  quote, signature verify + signed webhook, idempotent fulfilment.
 - **Rate limiting:** Redis token bucket per client IP (100 burst, refills
   100/min), shared across instances; fails open if Redis is down.
 - **One root `.env`** for every app and for Docker Compose. Redis requires a

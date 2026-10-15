@@ -213,3 +213,15 @@ const (
     FieldTypeFile     = "file"
     FieldTypeSwitch   = "switch"
 )
+
+// =====================================================================
+// Feature keys referenced by code. Prices, options, names and limits are
+// data in the features table; only these keys are fixed.
+// =====================================================================
+const (
+    FeatureKeyApplicants = "applicants"
+    FeatureKeyDuration   = "duration"
+    FeatureKeyBranding   = "branding"
+    FeatureKeySubEvents  = "sub_events"
+    FeatureKeyBackupDays = "backup_days"
+)

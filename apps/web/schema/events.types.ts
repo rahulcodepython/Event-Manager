@@ -14,6 +14,14 @@ export const EventSchema = z.object({
     venue: z.string().optional().nullable(),
     logo: z.string().optional().nullable(),
     organizer: z.string().optional().nullable(),
+    credit: z
+        .object({
+            id: z.string(),
+            name: z.string(),
+            kind: z.enum(["trial", "paid"]),
+            ends_at: z.string(),
+        })
+        .nullable(),
     created_at: z.string(),
     updated_at: z.string(),
 });
@@ -23,6 +31,7 @@ export type Event = z.infer<typeof EventSchema>;
 // Payload schema for creating a new event (name, start_date, end_date)
 export const CreateEventSchema = z
     .object({
+        credit_id: z.string().min(1, "Choose a credit"),
         name: z.string().min(1, "Event name is required"),
         start_date: z.string().min(1, "Start date is required"),
         end_date: z.string().min(1, "End date is required"),

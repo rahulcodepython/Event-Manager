@@ -73,7 +73,7 @@ export function buildPublicApplyFormSchema(
 
         switch (field.type) {
             case "phone": {
-                let pStr = z.string();
+                const pStr = z.string();
                 fieldSchema = field.required
                     ? pStr.refine(
                           (val) => val.replace(/\D/g, "").length >= 10,

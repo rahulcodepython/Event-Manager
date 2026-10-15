@@ -11,6 +11,7 @@ import (
     "identitycard-server/internal/config"
     "identitycard-server/internal/features/applicants"
     "identitycard-server/internal/features/auth"
+    "identitycard-server/internal/features/credits"
     "identitycard-server/internal/features/attendance"
     "identitycard-server/internal/features/devices"
     "identitycard-server/internal/features/events/dates"
@@ -32,6 +33,7 @@ type AppRouter struct {
     RootCtx context.Context
 
     Auth       *auth.App
+    Credits    *credits.App
     Events     *events.App
     Dates      *dates.App
     Forms      *forms.App
@@ -51,6 +53,7 @@ func NewAppRouter(
     rootCtx context.Context,
 ) *AppRouter {
     cch := cache.New(rdb)
+    pricingApp := pricing.NewApp(pool, cch)
 
     registerApp := register.NewApp(pool, rdb, cch)
     registerApp.StartWorker(rootCtx)
@@ -63,6 +66,7 @@ func NewAppRouter(
         RootCtx: rootCtx,
 
         Auth:       auth.NewApp(pool, rdb, cfg),
+        Credits:    credits.NewApp(pool, cfg, pricingApp),
         Events:     events.NewApp(pool, cch),
         Dates:      dates.NewApp(pool, cch),
         Forms:      forms.NewApp(pool, cch),
@@ -70,7 +74,7 @@ func NewAppRouter(
         Applicants: applicants.NewApp(pool, cch),
         Devices:    devices.NewApp(pool, rdb, wa, cfg.RPID, cfg.CanonicalOrigin),
         Attendance: attendance.NewApp(pool, cch),
-        Pricing:    pricing.NewApp(pool, cch),
+        Pricing:    pricingApp,
     }
 }
 
@@ -79,10 +83,11 @@ func (r *AppRouter) SetUp() {
 
     api := r.App.Group(generic.APIV1Prefix)
 
-    // 1. Public: no user session (Google login, pricing, public registration
-    //    form, scanner devices authenticated by their own device token).
+    // 1. Public: no user session (Google login, pricing, Razorpay webhook,
+    //    public registration form, scanner devices with their device token).
     r.Auth.RegisterPublicRoutes(api)
     r.Pricing.RegisterPublicRoutes(api)
+    r.Credits.RegisterPublicRoutes(api)
     r.Register.RegisterRoutes(api)
     r.Devices.RegisterPublicRoutes(api)
     r.Attendance.RegisterPublicRoutes(api)
@@ -98,6 +103,7 @@ func (r *AppRouter) SetUp() {
     org.Use("/forms/:formId", middlewares.OwnedBy(r.DB, "form_templates", "formId"))
     org.Use("/devices/:deviceId", middlewares.OwnedBy(r.DB, "devices", "deviceId"))
 
+    r.Credits.RegisterRoutes(org)
     r.Events.RegisterRoutes(org)
     r.Dates.RegisterRoutes(org)
     r.Forms.RegisterRoutes(org)

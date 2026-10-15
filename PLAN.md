@@ -120,12 +120,13 @@ editable from admin. To confirm: Q7.
 - Duration = maximum event length in days. Sub-events = number allowed. Branding = on/off.
 - Public endpoints: `GET /pricing/catalog` (features, options, price per option) and `POST /pricing/quote` (line items, subtotal, tax, total). A feature left out of a quote uses its default; unknown keys or values outside the options are rejected.
 
-### Phase 3 — Credits and payments
-- Purchase form: feature inputs, live total from the quote endpoint, credit name, pay.
-- Payment gateway integration (Q10) with webhook verification. The credit is created only after payment is confirmed.
-- Credits page: list credits with features, status and linked event. "Create event" action from a credit.
-- Event creation requires picking an unused credit. One credit maps to one event.
-- Every confirmed payment writes an income row in `transactions`.
+### Phase 3 — Credits and payments ✅ done
+- **Duration = credit validity window**: purchase date → purchase date + duration days. An event's dates must fit inside it. Unused credits expire at the end date.
+- **One event per credit at a time.** Deleting the event frees the credit for a new one while the credit is still valid.
+- **Free trial**, offered once in a step after onboarding (claim or skip; skipping is final). Trial values live in `features.trial_value` (25 applicants, 15-day window, branding, 3 sub-events, 0 backup days) and `pricing_settings.trial_max_event_days` (5). Trial events are test-only and deleted when the trial ends.
+- **Purchase**: name the credit, pick options, live server quote, Razorpay Checkout. The server creates the order for the quoted amount, verifies the checkout signature, and a signed webhook (`POST /payments/razorpay/webhook`) also confirms payments. Fulfilment is idempotent; the credit and its `credit_features` are created from the stored quote.
+- Credits page (rename, create event from a credit), credit picker in the create-event dialog, trial banner on trial events.
+- Admin refunds: Phase 5. Income ledger (`transactions`) is built in Phase 5 from `payments`.
 
 ### Phase 4 — Feature enforcement and data pruning
 - Applicants: cap across public registration, manual add and bulk upload.
@@ -190,17 +191,11 @@ Q8 asks whether `admin` and `landing` should be separate apps like this.
 
 ### Pricing and credits
 4. **Branding.** What exactly does it unlock: the client's logo and colours on forms, cards and emails? Removal of platform branding?
-5. **Credit lifecycle.**
-   - Does an unused credit expire?
-   - Can the client upgrade a credit after purchase (e.g. more applicants)?
-   - Refunds?
-   - Is a first credit free?
 6. **Pruning.** Delete everything (applicants, attendance, form, event), or keep the event shell? Warn the client by email N days before? Offer an export first?
 7. **Feature keys.** OK that enforcement code refers to features by a fixed `key` (e.g. `applicants`), while names, prices and limits stay editable from admin? A brand new feature added from admin would only affect price until code enforces it.
 8. **Apps.** Should the admin web and landing page be separate Next.js apps (`apps/admin`, `apps/landing`)? Or should landing live inside `apps/web`?
 
 ### Auth and payments
-10. **Payment gateway:** Razorpay (decided). GST invoice needed? INR only?
 11. **Admin login:** a single admin account from env/config, or an admin users table? 2FA?
 12. **Business subscriptions:** should renewals create expense rows automatically on the due date, or does the admin confirm each renewal?
 
