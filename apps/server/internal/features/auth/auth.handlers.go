@@ -56,12 +56,15 @@ func (h *App) GoogleCallbackHandler(c *fiber.Ctx) error {
         if errors.Is(err, ErrEmailNotVerified) {
             return h.redirectToLogin(c, "email_not_verified")
         }
+        if errors.Is(err, ErrSuspended) {
+            return h.redirectToLogin(c, "suspended")
+        }
         return h.redirectToLogin(c, "login_failed")
     }
 
-    h.setAuthCookies(c, pair)
+    h.Sessions.SetCookies(c, pair)
     next := "/dashboard"
-    if id.OrgID == "" {
+    if id.Org == "" {
         next = "/onboarding"
     }
     return c.Redirect(h.Cfg.WebURL+next, fiber.StatusFound)
@@ -92,14 +95,14 @@ func (h *App) OnboardingHandler(c *fiber.Ctx) error {
         return utils.ErrInternal(c, "failed to create organization", err)
     }
 
-    h.revoke(c.UserContext(), c.Cookies(refreshCookie))
-    h.setAuthCookies(c, pair)
+    h.Sessions.Revoke(c.UserContext(), c.Cookies(h.Sessions.RefreshCookie()))
+    h.Sessions.SetCookies(c, pair)
     return utils.Created(c, "organization created", org)
 }
 
 func (h *App) LogoutHandler(c *fiber.Ctx) error {
-    h.revoke(c.UserContext(), c.Cookies(refreshCookie))
-    h.clearAuthCookies(c)
+    h.Sessions.Revoke(c.UserContext(), c.Cookies(h.Sessions.RefreshCookie()))
+    h.Sessions.ClearCookies(c)
     return utils.OKEmpty(c, "logged out")
 }
 

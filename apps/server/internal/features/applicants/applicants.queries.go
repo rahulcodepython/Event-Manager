@@ -15,13 +15,13 @@ const (
     `
 
     // CreateApplicantAtomicQuery registers an applicant unless the event's
-    // credit has ended, the email is already registered, or the credit's
+    // credit has ended (or its organization is suspended), the email is already registered, or the credit's
     // applicant limit (or the extra cap $7, -1 for none) is reached. Run it
     // under the event's applicant lock.
     // Returns {status, applicant}.
     CreateApplicantAtomicQuery = `
         WITH ent AS (
-            SELECT ce.applicant_limit, ce.is_expired
+            SELECT ce.applicant_limit, ce.is_expired OR ce.is_suspended AS is_closed
             FROM credit_entitlements ce
             JOIN events e ON e.credit_id = ce.credit_id
             WHERE e.id = $1::uuid
@@ -29,7 +29,7 @@ const (
         check_status AS (
             SELECT CASE
                 WHEN NOT EXISTS (SELECT 1 FROM ent) THEN 'not_found'
-                WHEN (SELECT is_expired FROM ent) THEN 'expired'
+                WHEN (SELECT is_closed FROM ent) THEN 'expired'
                 WHEN EXISTS (SELECT 1 FROM event_applicants WHERE event_id = $1::uuid AND email = $4) THEN 'already_registered'
                 WHEN (SELECT count(*) FROM event_applicants WHERE event_id = $1::uuid)
                      >= LEAST((SELECT applicant_limit FROM ent), CASE WHEN $7::int = -1 THEN (SELECT applicant_limit FROM ent) ELSE $7::int END)

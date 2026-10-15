@@ -14,6 +14,7 @@ const ERROR_MESSAGES: Record<string, string> = {
     invalid_state: "Your sign-in attempt expired. Please try again.",
     email_not_verified: "Your Google account email is not verified.",
     login_failed: "Sign-in failed. Please try again.",
+    suspended: "This account is suspended. Contact support.",
 }
 
 function GoogleIcon() {

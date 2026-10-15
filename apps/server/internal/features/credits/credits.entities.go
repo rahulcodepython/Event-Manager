@@ -20,7 +20,8 @@ type CreditEvent struct {
     Name string `json:"name"`
 }
 
-// Credit status: active (usable now) or expired (past ends_at).
+// Credit status: active (usable now), expired (past ends_at) or revoked
+// (ended early by the admin, e.g. refunded).
 type Credit struct {
     ID        string          `json:"id"`
     Name      string          `json:"name"`
@@ -35,6 +36,7 @@ type Credit struct {
     // PruneAt: when an event on this credit is deleted (ends_at + backup days).
     PruneAt   time.Time       `json:"prune_at"`
     CreatedAt time.Time       `json:"created_at"`
+    RevokedAt *time.Time      `json:"revoked_at"`
     Event     *CreditEvent    `json:"event"`
     Features  []CreditFeature `json:"features"`
 }

@@ -17,6 +17,8 @@ const formatDate = (iso: string) =>
 export function CreditCard({ credit }: { credit: Credit }) {
     const isTrial = credit.kind === "trial"
     const isActive = credit.status === "active"
+    const kindLabel = { trial: "Free trial", paid: "Paid", granted: "Complimentary" }[credit.kind]
+    const statusLabel = { active: "Active", expired: "Expired", revoked: "Refunded" }[credit.status]
 
     return (
         <Card className="flex flex-col">
@@ -27,12 +29,12 @@ export function CreditCard({ credit }: { credit: Credit }) {
                         <RenameCreditDialog credit={credit} />
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                        <Badge variant={isTrial ? "outline" : "secondary"}>{isTrial ? "Free trial" : "Paid"}</Badge>
-                        <Badge variant={isActive ? "default" : "destructive"}>{isActive ? "Active" : "Expired"}</Badge>
+                        <Badge variant={isTrial ? "outline" : "secondary"}>{kindLabel}</Badge>
+                        <Badge variant={isActive ? "default" : "destructive"}>{statusLabel}</Badge>
                     </div>
                 </div>
                 {
-                    !isTrial && <span className="shrink-0 text-sm font-semibold">{formatMoney(credit.total, credit.currency)}</span>
+                    credit.kind === "paid" && <span className="shrink-0 text-sm font-semibold">{formatMoney(credit.total, credit.currency)}</span>
                 }
             </CardHeader>
 

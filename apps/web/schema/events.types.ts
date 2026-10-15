@@ -18,7 +18,7 @@ export const EventSchema = z.object({
         .object({
             id: z.string(),
             name: z.string(),
-            kind: z.enum(["trial", "paid"]),
+            kind: z.enum(["trial", "paid", "granted"]),
             ends_at: z.string(),
             is_expired: z.boolean(),
             prune_at: z.string(),

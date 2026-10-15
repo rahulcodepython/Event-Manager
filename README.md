@@ -8,6 +8,8 @@ at the door with paired scanner devices.
 
 - `apps/web` — client dashboard, public registration form and scanner UI
   (Next.js App Router, shadcn/ui, TanStack Query, react-hook-form + zod).
+- `apps/admin` — platform admin web app (Next.js, same stack as `apps/web`):
+  dashboard, clients, ledger, subscriptions, pricing catalog.
 - `apps/server` — Go/Fiber API. Two binaries share one codebase:
   `cmd/server` (client API, port 8000) and `cmd/admin` (platform admin API,
   port 8001).
@@ -31,7 +33,10 @@ bun run docker:up                         # postgres, migrate (runs once), redis
 cd apps/server && make dev                # client API on :8000
 cd apps/server && make dev-admin          # admin API on :8001
 cd apps/web && bun install && bun dev     # :3000
+cd apps/admin && bun dev                  # admin web on :3001
 ```
+
+The admin logs in with `ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env`.
 
 Google login needs the redirect URI `${API_URL}/api/v1/auth/google/callback`
 registered on the Google OAuth client.

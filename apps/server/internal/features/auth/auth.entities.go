@@ -1,7 +1,5 @@
 package auth
 
-import "github.com/golang-jwt/jwt/v5"
-
 type User struct {
     ID        string `json:"id"`
     Email     string `json:"email"`
@@ -36,19 +34,8 @@ type googleUserInfo struct {
     Picture       string `json:"picture"`
 }
 
-// accessClaims: sub = user id; Org is empty until onboarding is done.
-type accessClaims struct {
-    Org string `json:"org,omitempty"`
-    jwt.RegisteredClaims
-}
-
-// refreshClaims: sub = user id, jti = refresh token id tracked in Redis.
-type refreshClaims struct {
-    jwt.RegisteredClaims
-}
-
-// identity is what a valid session resolves to.
-type identity struct {
-    UserID string
-    OrgID  string
+// sessionOrg is the organization state read when a session refreshes.
+type sessionOrg struct {
+    ID        string
+    Suspended bool
 }

@@ -3,13 +3,14 @@ package register
 const (
     // GetPublicApplyQuery loads event_forms by id, joins event metadata and form fields.
     // If form is not locked, query returns no rows (404 no such form exists).
-    // Closed (form deadline passed or the event's credit ended) or full
+    // Closed (form deadline passed, the event's credit ended or its
+    // organization is suspended) or full
     // returns the form schema as NULL.
     GetPublicApplyQuery = `
         WITH cfg AS (
             SELECT
                 ef.*,
-                (ef.expires_at < now() OR ce.is_expired) AS closed,
+                (ef.expires_at < now() OR ce.is_expired OR ce.is_suspended) AS closed,
                 ce.has_branding,
                 -- effective capacity: the form's own cap, never above the credit's limit
                 LEAST(ce.applicant_limit, CASE WHEN ef.max_applicants = -1 THEN ce.applicant_limit ELSE ef.max_applicants END) AS capacity,

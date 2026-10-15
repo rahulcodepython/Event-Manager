@@ -30,8 +30,9 @@ revenue, expenses and the feature catalog.
 
 - `apps/web` — Next.js 16 (App Router), React 19, TanStack Query + axios,
   react-hook-form + zod, shadcn/ui on `@base-ui/react`, Tailwind v4.
+- `apps/admin` — admin web app, same stack as `apps/web`, port 3001.
 - `apps/server` — Go + Fiber v2, Postgres via pgx with raw SQL returning
-  JSON, Redis (cache, registration queue, rate limits, device sessions).
+  JSON, Redis (cache, sessions, rate limits, device sessions).
   Two binaries: `cmd/server` (client API) and `cmd/admin` (admin API).
 - `infra` — Docker Compose: Postgres, a one-shot `migrate` service, Redis.
 - Monorepo with bun workspaces.
@@ -51,7 +52,18 @@ revenue, expenses and the feature catalog.
 | devices | `/devices`, `/events/:eventId/devices` | PIN pairing, WebAuthn, assignment to events |
 | attendance | `/events/:eventId/attendance`, `/events/:eventId/analysis` | scan, entry, exit, verify, offline sync; metrics and attendee lists |
 
-Not built yet (see `PLAN.md`): credits and payments, admin features, ID cards and email, sub-events, event subdomains,
+Admin API features (`internal/features/admin/`, all behind the admin session):
+
+| Feature | Routes (under `/api/v1`) | Notes |
+|---|---|---|
+| session | `/auth/login`, `/auth/logout`, `/auth/me` | env account, jwtauth `admin` realm, failed-login limit |
+| dashboard | `/dashboard?months=` | money totals, monthly series, counts, renewals due, recent payments |
+| clients | `/clients`, `/clients/:orgId`, `.../suspend`, `.../unsuspend`, `.../reset-trial`, `.../credits`, `/payments/:paymentId/refund` | suspend revokes the owner's client sessions |
+| catalog | `/catalog`, `/catalog/settings`, `/catalog/features/:featureId` | replaces a feature's options and rates in one transaction; invalidates the shared catalog cache |
+| ledger | `/categories`, `/transactions` | manual entries editable; payment rows are not |
+| subscriptions | `/subscriptions`, `/subscriptions/:id/renew` | renew = expense row + next due date |
+
+Not built yet (see `PLAN.md`): ID cards and email, sub-events, event subdomains,
 landing page, coupons.
 
 ## Decisions still binding
@@ -67,6 +79,21 @@ landing page, coupons.
 - **No native mobile app.** Scanning stays in the browser.
 - **Scanner devices authenticate with `X-Device-Token`**, separate from any
   user login.
+- **Sessions:** `internal/pkg/jwtauth` is the one cookie-session
+  implementation, used by both binaries. Each realm has its own audience,
+  cookie names and Redis keys (client: `access_token`, `auth:*`; admin:
+  `admin_access_token`, `admin_auth:*`, own `ADMIN_JWT_*` secrets).
+- **Admin:** one account from env (`ADMIN_USERNAME` / `ADMIN_PASSWORD`), no
+  users table, no 2FA. The admin API refuses to start without them.
+- **Suspension** (`organizations.suspended_at`): blocks login and every
+  authed request, revokes refresh tokens, and the entitlements view's
+  `is_suspended` closes public forms and scanner writes.
+- **Refunds** are recorded, not executed: money goes back in the Razorpay
+  dashboard; the admin marks it, which ends the credit (`revoked_at`,
+  `ends_at = now`) and adds a ledger row.
+- **Ledger:** `transactions` (kind income / expense / refund; source payment /
+  manual / subscription). Payment fulfilment writes the income row in the
+  same statement. Revenue = income − refunds.
 - **Auth:** Google login only, done by the Go API. Access JWT 15 min,
   refresh JWT 7 days sliding, both in `HttpOnly` cookies; refresh tokens
   tracked in Redis (single use, 30 s grace, reuse revokes all sessions).

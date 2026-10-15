@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +32,14 @@ type Config struct {
 	RefreshTokenTTL    time.Duration
 	GoogleClientID     string
 	GoogleClientSecret string
+
+	// Platform admin (admin API only). Single account from the environment;
+	// checked by RequireAdmin at admin startup, not here, so the client API
+	// runs without them.
+	AdminUsername         string
+	AdminPassword         string
+	AdminJWTAccessSecret  string
+	AdminJWTRefreshSecret string
 
 	// Razorpay (payments). Empty keys disable purchases.
 	RazorpayKeyID         string
@@ -102,6 +111,11 @@ func Load() (*Config, error) {
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 
+		AdminUsername:         os.Getenv("ADMIN_USERNAME"),
+		AdminPassword:         os.Getenv("ADMIN_PASSWORD"),
+		AdminJWTAccessSecret:  os.Getenv("ADMIN_JWT_ACCESS_SECRET"),
+		AdminJWTRefreshSecret: os.Getenv("ADMIN_JWT_REFRESH_SECRET"),
+
 		RazorpayKeyID:         os.Getenv("RAZORPAY_KEY_ID"),
 		RazorpayKeySecret:     os.Getenv("RAZORPAY_KEY_SECRET"),
 		RazorpayWebhookSecret: os.Getenv("RAZORPAY_WEBHOOK_SECRET"),
@@ -148,6 +162,30 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("config: missing required environment variables: %s", strings.Join(missing, ", "))
 	}
 	return cfg, nil
+}
+
+// RequireAdmin fails unless every admin setting is present. The admin
+// binary calls it right after Load.
+func (c *Config) RequireAdmin() error {
+	var missing []string
+	for key, v := range map[string]string{
+		"ADMIN_USERNAME":           c.AdminUsername,
+		"ADMIN_PASSWORD":           c.AdminPassword,
+		"ADMIN_JWT_ACCESS_SECRET":  c.AdminJWTAccessSecret,
+		"ADMIN_JWT_REFRESH_SECRET": c.AdminJWTRefreshSecret,
+	} {
+		if v == "" {
+			missing = append(missing, key)
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		return fmt.Errorf("config: missing required admin environment variables: %s", strings.Join(missing, ", "))
+	}
+	if len(c.AdminPassword) < 12 {
+		return fmt.Errorf("config: ADMIN_PASSWORD must be at least 12 characters")
+	}
+	return nil
 }
 
 // findEnvFile walks up from the working directory to the first .env file,

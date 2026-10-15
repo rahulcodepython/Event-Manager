@@ -13,6 +13,9 @@ import (
 // ErrReadOnly is returned for writes to an event whose credit has ended.
 var ErrReadOnly = errors.New("this event's credit has ended; the event is read-only")
 
+// ErrSuspended is returned for writes to an event of a suspended organization.
+var ErrSuspended = errors.New("this organization is suspended")
+
 type Event struct {
     CreditID       string    `json:"credit_id"`
     Kind           string    `json:"kind"`
@@ -23,6 +26,7 @@ type Event struct {
     SubEventLimit  int       `json:"sub_event_limit"`
     BackupDays     int       `json:"backup_days"`
     PruneAt        time.Time `json:"prune_at"`
+    IsSuspended    bool      `json:"is_suspended"`
 }
 
 const forEventQuery = `
@@ -37,11 +41,15 @@ func ForEvent(ctx context.Context, db postgres.DBTX, eventID string) (*Event, er
     return postgres.QueryJSON[Event](ctx, db, forEventQuery, eventID)
 }
 
-// RequireWritable returns ErrReadOnly once the event's credit has ended.
+// RequireWritable returns ErrSuspended for a suspended organization and
+// ErrReadOnly once the event's credit has ended.
 func RequireWritable(ctx context.Context, db postgres.DBTX, eventID string) error {
     ent, err := ForEvent(ctx, db, eventID)
     if err != nil {
         return err
+    }
+    if ent.IsSuspended {
+        return ErrSuspended
     }
     if ent.IsExpired {
         return ErrReadOnly

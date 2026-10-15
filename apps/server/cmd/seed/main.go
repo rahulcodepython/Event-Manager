@@ -498,13 +498,14 @@ func seedDatabase(ctx context.Context, pool *pgxpool.Pool, ownerEmail string) er
     }
 
     for _, ed := range eventsData {
-        // Each demo event runs on its own paid credit whose window covers
-        // the event, with every feature at its default value.
+        // Each demo event runs on its own granted (free, no payment) credit
+        // whose window covers the event, with every feature at its default
+        // value.
         var creditID string
         err := tx.QueryRow(ctx, `
             WITH c AS (
                 INSERT INTO credits (organization_id, name, kind, starts_at, ends_at)
-                VALUES ($1, 'Demo credit: ' || $2, 'paid', LEAST(now(), $3::date - 1), GREATEST(now(), $4::date + 30))
+                VALUES ($1, 'Demo credit: ' || $2, 'granted', LEAST(now(), $3::date - 1), GREATEST(now(), $4::date + 30))
                 RETURNING id
             ), cf AS (
                 INSERT INTO credit_features (credit_id, feature_id, value, label)

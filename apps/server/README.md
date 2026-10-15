@@ -4,8 +4,8 @@ Go + Fiber API over Postgres (pgx) and Redis. One codebase, two binaries:
 
 | Binary | Entry | Router | Port env | Purpose |
 |---|---|---|---|---|
-| client API | `cmd/server/main.go` | `internal/router/app.router.go` | `PORT` (8000) | dashboard, public registration, scanner |
-| admin API | `cmd/admin/main.go` | `internal/router/admin.router.go` | `ADMIN_PORT` (8001) | platform admin |
+| client API | `cmd/server/main.go` | `internal/router/app.router.go` | `API_PORT` (8000) | dashboard, public registration, scanner |
+| admin API | `cmd/admin/main.go` | `internal/router/admin.router.go` | `ADMIN_API_PORT` (8001) | platform admin |
 
 `internal/router/shared.go` holds what both binaries share: Fiber defaults
 (`NewFiberApp`), the middleware stack and `/health`, and graceful shutdown
@@ -37,6 +37,17 @@ PKCE) and issues two HS256 JWTs as `HttpOnly`, `SameSite=Lax` cookies:
 missing) it rotates the refresh token and continues; anything invalid
 clears both cookies and returns 401.
 
+Sessions live in `internal/pkg/jwtauth` (issue, rotate, revoke, cookies,
+`Authenticate`), shared by both binaries. `jwtauth.ClientConfig` and
+`jwtauth.AdminConfig` give each realm its own audience, secrets, cookie names
+and Redis keys, so a client token never works on the admin API.
+
+The admin API (`internal/features/admin/session`) checks
+`ADMIN_USERNAME` / `ADMIN_PASSWORD` from the environment (5 failed attempts
+per IP per 15 min) and guards every other admin route with
+`session.RequireAdmin`. `cmd/admin` refuses to start without the four
+`ADMIN_*` settings.
+
 `app.router.go` mounts routes in three tiers:
 
 1. **Public:** Google login, public registration form, scanner devices
@@ -67,7 +78,7 @@ Each feature lives in `internal/features/<name>/` (nested for sub-areas, e.g.
 | `<name>.helper.go` | feature-local helpers (optional) |
 
 A feature registers itself in `app.router.go` (client) or `admin.router.go`
-(admin).
+(admin). Admin features live under `internal/features/admin/`.
 
 ## Conventions
 

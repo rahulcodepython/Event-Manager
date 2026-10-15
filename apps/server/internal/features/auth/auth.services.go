@@ -10,6 +10,7 @@ import (
 
     "golang.org/x/oauth2"
 
+    "identitycard-server/internal/pkg/jwtauth"
     "identitycard-server/internal/pkg/postgres"
 )
 
@@ -20,49 +21,47 @@ var (
     ErrEmailNotVerified    = errors.New("google account email is not verified")
     ErrInvalidOrgName      = errors.New("organization name is required")
     ErrAlreadyOnboarded    = errors.New("organization already exists")
+    ErrSuspended           = errors.New("this account is suspended")
 )
 
 // GoogleLoginService exchanges an OAuth code for the Google profile, links
 // it to a user and starts a session.
-func (s *App) GoogleLoginService(ctx context.Context, code, verifier string) (*tokenPair, identity, error) {
+func (s *App) GoogleLoginService(ctx context.Context, code, verifier string) (*jwtauth.Tokens, jwtauth.Identity, error) {
     token, err := s.Google.Exchange(ctx, code, oauth2.VerifierOption(verifier))
     if err != nil {
-        return nil, identity{}, fmt.Errorf("google code exchange: %w", err)
+        return nil, jwtauth.Identity{}, fmt.Errorf("google code exchange: %w", err)
     }
 
     resp, err := s.Google.Client(ctx, token).Get(googleUserInfoURL)
     if err != nil {
-        return nil, identity{}, fmt.Errorf("google userinfo: %w", err)
+        return nil, jwtauth.Identity{}, fmt.Errorf("google userinfo: %w", err)
     }
     defer resp.Body.Close()
     if resp.StatusCode != http.StatusOK {
-        return nil, identity{}, fmt.Errorf("google userinfo: status %d", resp.StatusCode)
+        return nil, jwtauth.Identity{}, fmt.Errorf("google userinfo: status %d", resp.StatusCode)
     }
 
     var info googleUserInfo
     if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-        return nil, identity{}, fmt.Errorf("google userinfo decode: %w", err)
+        return nil, jwtauth.Identity{}, fmt.Errorf("google userinfo decode: %w", err)
     }
     if !info.EmailVerified || info.Email == "" {
-        return nil, identity{}, ErrEmailNotVerified
+        return nil, jwtauth.Identity{}, ErrEmailNotVerified
     }
     info.Email = strings.ToLower(info.Email)
 
     userID, err := s.UpsertGoogleUserRepository(ctx, info)
     if err != nil {
-        return nil, identity{}, err
+        return nil, jwtauth.Identity{}, err
     }
-    orgID, err := s.GetOrganizationIDRepository(ctx, userID)
+    org, err := s.GetSessionOrgRepository(ctx, userID)
     if err != nil {
-        return nil, identity{}, err
+        return nil, jwtauth.Identity{}, err
     }
-
-    id := identity{UserID: userID, OrgID: orgID}
-    pair, err := s.issueTokens(ctx, id)
-    if err != nil {
-        return nil, identity{}, err
+    if org.Suspended {
+        return nil, jwtauth.Identity{}, ErrSuspended
     }
-    return pair, id, nil
+    return s.startSession(ctx, userID, org.ID)
 }
 
 func (s *App) MeService(ctx context.Context, userID string) (*MeResponse, error) {
@@ -71,7 +70,7 @@ func (s *App) MeService(ctx context.Context, userID string) (*MeResponse, error)
 
 // OnboardingService creates the user's organization and returns a fresh
 // token pair that carries the new organization id.
-func (s *App) OnboardingService(ctx context.Context, userID string, req OnboardingRequest) (*Organization, *tokenPair, error) {
+func (s *App) OnboardingService(ctx context.Context, userID string, req OnboardingRequest) (*Organization, *jwtauth.Tokens, error) {
     name := strings.TrimSpace(req.Name)
     if name == "" {
         return nil, nil, ErrInvalidOrgName
@@ -85,7 +84,7 @@ func (s *App) OnboardingService(ctx context.Context, userID string, req Onboardi
         return nil, nil, err
     }
 
-    pair, err := s.issueTokens(ctx, identity{UserID: userID, OrgID: org.ID})
+    pair, _, err := s.startSession(ctx, userID, org.ID)
     if err != nil {
         return nil, nil, err
     }

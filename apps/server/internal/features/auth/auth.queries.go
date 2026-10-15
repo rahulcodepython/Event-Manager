@@ -27,9 +27,17 @@ const (
         SELECT id::text FROM upserted;
     `
 
-    // GetOrganizationIDQuery returns the user's organization id, or '' if none.
-    GetOrganizationIDQuery = `
-        SELECT COALESCE((SELECT id::text FROM organizations WHERE owner_id = $1::uuid), '');
+    // GetSessionOrgQuery returns the user's organization id ('' if none)
+    // and whether it is suspended. No row if the user does not exist.
+    GetSessionOrgQuery = `
+        SELECT COALESCE(o.id::text, ''), o.suspended_at IS NOT NULL
+        FROM users u
+        LEFT JOIN organizations o ON o.owner_id = u.id
+        WHERE u.id = $1::uuid;
+    `
+
+    IsSuspendedQuery = `
+        SELECT suspended_at IS NOT NULL FROM organizations WHERE id = $1::uuid;
     `
 
     GetMeQuery = `

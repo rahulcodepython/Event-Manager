@@ -7,7 +7,11 @@ const (
             'id', c.id,
             'name', c.name,
             'kind', c.kind,
-            'status', CASE WHEN c.ends_at <= now() THEN 'expired' ELSE 'active' END,
+            'status', CASE
+                WHEN c.revoked_at IS NOT NULL THEN 'revoked'
+                WHEN c.ends_at <= now() THEN 'expired'
+                ELSE 'active'
+            END,
             'currency', c.currency,
             'subtotal', c.subtotal,
             'tax', c.tax,
@@ -15,6 +19,7 @@ const (
             'starts_at', c.starts_at,
             'ends_at', c.ends_at,
             'created_at', c.created_at,
+            'revoked_at', c.revoked_at,
             'prune_at', (SELECT ce.prune_at FROM credit_entitlements ce WHERE ce.credit_id = c.id),
             'event', (
                 SELECT jsonb_build_object('id', e.id, 'name', em.name)
@@ -80,8 +85,8 @@ const (
     `
 
     // FulfillPaymentQuery marks an order paid and creates its credit from
-    // the stored quote, once. $3 is a pre-generated credit id, $4 the
-    // duration feature key. Returns no row if the order was already paid.
+    // the stored quote, once, and records the income in the ledger. $3 is a
+    // pre-generated credit id, $4 the duration feature key. Returns no row if the order was already paid.
     FulfillPaymentQuery = `
         WITH p AS (
             UPDATE payments
@@ -106,6 +111,11 @@ const (
             INSERT INTO credit_features (credit_id, feature_id, value, label, amount)
             SELECT c.id, (l->>'feature_id')::uuid, (l->>'value')::int, l->>'label', (l->>'amount')::bigint
             FROM c, p, jsonb_array_elements(p.quote->'lines') l
+        ),
+        t AS (
+            INSERT INTO transactions (kind, source, amount, currency, description, payment_id, organization_id)
+            SELECT 'income', 'payment', p.amount, p.currency, 'Credit: ' || p.credit_name, p.id, p.organization_id
+            FROM p
         )
         SELECT c.id::text FROM c;
     `

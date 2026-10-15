@@ -6,6 +6,7 @@ import (
     "strings"
 
     "github.com/gofiber/fiber/v2"
+    "github.com/google/uuid"
     "github.com/jackc/pgx/v5/pgxpool"
 
     "identitycard-server/internal/generic"
@@ -64,7 +65,8 @@ func OwnedBy(db *pgxpool.Pool, table, param string) fiber.Handler {
 }
 
 // EventWritable blocks writes under /events/:eventId once the event's
-// credit has ended. Reads stay allowed, and so does deleting the event.
+// credit has ended or its organization is suspended. Reads stay allowed,
+// and so does deleting the event.
 func EventWritable(db *pgxpool.Pool) fiber.Handler {
     return func(c *fiber.Ctx) error {
         if c.Method() == fiber.MethodGet || c.Method() == fiber.MethodHead {
@@ -75,13 +77,24 @@ func EventWritable(db *pgxpool.Pool) fiber.Handler {
             return c.Next()
         }
         if err := entitlements.RequireWritable(c.UserContext(), db, eventID); err != nil {
-            if errors.Is(err, entitlements.ErrReadOnly) {
+            if errors.Is(err, entitlements.ErrReadOnly) || errors.Is(err, entitlements.ErrSuspended) {
                 return utils.ErrForbidden(c, err.Error(), err)
             }
             if errors.Is(err, postgres.ErrNotFound) {
                 return utils.ErrNotFound(c, "event not found", err)
             }
             return utils.ErrInternal(c, "failed to check event status", err)
+        }
+        return c.Next()
+    }
+}
+
+// UUIDParam 404s unless route param `param` is a valid UUID, so queries can
+// cast it without failing on malformed input.
+func UUIDParam(param string) fiber.Handler {
+    return func(c *fiber.Ctx) error {
+        if err := uuid.Validate(c.Params(param)); err != nil {
+            return utils.ErrNotFound(c, "resource not found", nil)
         }
         return c.Next()
     }

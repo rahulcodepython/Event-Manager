@@ -19,6 +19,9 @@ func main() {
     if err != nil {
         log.Fatalf("[admin] config load failed: %v", err)
     }
+    if err := cfg.RequireAdmin(); err != nil {
+        log.Fatalf("[admin] %v", err)
+    }
 
     pool, err := postgres.Connect(context.Background(), cfg)
     if err != nil {

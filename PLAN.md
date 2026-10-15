@@ -126,7 +126,7 @@ editable from admin. To confirm: Q7.
 - **Free trial**, offered once in a step after onboarding (claim or skip; skipping is final). Trial values live in `features.trial_value` (25 applicants, 15-day window, branding, 3 sub-events, 0 backup days) and `pricing_settings.trial_max_event_days` (5). Trial events are test-only and deleted when the trial ends.
 - **Purchase**: name the credit, pick options, live server quote, Razorpay Checkout. The server creates the order for the quoted amount, verifies the checkout signature, and a signed webhook (`POST /payments/razorpay/webhook`) also confirms payments. Fulfilment is idempotent; the credit and its `credit_features` are created from the stored quote.
 - Credits page (rename, create event from a credit), credit picker in the create-event dialog, trial banner on trial events.
-- Admin refunds: Phase 5. Income ledger (`transactions`) is built in Phase 5 from `payments`.
+- Admin refunds and the income ledger (`transactions`): done in Phase 5.
 
 ### Phase 4 — Feature enforcement and data pruning ✅ done
 - `credit_entitlements` SQL view flattens a credit's limits (applicants, branding, sub-events, backup days, prune date); Go reads it via `internal/pkg/entitlements`.
@@ -136,13 +136,15 @@ editable from admin. To confirm: Q7.
 - **Pruning:** hourly job in the API (Redis lock, also runs at startup) deletes events whose credit ended more than its backup days ago, with all their data and orphaned applicants. Credits stay as history. In-app notices show the deletion date; email reminders come in Phase 6.
 - Sub-event limit is enforced in Phase 7.
 
-### Phase 5 — Admin server and admin web UI
-- Admin login (Q11).
-- Dashboard: revenue, income vs expense, client count, credits sold, active events.
-- Clients: list and detail with their events, credits and payments.
-- Catalog: manage features, rates and prices.
-- Transactions: payments (auto), manual income and expense entries.
-- Business subscriptions: CRUD, with renewals recorded as expenses (Q12).
+### Phase 5 — Admin server and admin web UI ✅ done
+- **Login:** one admin account from env (`ADMIN_USERNAME`, `ADMIN_PASSWORD`, min 12 chars), no 2FA. Same cookie session as clients via the shared `internal/pkg/jwtauth` (own secrets `ADMIN_JWT_*`, `admin_` cookies, `admin` audience). 5 failed logins per IP per 15 min.
+- **Admin web:** separate Next.js app `apps/admin` on :3001, talking to the admin API on :8001.
+- **Dashboard:** revenue (payments − refunds), expenses, profit (this month and all time), 12-month income vs expense chart, client / credit / active-event counts, renewals due, recent payments.
+- **Clients:** search and status filter; detail with credits, events, payments. Actions: suspend/restore (blocks login and revokes sessions, closes public forms and scanners), reset the trial choice, grant a free credit (kind `granted`).
+- **Refunds:** the admin marks a paid payment refunded (money is returned in the Razorpay dashboard). The credit ends now (`revoked_at`); its event goes read-only and is pruned after its backup days. A refund row goes into the ledger.
+- **Catalog:** edit settings (base fee, GST, trial event length) and each existing feature's text, pricing type, default, trial value, options and rates. Feature keys and the feature set are fixed. Old credits keep their purchase snapshot.
+- **Ledger (`transactions`):** client payments (written by fulfilment) and refunds are automatic; manual income and expense entries with admin-managed categories.
+- **Business subscriptions:** CRUD; the admin confirms each renewal, which records an expense and moves the due date by the interval.
 
 ### Phase 6 — ID cards, email and signed QR
 - Signed QR payload (HMAC) so cards can't be forged.
@@ -197,8 +199,8 @@ Q8 asks whether `admin` and `landing` should be separate apps like this.
 8. **Apps.** Should the admin web and landing page be separate Next.js apps (`apps/admin`, `apps/landing`)? Or should landing live inside `apps/web`?
 
 ### Auth and payments
-11. **Admin login:** a single admin account from env/config, or an admin users table? 2FA?
-12. **Business subscriptions:** should renewals create expense rows automatically on the due date, or does the admin confirm each renewal?
+11. ~~**Admin login**~~ Decided: single account from env, no 2FA.
+12. ~~**Business subscriptions**~~ Decided: the admin confirms each renewal.
 
 ### ID cards
 13. **Card design:** one fixed design, a few templates, or a designer? Which fields go on it?

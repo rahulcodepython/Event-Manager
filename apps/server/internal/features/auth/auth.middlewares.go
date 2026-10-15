@@ -5,47 +5,40 @@ import (
     "log/slog"
 
     "github.com/gofiber/fiber/v2"
-    "github.com/golang-jwt/jwt/v5"
 
     "identitycard-server/internal/middlewares"
+    "identitycard-server/internal/pkg/jwtauth"
     "identitycard-server/internal/utils"
 )
 
-// RequireAuth accepts a request with a valid access token. If the access
-// token is correctly signed but expired (or missing), it rotates the refresh
-// token, sets new cookies and continues. Anything else clears both cookies
-// and returns 401, which tells the web app to log the user out.
+// RequireAuth accepts a request with a valid session (see
+// jwtauth.Manager.Authenticate) whose organization is not suspended.
+// Anything else clears both cookies and returns 401, which tells the web
+// app to log the user out.
 func (s *App) RequireAuth(c *fiber.Ctx) error {
-    if access := c.Cookies(accessCookie); access != "" {
-        id, err := s.parseAccess(access)
-        if err == nil {
-            middlewares.SetIdentity(c, id.UserID, id.OrgID)
-            return c.Next()
-        }
-        if !errors.Is(err, jwt.ErrTokenExpired) {
-            return s.unauthorized(c)
-        }
-    }
-
-    refresh := c.Cookies(refreshCookie)
-    if refresh == "" {
-        return s.unauthorized(c)
-    }
-
-    pair, id, err := s.rotate(c.UserContext(), refresh)
+    id, err := s.Sessions.Authenticate(c)
     if err != nil {
-        if !errors.Is(err, ErrInvalidSession) {
+        if !errors.Is(err, jwtauth.ErrInvalidSession) && !errors.Is(err, ErrSuspended) {
             slog.Warn("session refresh failed", "error", err)
         }
         return s.unauthorized(c)
     }
 
-    s.setAuthCookies(c, pair)
-    middlewares.SetIdentity(c, id.UserID, id.OrgID)
+    if id.Org != "" {
+        suspended, err := s.IsSuspendedRepository(c.UserContext(), id.Org)
+        if err != nil {
+            return utils.ErrInternal(c, "failed to verify session", err)
+        }
+        if suspended {
+            return s.unauthorized(c)
+        }
+    }
+
+    middlewares.SetIdentity(c, id.Subject, id.Org)
     return c.Next()
 }
 
 func (s *App) unauthorized(c *fiber.Ctx) error {
-    s.clearAuthCookies(c)
+    s.Sessions.ClearCookies(c)
     return utils.ErrUnauthorized(c, "session expired, please log in again", nil)
 }

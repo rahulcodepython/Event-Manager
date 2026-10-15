@@ -5,8 +5,8 @@ import { QuoteSchema } from "./pricing.types"
 export const CreditSchema = z.object({
     id: z.string(),
     name: z.string(),
-    kind: z.enum(["trial", "paid"]),
-    status: z.enum(["active", "expired"]),
+    kind: z.enum(["trial", "paid", "granted"]),
+    status: z.enum(["active", "expired", "revoked"]),
     currency: z.string(),
     subtotal: z.number(),
     tax: z.number(),
@@ -15,6 +15,7 @@ export const CreditSchema = z.object({
     ends_at: z.string(),
     prune_at: z.string(),
     created_at: z.string(),
+    revoked_at: z.string().nullable(),
     event: z.object({ id: z.string(), name: z.string() }).nullable(),
     features: z.array(
         z.object({

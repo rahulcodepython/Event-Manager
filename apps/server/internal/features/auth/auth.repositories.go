@@ -12,10 +12,16 @@ func (r *App) UpsertGoogleUserRepository(ctx context.Context, info googleUserInf
     return id, postgres.MapPgError(err)
 }
 
-func (r *App) GetOrganizationIDRepository(ctx context.Context, userID string) (string, error) {
-    var id string
-    err := r.DB.QueryRow(ctx, GetOrganizationIDQuery, userID).Scan(&id)
-    return id, postgres.MapPgError(err)
+func (r *App) GetSessionOrgRepository(ctx context.Context, userID string) (sessionOrg, error) {
+    var org sessionOrg
+    err := r.DB.QueryRow(ctx, GetSessionOrgQuery, userID).Scan(&org.ID, &org.Suspended)
+    return org, postgres.MapPgError(err)
+}
+
+func (r *App) IsSuspendedRepository(ctx context.Context, orgID string) (bool, error) {
+    var suspended bool
+    err := r.DB.QueryRow(ctx, IsSuspendedQuery, orgID).Scan(&suspended)
+    return suspended, postgres.MapPgError(err)
 }
 
 func (r *App) GetMeRepository(ctx context.Context, userID string) (*MeResponse, error) {
