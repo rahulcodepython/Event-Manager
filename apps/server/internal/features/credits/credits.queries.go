@@ -15,6 +15,7 @@ const (
             'starts_at', c.starts_at,
             'ends_at', c.ends_at,
             'created_at', c.created_at,
+            'prune_at', (SELECT ce.prune_at FROM credit_entitlements ce WHERE ce.credit_id = c.id),
             'event', (
                 SELECT jsonb_build_object('id', e.id, 'name', em.name)
                 FROM events e JOIN event_metadata em ON em.id = e.id

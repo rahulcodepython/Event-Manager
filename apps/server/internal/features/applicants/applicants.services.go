@@ -10,6 +10,7 @@ import (
 
     "github.com/google/uuid"
     "identitycard-server/internal/pkg/cache"
+    "identitycard-server/internal/pkg/entitlements"
     "identitycard-server/internal/pkg/postgres"
     "identitycard-server/internal/utils"
 )
@@ -21,6 +22,7 @@ var (
     ErrInvalidPhone       = errors.New("mobile number is required")
     ErrAlreadyRegistered  = errors.New("an applicant with this email is already registered for this event")
     ErrApplicantNotFound  = errors.New("applicant not found")
+    ErrLimitReached       = errors.New("applicant limit of this event's credit reached")
 )
 
 func (s *App) ListApplicantsService(ctx context.Context, eventID, search string, filters []ApplicantFilter, page, limit int) (*ListApplicantsResponse, error) {
@@ -125,7 +127,11 @@ func normalizeApplicant(req CreateApplicantRequest) (CreateApplicantRequest, err
     return req, nil
 }
 
-func (s *App) insertApplicant(ctx context.Context, eventID string, req CreateApplicantRequest) (*ApplicantItem, error) {
+// InsertApplicant validates and registers one applicant. It is the only
+// write path for applicants (dashboard, bulk upload, public form), so the
+// credit's applicant limit always holds. extraCap further limits the count
+// (e.g. the public form's capacity); pass -1 for none.
+func (s *App) InsertApplicant(ctx context.Context, eventID string, req CreateApplicantRequest, extraCap int) (*ApplicantItem, error) {
     req, err := normalizeApplicant(req)
     if err != nil {
         return nil, err
@@ -137,15 +143,30 @@ func (s *App) insertApplicant(ctx context.Context, eventID string, req CreateApp
     }
 
     userID := utils.GenerateApplicantUserID(eventID)
-    created, err := s.CreateApplicantRepository(ctx, eventID, userID, req.Name, req.Email, req.Phone, dataJSON)
-    // The insert query returns no row when the email is already registered.
-    if errors.Is(err, postgres.ErrConflict) || errors.Is(err, postgres.ErrNotFound) || (err == nil && created == nil) {
+    res, err := s.CreateApplicantRepository(ctx, eventID, userID, req.Name, req.Email, req.Phone, dataJSON, extraCap)
+    if errors.Is(err, postgres.ErrConflict) {
         return nil, ErrAlreadyRegistered
     }
-    return created, err
+    if err != nil {
+        return nil, err
+    }
+
+    switch res.Status {
+    case "ok":
+        return res.Applicant, nil
+    case "already_registered":
+        return nil, ErrAlreadyRegistered
+    case "limit_reached":
+        return nil, ErrLimitReached
+    case "expired":
+        return nil, entitlements.ErrReadOnly
+    default:
+        return nil, ErrInvalidEventID
+    }
 }
 
-func (s *App) invalidateApplicantCaches(ctx context.Context, eventID string) {
+// InvalidateCaches drops cached data that includes the event's applicant count.
+func (s *App) InvalidateCaches(ctx context.Context, eventID string) {
     if s.Cache == nil {
         return
     }
@@ -159,12 +180,12 @@ func (s *App) CreateApplicantService(ctx context.Context, eventID string, req Cr
         return nil, ErrInvalidEventID
     }
 
-    created, err := s.insertApplicant(ctx, eventID, req)
+    created, err := s.InsertApplicant(ctx, eventID, req, -1)
     if err != nil {
         return nil, err
     }
 
-    s.invalidateApplicantCaches(ctx, eventID)
+    s.InvalidateCaches(ctx, eventID)
     return created, nil
 }
 
@@ -180,7 +201,7 @@ func (s *App) BulkCreateApplicantsService(ctx context.Context, eventID string, r
 
     res := &BulkCreateApplicantsResponse{Failed: []BulkApplicantError{}}
     for i, req := range reqs {
-        if _, err := s.insertApplicant(ctx, eventID, req); err != nil {
+        if _, err := s.InsertApplicant(ctx, eventID, req, -1); err != nil {
             res.Failed = append(res.Failed, BulkApplicantError{Row: i + 1, Email: req.Email, Error: err.Error()})
             continue
         }
@@ -188,7 +209,7 @@ func (s *App) BulkCreateApplicantsService(ctx context.Context, eventID string, r
     }
 
     if res.Created > 0 {
-        s.invalidateApplicantCaches(ctx, eventID)
+        s.InvalidateCaches(ctx, eventID)
     }
     return res, nil
 }
@@ -206,7 +227,7 @@ func (s *App) DeleteApplicantService(ctx context.Context, eventID, userID string
         return nil, err
     }
 
-    s.invalidateApplicantCaches(ctx, eventID)
+    s.InvalidateCaches(ctx, eventID)
 
     return &DeleteApplicantResponse{
         UserID:  userID,

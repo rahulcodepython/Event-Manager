@@ -10,6 +10,7 @@ import (
     "github.com/google/uuid"
 
     "identitycard-server/internal/pkg/cache"
+    "identitycard-server/internal/pkg/entitlements"
     "identitycard-server/internal/pkg/postgres"
 )
 
@@ -22,6 +23,7 @@ var (
     ErrInvalidTemplateID          = errors.New("invalid template id")
     ErrInvalidExpiresAt           = errors.New("expiration date must be in the future")
     ErrInvalidMaxApplicants       = errors.New("max applicants must be -1 or at least 1")
+    ErrCapacityAboveCredit        = errors.New("form capacity cannot exceed the credit's applicant limit")
     ErrInvalidSource              = errors.New("source must be either 'template' or 'scratch'")
 )
 
@@ -55,6 +57,9 @@ func (s *App) CreateEventFormService(ctx context.Context, eventID string, req Cr
 
     if req.MaxApplicants != -1 && req.MaxApplicants < 1 {
         return nil, ErrInvalidMaxApplicants
+    }
+    if err := s.checkCapacity(ctx, eventID, req.MaxApplicants); err != nil {
+        return nil, err
     }
 
     if time.Now().After(req.ExpiresAt) {
@@ -122,6 +127,9 @@ func (s *App) UpdateEventFormService(ctx context.Context, eventID string, req Up
     if req.MaxApplicants != nil {
         if *req.MaxApplicants != -1 && *req.MaxApplicants < 1 {
             return nil, ErrInvalidMaxApplicants
+        }
+        if err := s.checkCapacity(ctx, eventID, *req.MaxApplicants); err != nil {
+            return nil, err
         }
     }
 
@@ -218,5 +226,21 @@ func (s *App) DeleteEventFormService(ctx context.Context, eventID string) error 
         _ = s.Cache.DeletePattern(ctx, "cache:public_apply:*")
     }
 
+    return nil
+}
+
+// checkCapacity keeps a form's own capacity within its credit's applicant
+// limit; -1 (no form cap) means "up to the credit limit".
+func (s *App) checkCapacity(ctx context.Context, eventID string, capacity int) error {
+    if capacity == -1 {
+        return nil
+    }
+    ent, err := entitlements.ForEvent(ctx, s.DB, eventID)
+    if err != nil {
+        return err
+    }
+    if capacity > ent.ApplicantLimit {
+        return fmt.Errorf("%w (%d)", ErrCapacityAboveCredit, ent.ApplicantLimit)
+    }
     return nil
 }

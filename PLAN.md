@@ -128,12 +128,13 @@ editable from admin. To confirm: Q7.
 - Credits page (rename, create event from a credit), credit picker in the create-event dialog, trial banner on trial events.
 - Admin refunds: Phase 5. Income ledger (`transactions`) is built in Phase 5 from `payments`.
 
-### Phase 4 — Feature enforcement and data pruning
-- Applicants: cap across public registration, manual add and bulk upload.
-- Duration: limits event dates (meaning: Q3).
-- Sub-events: limits the number of sub-events (applies once Phase 7 exists).
-- Branding: toggles client branding (meaning: Q4).
-- Backup duration: scheduled job deletes event data N days after the event ends, with a prior warning (Q6).
+### Phase 4 — Feature enforcement and data pruning ✅ done
+- `credit_entitlements` SQL view flattens a credit's limits (applicants, branding, sub-events, backup days, prune date); Go reads it via `internal/pkg/entitlements`.
+- **Applicants:** one capped insert (`applicants.InsertApplicant`) for dashboard, bulk upload and the public form, serialized per event with an advisory lock. Bulk upload accepts rows up to the limit and reports the rest. The public form's capacity can be lower than, never above, the credit limit (`-1` = credit limit). The Redis registration queue/worker was removed.
+- **Read-only after the credit ends:** all writes under `/events/:eventId` and device scans return 403; reads and deleting the event still work.
+- **Branding:** event logo on the public form and no "Powered by IdentityCard" footer. ID cards and emails follow in Phase 6.
+- **Pruning:** hourly job in the API (Redis lock, also runs at startup) deletes events whose credit ended more than its backup days ago, with all their data and orphaned applicants. Credits stay as history. In-app notices show the deletion date; email reminders come in Phase 6.
+- Sub-event limit is enforced in Phase 7.
 
 ### Phase 5 — Admin server and admin web UI
 - Admin login (Q11).

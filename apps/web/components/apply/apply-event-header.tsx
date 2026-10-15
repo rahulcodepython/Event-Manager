@@ -9,9 +9,11 @@ import type { PublicEventInfo, PublicFormInfo } from "../../schema/publicapply.t
 interface ApplyEventHeaderProps {
     event?: PublicEventInfo;
     form?: PublicFormInfo;
+    /** The event's credit includes branding: show the event logo. */
+    branding?: boolean;
 }
 
-export function ApplyEventHeader({ event, form }: ApplyEventHeaderProps) {
+export function ApplyEventHeader({ event, form, branding = false }: ApplyEventHeaderProps) {
     return (
         <div className="rounded-xl border bg-card p-5 sm:p-6 shadow-xs space-y-3">
             <div className="flex items-center justify-between gap-2">
@@ -29,6 +31,16 @@ export function ApplyEventHeader({ event, form }: ApplyEventHeaderProps) {
                     Open
                 </Badge>
             </div>
+
+            {
+                // Logos are arbitrary external URLs, so next/image can't be configured for them.
+                // eslint-disable-next-line @next/next/no-img-element
+                branding && event?.logo && <img
+                    src={event.logo}
+                    alt={`${event.name} logo`}
+                    className="h-12 w-auto max-w-[200px] object-contain"
+                />
+            }
 
             <div>
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">

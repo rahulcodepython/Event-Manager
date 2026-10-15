@@ -20,10 +20,13 @@ type Event struct {
 
 // EventCredit is the credit an event runs on.
 type EventCredit struct {
-    ID     string    `json:"id"`
-    Name   string    `json:"name"`
-    Kind   string    `json:"kind"`
-    EndsAt time.Time `json:"ends_at"`
+    ID          string    `json:"id"`
+    Name        string    `json:"name"`
+    Kind        string    `json:"kind"`
+    EndsAt      time.Time `json:"ends_at"`
+    IsExpired   bool      `json:"is_expired"`
+    PruneAt     time.Time `json:"prune_at"`
+    HasBranding bool      `json:"has_branding"`
 }
 
 // creditCheck is the result of CheckCreditQuery.

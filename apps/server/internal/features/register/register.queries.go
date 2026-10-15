@@ -3,15 +3,30 @@ package register
 const (
     // GetPublicApplyQuery loads event_forms by id, joins event metadata and form fields.
     // If form is not locked, query returns no rows (404 no such form exists).
-    // If expired or full, form schema is returned as NULL.
+    // Closed (form deadline passed or the event's credit ended) or full
+    // returns the form schema as NULL.
     GetPublicApplyQuery = `
+        WITH cfg AS (
+            SELECT
+                ef.*,
+                (ef.expires_at < now() OR ce.is_expired) AS closed,
+                ce.has_branding,
+                -- effective capacity: the form's own cap, never above the credit's limit
+                LEAST(ce.applicant_limit, CASE WHEN ef.max_applicants = -1 THEN ce.applicant_limit ELSE ef.max_applicants END) AS capacity,
+                (SELECT count(*)::int FROM event_applicants WHERE event_id = ef.event_id) AS current_count
+            FROM event_forms ef
+            JOIN events ev ON ev.id = ef.event_id
+            JOIN credit_entitlements ce ON ce.credit_id = ev.credit_id
+            WHERE ef.id = $1 AND ef.is_locked = true
+        )
         SELECT jsonb_build_object(
             'event_form_id', ef.id,
             'status', ef.status,
-            'is_expired', (ef.expires_at < now()),
-            'is_full', (ef.max_applicants != -1 AND (SELECT count(*) FROM event_applicants WHERE event_id = ef.event_id) >= ef.max_applicants),
-            'max_applicants', ef.max_applicants,
-            'current_applicants', (SELECT count(*)::int FROM event_applicants WHERE event_id = ef.event_id),
+            'is_expired', ef.closed,
+            'is_full', ef.current_count >= ef.capacity,
+            'max_applicants', ef.capacity,
+            'current_applicants', ef.current_count,
+            'branding', ef.has_branding,
             'expires_at', ef.expires_at,
             'event', jsonb_build_object(
                 'id', e.id,
@@ -22,10 +37,8 @@ const (
                 'logo', em.logo,
                 'organizer', em.organizer
             ),
-            'form', CASE 
-                WHEN NOT ef.is_locked 
-                  OR ef.expires_at < now() 
-                  OR (ef.max_applicants != -1 AND (SELECT count(*) FROM event_applicants WHERE event_id = ef.event_id) >= ef.max_applicants)
+            'form', CASE
+                WHEN ef.closed OR ef.current_count >= ef.capacity
                 THEN NULL
                 ELSE jsonb_build_object(
                     'id', ef.id,
@@ -34,68 +47,8 @@ const (
                 )
             END
         )
-        FROM event_forms ef
+        FROM cfg ef
         JOIN events e ON e.id = ef.event_id
-        LEFT JOIN event_metadata em ON em.id = e.id
-        WHERE ef.id = $1
-          AND ef.is_locked = true;
-    `
-
-    // SubmitApplicationCTEQuery performs form validation, capacity checks, duplicate checks,
-    // and both applicant + event_applicant inserts atomically in one single database roundtrip.
-    SubmitApplicationCTEQuery = `
-        WITH form_lookup AS (
-            SELECT
-                ef.id,
-                ef.event_id,
-                ef.status,
-                ef.is_locked,
-                ef.expires_at,
-                ef.max_applicants,
-                (SELECT count(*)::int FROM event_applicants WHERE event_id = ef.event_id) AS current_count,
-                EXISTS (SELECT 1 FROM event_applicants WHERE event_id = ef.event_id AND email = $4) AS email_exists
-            FROM event_forms ef
-            WHERE ef.id = $1
-        ),
-        validation_status AS (
-            SELECT
-                fl.id,
-                fl.event_id,
-                CASE
-                    WHEN fl.id IS NULL OR NOT fl.is_locked THEN 'not_found'
-                    WHEN fl.expires_at < now() THEN 'expired'
-                    WHEN fl.max_applicants != -1 AND fl.current_count >= fl.max_applicants THEN 'limit_reached'
-                    WHEN fl.email_exists THEN 'already_registered'
-                    ELSE 'ok'
-                END AS status_code
-            FROM (SELECT 1) _
-            LEFT JOIN form_lookup fl ON true
-        ),
-        inserted_applicant AS (
-            INSERT INTO applicants (id, name, email, phone, data, created_at, updated_at)
-            SELECT 
-                CASE 
-                    WHEN $2 != '' THEN $2
-                    ELSE substr(replace(vs.event_id::text, '-', ''), 1, 8) || '-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 8) || '-' || to_char(now(), 'YYYYMMDD')
-                END,
-                $3, $4, $5, $6::jsonb, now(), now()
-            FROM validation_status vs
-            WHERE vs.status_code = 'ok'
-            ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, phone = EXCLUDED.phone, data = EXCLUDED.data, updated_at = now()
-            RETURNING id
-        ),
-        inserted_event_applicant AS (
-            INSERT INTO event_applicants (event_id, user_id, email, created_at, status)
-            SELECT vs.event_id, ia.id, $4, now(), 'submitted'
-            FROM validation_status vs
-            JOIN inserted_applicant ia ON true
-            WHERE vs.status_code = 'ok'
-            RETURNING id
-        )
-        SELECT
-            vs.status_code,
-            COALESCE(vs.event_id::text, '') AS event_id,
-            COALESCE((SELECT id FROM inserted_applicant), '') AS user_id
-        FROM validation_status vs;
+        LEFT JOIN event_metadata em ON em.id = e.id;
     `
 )

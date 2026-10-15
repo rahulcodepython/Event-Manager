@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 
 import { EventNotFound } from "../../../../components/events/event-not-found";
+import { EventCreditNotice } from "../../../../components/events/event-credit-notice";
 import { EventProvider } from "../../../../components/events/event-context";
 import { useEventQuery } from "../../../../query-hooks/events.api";
 
@@ -37,10 +38,7 @@ export default function EventSingleLayout({
         <EventProvider event={event} eventId={eventId}>
             <div className="container flex min-w-0 flex-1 flex-col gap-6 pb-8">
                 {
-                    event.credit?.kind === "trial" && <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
-                        Trial event: for testing only, not for real use. It will be deleted when the trial ends on{" "}
-                        {new Date(event.credit.ends_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.
-                    </div>
+                    event.credit && <EventCreditNotice credit={event.credit} />
                 }
                 {children}
             </div>

@@ -85,8 +85,11 @@ A feature registers itself in `app.router.go` (client) or `admin.router.go`
   bucket (Lua script, atomic) per client IP: 100-request burst refilling at
   100/min, `X-RateLimit-*` and `Retry-After` headers. If Redis fails the
   request is allowed.
-- **Public registration** is queued in Redis and written by a worker started
-  from `app.router.go` (`register.StartWorker`).
+- **Applicant limits:** every applicant insert (dashboard, bulk, public form)
+  goes through `applicants.InsertApplicant`, which checks the event's credit
+  (`credit_entitlements` view) under a per-event advisory lock.
+- **Background jobs:** `retention` runs hourly inside the client API (Redis
+  lock) and deletes events past their credit's backup period.
 - **Scanner devices** authenticate with the `X-Device-Token` header (paired by
   PIN, optional WebAuthn), not a user session.
 - **Migrations:** plain numbered SQL in `internal/migrations`. During the

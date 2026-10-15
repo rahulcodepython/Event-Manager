@@ -19,6 +19,7 @@ import (
     "identitycard-server/internal/features/forms"
     "identitycard-server/internal/features/pricing"
     "identitycard-server/internal/features/register"
+    "identitycard-server/internal/features/retention"
     "identitycard-server/internal/generic"
     "identitycard-server/internal/middlewares"
     "identitycard-server/internal/pkg/cache"
@@ -55,8 +56,9 @@ func NewAppRouter(
     cch := cache.New(rdb)
     pricingApp := pricing.NewApp(pool, cch)
 
-    registerApp := register.NewApp(pool, rdb, cch)
-    registerApp.StartWorker(rootCtx)
+    applicantsApp := applicants.NewApp(pool, cch)
+    eventsApp := events.NewApp(pool, cch)
+    retention.NewApp(pool, rdb, eventsApp).StartWorker(rootCtx)
 
     return &AppRouter{
         App:     app,
@@ -67,11 +69,11 @@ func NewAppRouter(
 
         Auth:       auth.NewApp(pool, rdb, cfg),
         Credits:    credits.NewApp(pool, cfg, pricingApp),
-        Events:     events.NewApp(pool, cch),
+        Events:     eventsApp,
         Dates:      dates.NewApp(pool, cch),
         Forms:      forms.NewApp(pool, cch),
-        Register:   registerApp,
-        Applicants: applicants.NewApp(pool, cch),
+        Register:   register.NewApp(pool, cch, applicantsApp),
+        Applicants: applicantsApp,
         Devices:    devices.NewApp(pool, rdb, wa, cfg.RPID, cfg.CanonicalOrigin),
         Attendance: attendance.NewApp(pool, cch),
         Pricing:    pricingApp,
@@ -90,6 +92,7 @@ func (r *AppRouter) SetUp() {
     r.Credits.RegisterPublicRoutes(api)
     r.Register.RegisterRoutes(api)
     r.Devices.RegisterPublicRoutes(api)
+    api.Use("/events/:eventId/attendance", middlewares.EventWritable(r.DB))
     r.Attendance.RegisterPublicRoutes(api)
 
     // 2. Logged-in user, organization not required (session, onboarding).
@@ -100,6 +103,7 @@ func (r *AppRouter) SetUp() {
     //    id 404s unless that row belongs to the caller's organization.
     org := authed.Group("", middlewares.RequireOrganization)
     org.Use("/events/:eventId", middlewares.OwnedBy(r.DB, "events", "eventId"))
+    org.Use("/events/:eventId", middlewares.EventWritable(r.DB))
     org.Use("/forms/:formId", middlewares.OwnedBy(r.DB, "form_templates", "formId"))
     org.Use("/devices/:deviceId", middlewares.OwnedBy(r.DB, "devices", "deviceId"))
 

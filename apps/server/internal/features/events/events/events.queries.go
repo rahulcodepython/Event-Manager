@@ -33,8 +33,8 @@ const (
                 'logo', fe.logo,
                 'organizer', fe.organizer,
                 'credit', (
-                    SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at)
-                    FROM credits cr WHERE cr.id = fe.credit_id
+                    SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at, 'is_expired', ce.is_expired, 'prune_at', ce.prune_at, 'has_branding', ce.has_branding)
+                    FROM credits cr JOIN credit_entitlements ce ON ce.credit_id = cr.id WHERE cr.id = fe.credit_id
                 ),
                 'created_at', fe.created_at,
                 'updated_at', fe.updated_at
@@ -62,8 +62,8 @@ const (
             'logo', em.logo,
             'organizer', em.organizer,
             'credit', (
-                SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at)
-                FROM credits cr WHERE cr.id = e.credit_id
+                SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at, 'is_expired', ce.is_expired, 'prune_at', ce.prune_at, 'has_branding', ce.has_branding)
+                FROM credits cr JOIN credit_entitlements ce ON ce.credit_id = cr.id WHERE cr.id = e.credit_id
             ),
             'created_at', e.created_at,
             'updated_at', e.updated_at
@@ -115,8 +115,8 @@ const (
             'logo', m.logo,
             'organizer', m.organizer,
             'credit', (
-                SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at)
-                FROM credits cr WHERE cr.id = e.credit_id
+                SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at, 'is_expired', ce.is_expired, 'prune_at', ce.prune_at, 'has_branding', ce.has_branding)
+                FROM credits cr JOIN credit_entitlements ce ON ce.credit_id = cr.id WHERE cr.id = e.credit_id
             ),
             'created_at', e.created_at,
             'updated_at', e.updated_at
@@ -168,8 +168,8 @@ const (
                     'logo', m.logo,
                     'organizer', m.organizer,
                     'credit', (
-                        SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at)
-                        FROM credits cr WHERE cr.id = e.credit_id
+                        SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at, 'is_expired', ce.is_expired, 'prune_at', ce.prune_at, 'has_branding', ce.has_branding)
+                        FROM credits cr JOIN credit_entitlements ce ON ce.credit_id = cr.id WHERE cr.id = e.credit_id
                     ),
                     'created_at', e.created_at,
                     'updated_at', e.updated_at
@@ -178,6 +178,13 @@ const (
                 JOIN upd_meta m ON m.id = e.id
             )
         );
+    `
+
+    // DeleteOrphanApplicantsQuery removes applicants no longer registered to
+    // any event (run after deleting an event; its rows cascade away first).
+    DeleteOrphanApplicantsQuery = `
+        DELETE FROM applicants a
+        WHERE NOT EXISTS (SELECT 1 FROM event_applicants ea WHERE ea.user_id = a.id);
     `
 
     // DeleteEventQuery deletes the event and cascades to event_metadata in a single CTE statement.

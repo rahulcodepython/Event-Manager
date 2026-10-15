@@ -39,6 +39,7 @@ export const PublicApplyConfigSchema = z.object({
     is_full: z.boolean(),
     max_applicants: z.number(),
     current_applicants: z.number(),
+    branding: z.boolean().default(false),
     expires_at: z.string(),
     event: PublicEventInfoSchema.nullish(),
     form: PublicFormInfoSchema.nullish(),

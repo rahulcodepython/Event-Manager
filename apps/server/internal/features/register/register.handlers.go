@@ -4,6 +4,7 @@ import (
     "errors"
 
     "github.com/gofiber/fiber/v2"
+    "identitycard-server/internal/features/applicants"
     "identitycard-server/internal/utils"
 )
 
@@ -34,7 +35,7 @@ func (h *App) SubmitApplicationHandler(c *fiber.Ctx) error {
 
     res, err := h.SubmitApplicationService(c.UserContext(), eventFormID, *req)
     if err != nil {
-        if errors.Is(err, ErrInvalidEventFormID) || errors.Is(err, ErrInvalidName) || errors.Is(err, ErrInvalidEmail) || errors.Is(err, ErrInvalidPhone) {
+        if errors.Is(err, ErrInvalidEventFormID) || errors.Is(err, ErrDataPayloadTooLarge) || errors.Is(err, applicants.ErrInvalidName) || errors.Is(err, applicants.ErrInvalidEmail) || errors.Is(err, applicants.ErrInvalidPhone) {
             return utils.ErrBadRequest(c, err.Error(), err)
         }
         if errors.Is(err, ErrFormNotFound) {
@@ -43,7 +44,7 @@ func (h *App) SubmitApplicationHandler(c *fiber.Ctx) error {
         if errors.Is(err, ErrFormNotLive) || errors.Is(err, ErrFormExpired) || errors.Is(err, ErrFormLimitReached) {
             return utils.ErrForbidden(c, err.Error(), err)
         }
-        if errors.Is(err, ErrAlreadyRegistered) {
+        if errors.Is(err, applicants.ErrAlreadyRegistered) {
             return utils.ErrConflict(c, err.Error(), err)
         }
         return utils.ErrInternal(c, "failed to submit application", err)

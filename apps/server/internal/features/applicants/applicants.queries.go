@@ -14,22 +14,33 @@ const (
         WHERE ef.event_id = $1::uuid;
     `
 
-    // CreateApplicantAtomicQuery checks for event existence, validates duplicate email,
-    // and registers the applicant atomically in one single database roundtrip.
+    // CreateApplicantAtomicQuery registers an applicant unless the event's
+    // credit has ended, the email is already registered, or the credit's
+    // applicant limit (or the extra cap $7, -1 for none) is reached. Run it
+    // under the event's applicant lock.
+    // Returns {status, applicant}.
     CreateApplicantAtomicQuery = `
-        WITH event_check AS (
-            SELECT id FROM events WHERE id = $1::uuid
+        WITH ent AS (
+            SELECT ce.applicant_limit, ce.is_expired
+            FROM credit_entitlements ce
+            JOIN events e ON e.credit_id = ce.credit_id
+            WHERE e.id = $1::uuid
         ),
-        duplicate_check AS (
-            SELECT EXISTS (
-                SELECT 1 FROM event_applicants WHERE event_id = $1::uuid AND email = $4
-            ) AS email_exists
+        check_status AS (
+            SELECT CASE
+                WHEN NOT EXISTS (SELECT 1 FROM ent) THEN 'not_found'
+                WHEN (SELECT is_expired FROM ent) THEN 'expired'
+                WHEN EXISTS (SELECT 1 FROM event_applicants WHERE event_id = $1::uuid AND email = $4) THEN 'already_registered'
+                WHEN (SELECT count(*) FROM event_applicants WHERE event_id = $1::uuid)
+                     >= LEAST((SELECT applicant_limit FROM ent), CASE WHEN $7::int = -1 THEN (SELECT applicant_limit FROM ent) ELSE $7::int END)
+                     THEN 'limit_reached'
+                ELSE 'ok'
+            END AS code
         ),
         inserted_applicant AS (
             INSERT INTO applicants (id, name, email, phone, data, created_at, updated_at)
             SELECT $2, $3, $4, $5, $6::jsonb, now(), now()
-            FROM event_check ec, duplicate_check dc
-            WHERE dc.email_exists = false
+            FROM check_status WHERE code = 'ok'
             ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email, phone = EXCLUDED.phone, data = EXCLUDED.data, updated_at = now()
             RETURNING id, name, email, phone, data, created_at
         ),
@@ -40,14 +51,19 @@ const (
             RETURNING id
         )
         SELECT jsonb_build_object(
-            'user_id', ia.id,
-            'name', ia.name,
-            'email', ia.email,
-            'phone', ia.phone,
-            'data', ia.data,
-            'created_at', ia.created_at
-        )
-        FROM inserted_applicant ia;
+            'status', (SELECT code FROM check_status),
+            'applicant', (
+                SELECT jsonb_build_object(
+                    'user_id', ia.id,
+                    'name', ia.name,
+                    'email', ia.email,
+                    'phone', ia.phone,
+                    'data', ia.data,
+                    'created_at', ia.created_at
+                )
+                FROM inserted_applicant ia
+            )
+        );
     `
 
     DeleteApplicantQuery = `

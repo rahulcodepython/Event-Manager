@@ -32,6 +32,8 @@ type Credit struct {
     Total     int64           `json:"total"`
     StartsAt  time.Time       `json:"starts_at"`
     EndsAt    time.Time       `json:"ends_at"`
+    // PruneAt: when an event on this credit is deleted (ends_at + backup days).
+    PruneAt   time.Time       `json:"prune_at"`
     CreatedAt time.Time       `json:"created_at"`
     Event     *CreditEvent    `json:"event"`
     Features  []CreditFeature `json:"features"`

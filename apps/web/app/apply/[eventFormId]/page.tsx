@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { ApplyEventHeader } from "../../../components/apply/apply-event-header";
 import { ApplyStatusCard } from "../../../components/apply/apply-status-card";
 import { ApplySuccessCard } from "../../../components/apply/apply-success-card";
+import { PoweredByFooter } from "../../../components/apply/powered-by-footer";
 import { PublicApplyForm } from "../../../components/apply/public-apply-form";
 import { usePublicApplyConfigQuery } from "../../../query-hooks/publicapply.api";
 import type { SubmitApplicationResponse } from "../../../schema/publicapply.types";
@@ -69,11 +70,18 @@ export default function PublicApplyPage() {
     // 3. Submission Successful Screen
     if (submissionSuccess) {
         return (
-            <ApplySuccessCard
-                submission={submissionSuccess}
-                eventName={config.event?.name}
-                email={submittedEmail}
-            />
+            <>
+                <ApplySuccessCard
+                    submission={submissionSuccess}
+                    eventName={config.event?.name}
+                    email={submittedEmail}
+                />
+                {
+                    !config.branding && <div className="pb-6">
+                        <PoweredByFooter />
+                    </div>
+                }
+            </>
         );
     }
 
@@ -84,6 +92,7 @@ export default function PublicApplyPage() {
                 <ApplyEventHeader
                     event={config.event ?? undefined}
                     form={config.form ?? undefined}
+                    branding={config.branding}
                 />
 
                 <PublicApplyForm
@@ -91,6 +100,10 @@ export default function PublicApplyPage() {
                     config={config}
                     onSuccess={handleSuccess}
                 />
+
+                {
+                    !config.branding && <PoweredByFooter />
+                }
             </div>
         </div>
     );

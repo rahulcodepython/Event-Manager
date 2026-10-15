@@ -46,7 +46,7 @@ revenue, expenses and the feature catalog.
 | events/events | `/events` | CRUD, search, pagination |
 | events/dates | `/events/:eventId/dates` | per-day hours; bulk update and override |
 | forms | `/forms`, `/events/:eventId/form` | reusable templates; event form with capacity, deadline, lock |
-| register | `/public/apply/:eventFormId` | public submission queued in Redis, written by a worker |
+| register | `/public/apply/:eventFormId` | public form config (effective capacity, branding) and submission through the shared capped insert |
 | applicants | `/events/:eventId/applicants` | list with search and JSON filters, create, bulk create, delete |
 | devices | `/devices`, `/events/:eventId/devices` | PIN pairing, WebAuthn, assignment to events |
 | attendance | `/events/:eventId/attendance`, `/events/:eventId/analysis` | scan, entry, exit, verify, offline sync; metrics and attendee lists |
@@ -83,6 +83,13 @@ landing page, coupons.
   `features.trial_value`, cap in `pricing_settings.trial_max_event_days`);
   trial events are test-only. Payments: Razorpay order from the server
   quote, signature verify + signed webhook, idempotent fulfilment.
+- **Entitlements:** `credit_entitlements` view is the one place limits are
+  read (by feature key). All applicant inserts go through
+  `applicants.InsertApplicant` under a per-event advisory lock, so the cap is
+  exact. Writes to an event whose credit ended are blocked
+  (`middlewares.EventWritable`); `retention` deletes events at
+  `prune_at = ends_at + backup_days`. Public registration is a direct insert
+  (the old Redis stream queue was removed).
 - **Rate limiting:** Redis token bucket per client IP (100 burst, refills
   100/min), shared across instances; fails open if Redis is down.
 - **One root `.env`** for every app and for Docker Compose. Redis requires a

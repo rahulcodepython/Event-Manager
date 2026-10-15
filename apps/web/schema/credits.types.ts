@@ -13,6 +13,7 @@ export const CreditSchema = z.object({
     total: z.number(),
     starts_at: z.string(),
     ends_at: z.string(),
+    prune_at: z.string(),
     created_at: z.string(),
     event: z.object({ id: z.string(), name: z.string() }).nullable(),
     features: z.array(

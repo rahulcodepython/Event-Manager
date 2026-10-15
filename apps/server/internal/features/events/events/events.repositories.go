@@ -95,15 +95,17 @@ func (r *App) UpdateRepository(ctx context.Context, id string, req UpdateEventRe
     return result.Data, nil
 }
 
-// DeleteRepository removes an event by ID in a single CTE network round-trip.
+// DeleteRepository removes an event with all its data, then the applicants
+// that belonged only to it.
 func (r *App) DeleteRepository(ctx context.Context, id string) error {
-    var deletedID string
-    err := r.DB.QueryRow(ctx, DeleteEventQuery, id).Scan(&deletedID)
-    if err != nil {
-        if errors.Is(err, pgx.ErrNoRows) {
-            return postgres.ErrNotFound
+    return postgres.WithTx(ctx, r.DB, func(tx pgx.Tx) error {
+        var deletedID string
+        if err := tx.QueryRow(ctx, DeleteEventQuery, id).Scan(&deletedID); err != nil {
+            if errors.Is(err, pgx.ErrNoRows) {
+                return postgres.ErrNotFound
+            }
+            return postgres.MapPgError(err)
         }
-        return postgres.MapPgError(err)
-    }
-    return nil
+        return postgres.Exec(ctx, tx, DeleteOrphanApplicantsQuery)
+    })
 }

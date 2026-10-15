@@ -6,6 +6,7 @@ import (
     "log/slog"
 
     "github.com/gofiber/fiber/v2"
+    "identitycard-server/internal/pkg/entitlements"
     "identitycard-server/internal/utils"
 )
 
@@ -73,6 +74,9 @@ func (h *App) CreateApplicantHandler(c *fiber.Ctx) error {
         }
         if errors.Is(err, ErrAlreadyRegistered) {
             return utils.ErrConflict(c, err.Error(), err)
+        }
+        if errors.Is(err, ErrLimitReached) || errors.Is(err, entitlements.ErrReadOnly) {
+            return utils.ErrForbidden(c, err.Error(), err)
         }
         return utils.ErrInternal(c, "failed to create applicant", err)
     }

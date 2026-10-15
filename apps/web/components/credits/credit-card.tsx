@@ -50,8 +50,13 @@ export function CreditCard({ credit }: { credit: Credit }) {
                     }
                 </ul>
                 {
-                    isTrial && <p className="rounded-md bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
+                    isTrial && isActive && <p className="rounded-md bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
                         Test only: the trial event is deleted when the trial ends.
+                    </p>
+                }
+                {
+                    !isActive && credit.event && <p className="rounded-md bg-destructive/10 p-2 text-xs text-destructive">
+                        Read-only. Event data will be deleted on {formatDate(credit.prune_at)}.
                     </p>
                 }
             </CardContent>
