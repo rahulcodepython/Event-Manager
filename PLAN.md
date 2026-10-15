@@ -113,9 +113,12 @@ editable from admin. To confirm: Q7.
 - Scanner devices keep their own device auth and belong to an organization.
 - Single root `.env` for all apps and Docker Compose; Redis password; Razorpay and Resend keys reserved.
 
-### Phase 2 — Feature catalog and pricing engine
-- Tables `features`, `feature_rates` (and `feature_options` if needed), seeded with the 5 default features.
-- Server-side quote endpoint: input is the feature values, output is line items and the total. The browser never computes the payable amount on its own.
+### Phase 2 — Feature catalog and pricing engine ✅ done
+- Tables `features`, `feature_options` (preset choices), `feature_rates` (base prices) and a single-row `pricing_settings` (currency, base fee, tax name and rate). Seeded with placeholder INR prices in migration `000010_pricing`.
+- Each feature has a pricing type: `flat` (on/off), `per_unit` (price × ceil(value / unit_size)) or `tiered` (band price). The active rate whose range holds the value decides the price; no matching rate means free.
+- Total = base fee + sum of feature prices, then GST 18% (exclusive) on top. Amounts in paise.
+- Duration = maximum event length in days. Sub-events = number allowed. Branding = on/off.
+- Public endpoints: `GET /pricing/catalog` (features, options, price per option) and `POST /pricing/quote` (line items, subtotal, tax, total). A feature left out of a quote uses its default; unknown keys or values outside the options are rejected.
 
 ### Phase 3 — Credits and payments
 - Purchase form: feature inputs, live total from the quote endpoint, credit name, pay.
@@ -186,13 +189,6 @@ Q8 asks whether `admin` and `landing` should be separate apps like this.
 ## 6. Open questions
 
 ### Pricing and credits
-1. **Rate shape.** How is a feature priced?
-   - (a) Per unit: e.g. ₹X per 100 applicants, ₹Y per extra day.
-   - (b) Tiers/bands: e.g. 1–100 = ₹A, 101–500 = ₹B.
-   - (c) Boolean on/off price (e.g. branding).
-   - (d) A mix, chosen per feature.
-2. **Total formula.** Is the total a simple sum of each feature's price? Or does duration multiply other features?
-3. **Duration.** Does it mean the length of the event (days between start and end), or how long the event stays usable? When does the clock start: purchase, or event start?
 4. **Branding.** What exactly does it unlock: the client's logo and colours on forms, cards and emails? Removal of platform branding?
 5. **Credit lifecycle.**
    - Does an unused credit expire?

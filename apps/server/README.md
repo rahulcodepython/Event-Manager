@@ -80,6 +80,11 @@ A feature registers itself in `app.router.go` (client) or `admin.router.go`
 - **Cache:** `internal/pkg/cache` over Redis; reads use `RememberWithJitter`,
   services delete key patterns after writes. Key formats live in
   `internal/generic/constants.go`.
+- **Money** is an integer in the smallest currency unit (paise), never a float.
+- **Rate limiting:** `middlewares.RateLimiterMiddleware` is a Redis token
+  bucket (Lua script, atomic) per client IP: 100-request burst refilling at
+  100/min, `X-RateLimit-*` and `Retry-After` headers. If Redis fails the
+  request is allowed.
 - **Public registration** is queued in Redis and written by a worker started
   from `app.router.go` (`register.StartWorker`).
 - **Scanner devices** authenticate with the `X-Device-Token` header (paired by

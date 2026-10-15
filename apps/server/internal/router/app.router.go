@@ -16,6 +16,7 @@ import (
     "identitycard-server/internal/features/events/dates"
     "identitycard-server/internal/features/events/events"
     "identitycard-server/internal/features/forms"
+    "identitycard-server/internal/features/pricing"
     "identitycard-server/internal/features/register"
     "identitycard-server/internal/generic"
     "identitycard-server/internal/middlewares"
@@ -38,6 +39,7 @@ type AppRouter struct {
     Applicants *applicants.App
     Devices    *devices.App
     Attendance *attendance.App
+    Pricing    *pricing.App
 }
 
 func NewAppRouter(
@@ -68,6 +70,7 @@ func NewAppRouter(
         Applicants: applicants.NewApp(pool, cch),
         Devices:    devices.NewApp(pool, rdb, wa, cfg.RPID, cfg.CanonicalOrigin),
         Attendance: attendance.NewApp(pool, cch),
+        Pricing:    pricing.NewApp(pool, cch),
     }
 }
 
@@ -76,9 +79,10 @@ func (r *AppRouter) SetUp() {
 
     api := r.App.Group(generic.APIV1Prefix)
 
-    // 1. Public: no user session (Google login, public registration form,
-    //    scanner devices authenticated by their own device token).
+    // 1. Public: no user session (Google login, pricing, public registration
+    //    form, scanner devices authenticated by their own device token).
     r.Auth.RegisterPublicRoutes(api)
+    r.Pricing.RegisterPublicRoutes(api)
     r.Register.RegisterRoutes(api)
     r.Devices.RegisterPublicRoutes(api)
     r.Attendance.RegisterPublicRoutes(api)

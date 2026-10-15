@@ -41,6 +41,7 @@ revenue, expenses and the feature catalog.
 | Feature | Routes (under `/api/v1`) | Notes |
 |---|---|---|
 | auth | `/auth/google`, `/auth/google/callback`, `/auth/me`, `/auth/onboarding`, `/auth/logout` | Google login, JWT cookies, refresh rotation in Redis, onboarding creates the org |
+| pricing | `/pricing/catalog`, `/pricing/quote` | public; feature catalog with option prices; server-side quote (base fee + features + GST) |
 | events/events | `/events` | CRUD, search, pagination |
 | events/dates | `/events/:eventId/dates` | per-day hours; bulk update and override |
 | forms | `/forms`, `/events/:eventId/form` | reusable templates; event form with capacity, deadline, lock |
@@ -71,6 +72,12 @@ landing page, coupons.
   First login goes through an onboarding form that creates the organization.
 - **Data scoping:** `events`, `form_templates` and `devices` carry
   `organization_id`; child tables are scoped through their event.
+- **Pricing:** features are rows (`features`, `feature_options`, `feature_rates`)
+  plus one `pricing_settings` row (base fee, GST). Pricing types: flat,
+  per_unit, tiered. Money is stored in paise (BIGINT). Only the server
+  computes payable amounts (`pricing.QuoteService`).
+- **Rate limiting:** Redis token bucket per client IP (100 burst, refills
+  100/min), shared across instances; fails open if Redis is down.
 - **One root `.env`** for every app and for Docker Compose. Redis requires a
   password. Razorpay (payments) and Resend (email) keys live there too.
 - **QR payload today is unsigned** base64 JSON (`eventId`, `applicantID`,
