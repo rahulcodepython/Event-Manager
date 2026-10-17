@@ -4,7 +4,7 @@ import * as React from "react"
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
 
-import { Button } from "@/components/ui/button"
+import { Button } from "./button"
 import { XIcon } from "lucide-react"
 
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {
@@ -84,7 +84,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-header"
-      className={cn("flex flex-col gap-1.5 p-6", className)}
+      className={cn("flex flex-col gap-2 p-6", className)}
       {...props}
     />
   )

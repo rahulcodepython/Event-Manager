@@ -2,19 +2,14 @@
 
 import { create } from "zustand";
 
-export interface BreadcrumbItemData {
-    label: string;
-    href?: string;
-}
+import type { Breadcrumb } from "../schema/breadcrumb.types";
 
-interface BreadcrumbState {
-    items: BreadcrumbItemData[];
-    setBreadcrumbs: (items: BreadcrumbItemData[]) => void;
-    clearBreadcrumbs: () => void;
+export interface BreadcrumbState {
+    breadcrumbs: Breadcrumb[];
+    setBreadcrumbs: (breadcrumbs: Breadcrumb[]) => void;
 }
 
 export const useBreadcrumbStore = create<BreadcrumbState>((set) => ({
-    items: [],
-    setBreadcrumbs: (items) => set({ items }),
-    clearBreadcrumbs: () => set({ items: [] }),
+    breadcrumbs: [],
+    setBreadcrumbs: (breadcrumbs) => set({ breadcrumbs }),
 }));

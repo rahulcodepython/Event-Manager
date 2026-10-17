@@ -1,158 +1,132 @@
 # apps/server
 
-Go/Fiber API: Postgres (via [sqlc](https://sqlc.dev) + pgx).
-Auth lives entirely in `apps/web` now (better-auth) — this API is a pure
-resource server that verifies bearer JWTs against better-auth's JWKS
-endpoint (`internal/middlewares/auth.go`, `internal/pkg/jwt`). It never
-issues a session and has no login/register/OTP/TOTP/OAuth endpoints of
-its own; `internal/db/migrations/000035_better_auth_schema.up.sql` is the
-schema better-auth's CLI generated, pasted in so one `migrate` pipeline
-sets up both apps' tables.
+Go + Fiber API over Postgres (pgx) and Redis. One codebase, two binaries:
+
+| Binary | Entry | Router | Port env | Purpose |
+|---|---|---|---|---|
+| client API | `cmd/server/main.go` | `internal/router/app.router.go` | `API_PORT` (8000) | dashboard, public registration, scanner |
+| admin API | `cmd/admin/main.go` | `internal/router/admin.router.go` | `ADMIN_API_PORT` (8001) | platform admin |
+| sites | `cmd/sites/main.go` | `internal/router/sites.router.go` | `SITES_PORT` (8002) | uploaded event sites at `<slug>.<SITES_DOMAIN>` |
+
+`internal/router/shared.go` holds what both binaries share: Fiber defaults
+(`NewFiberApp`), the middleware stack and `/health`, and graceful shutdown
+(`Listen`).
 
 ## Setup
 
+Config comes from the repo-root `.env` (see `/.env.example`).
+
 ```bash
-cp .env.example .env          # defaults match infra/docker-compose.yml
-cd ../../infra && docker compose up -d
-cd ../apps/server
-make dev                      # http://localhost:8000 — migrates on boot
-make seed                     # creates the first org + super_admin login
+bun run docker:up   # from the repo root; runs migrations once via the migrate service
+cd apps/server
+make dev            # client API
+make dev-admin      # admin API
+make dev-sites      # event sites
+make seed           # optional demo data (cmd/seed: -action=seed|flush|regenerate)
 ```
 
-Migrations (this app's and better-auth's) apply automatically on boot —
-no separate `make migrate-up` step needed against a fresh database. `make
-seed` writes directly into better-auth's tables (no password, the app is
-passwordless) so there's an account to sign in with immediately; the
-normal path is registering for real through `apps/web`'s `/register`
-(email-OTP + forced TOTP enrollment), which is gated behind choosing a
-plan before an organization exists at all (see `apps/web/lib/auth.ts`).
+## Auth and routing tiers
+
+`internal/features/auth` handles Google login (OAuth code flow with state +
+PKCE) and issues two HS256 JWTs as `HttpOnly`, `SameSite=Lax` cookies:
+
+- `access_token`: 15 minutes, carries user id and organization id.
+- `refresh_token`: 7 days, sliding. Its id is stored in Redis, so each one
+  can be used once (30 s grace for parallel requests). Reusing an old one
+  revokes all of that user's sessions. Logout revokes it.
+
+`auth.RequireAuth` accepts a valid access token. If it is expired (or
+missing) it rotates the refresh token and continues; anything invalid
+clears both cookies and returns 401.
+
+Sessions live in `internal/pkg/jwtauth` (issue, rotate, revoke, cookies,
+`Authenticate`), shared by both binaries. `jwtauth.ClientConfig` and
+`jwtauth.AdminConfig` give each realm its own audience, secrets, cookie names
+and Redis keys, so a client token never works on the admin API.
+
+The admin API (`internal/features/admin/session`) checks
+`ADMIN_USERNAME` / `ADMIN_PASSWORD` from the environment (5 failed attempts
+per IP per 15 min) and guards every other admin route with
+`session.RequireAdmin`. `cmd/admin` refuses to start without the four
+`ADMIN_*` settings.
+
+`app.router.go` mounts routes in three tiers:
+
+1. **Public:** Google login, public registration form, scanner devices
+   (authenticated by `X-Device-Token`, not a user session). The public
+   application flow (`features/applyflow`) uses its own signed
+   `applicant_session` cookie, set after Google sign-in and scoped to
+   `/api/v1/public/apply`.
+2. **Logged in:** `/auth/me`, `/auth/onboarding`.
+3. **Logged in with an organization:** everything else. `middlewares.OwnedBy`
+   404s any `/events/:eventId`, `/forms/:formId` or `/devices/:deviceId` path
+   whose row belongs to another organization. List and create queries take
+   the organization id from `middlewares.OrgID(c)`.
+
+Feature routes follow this split: `RegisterPublicRoutes` for tier 1 and
+`RegisterRoutes` for tier 3.
+
+## Feature layout
+
+Each feature lives in `internal/features/<name>/` (nested for sub-areas, e.g.
+`events/dates`) and is split by file suffix:
+
+| File | Role |
+|---|---|
+| `<name>.app.go` | `App` struct holding dependencies (`DB`, `Cache`, ...) and `NewApp` |
+| `<name>.routes.go` | `RegisterRoutes(r fiber.Router)` |
+| `<name>.handlers.go` | parse request, call service, map errors to responses |
+| `<name>.services.go` | business rules and validation, cache invalidation |
+| `<name>.repositories.go` | thin calls into `internal/pkg/postgres` |
+| `<name>.queries.go` | raw SQL constants |
+| `<name>.entities.go` | request/response structs |
+| `<name>.helper.go` | feature-local helpers (optional) |
+
+A feature registers itself in `app.router.go` (client) or `admin.router.go`
+(admin). Admin features live under `internal/features/admin/`.
 
 ## Conventions
 
-- One folder per feature under `internal/modules/<name>`: `routes.go` →
-  `handler.go` (bind + validate) → `service.go` (business logic) →
-  `repository.go` (sqlc queries). No cross-module repository calls for
-  reads — those go through the other module's `Service`. The one exception
-  is a write that must be atomic across modules: it uses `db.WithTx` and
-  constructs short-lived, tx-scoped repositories directly via
-  `dbgen.Queries.WithTx(tx)`.
-- Every request DTO is bound + validated with `httpx.BindAndValidate`
-  (`internal/httpx/bind.go`); every response is a typed struct passed to
-  `httpx.OK`. Never `map[string]interface{}` on either side.
-- Tenant-owned tables always carry `organization_id`; repository functions
-  that read them always take `organizationID` as an explicit argument.
-- SQL lives in `internal/db/sqlc/queries/*.sql`; run `make sqlc-generate`
-  after adding/changing a query to regenerate `internal/db/sqlc/generated`
-  (gitignored, not committed).
-- Schema changes are plain SQL migrations: `make migrate-new name=<desc>`,
-  then `make migrate-up`.
-- A sub-resource that only ever makes sense nested under its parent (e.g.
-  `subevents`/`people`/`forms` under `events`) gets its own module and its
-  own tx-scoped `Repository.WithTx`, but reads the parent's state through
-  the parent's `Service` rather than its repository — see
-  `events.Service.GetContext`, used by `subevents`, `people`, and `forms`.
-  Its routes are mounted nested too: `/events/:eventId/<resource>/...`.
-- Routes that must work with no authenticated session at all (the public
-  sign-up form, plan listing, pairing, scanner) live on the `public` router
-  group passed into each module's single `RegisterRoutes(protected, public)`
-  function, mounted outside the `auth` middleware group — see
-  `internal/features/forms/forms.routes.go` (`/public/forms/:token`). Token
-  possession is the only access control; there is no user identity to check.
-- Three ingestion paths (manual entry, CSV import, public-form submission)
-  all write a person through the same `people.Service.upsert`: one row per
-  `(event_id, email, mobile)`, `INSERT ... ON CONFLICT DO UPDATE`, telling
-  insert from update via Postgres's `xmax = 0` trick in the `RETURNING`
-  clause rather than a separate existence check.
-- A capacity-limited resource (`event_forms.submissions_count`) is charged
-  by an atomic conditional `UPDATE ... WHERE submissions_count < capacity
-  RETURNING *` (zero rows back means full) *before* the write it's gating,
-  then refunded with a plain decrement if that write turns out to be a
-  no-op (an existing registrant resubmitting) — see `forms.Service.Submit`.
-  This never lets the gated write happen without a reserved slot, at the
-  cost of a brief, self-correcting overcount under concurrent duplicates.
-- A response that isn't JSON (CSV export, the org logo, a generated PDF)
-  skips `httpx.OK` and sets `Content-Type`/`Content-Disposition` directly —
-  see `people.Handler.Export`, `organizations.Handler.GetLogo`,
-  `cards.Handler.Download`. A deliberate, narrow exception to the
-  `{"data": ...}` envelope convention, not a precedent for skipping it
-  elsewhere.
-- When module A needs a callback into module B, but B already depends on A
-  (so B can't import A back without cycling), A defines a small interface
-  for just the method it needs and takes that instead of B's concrete type
-  — see `events.CardSender`, satisfied by `cards.Service`. Only `cmd/server`
-  imports both packages, so it's the only place that can hand the concrete
-  type in; the two packages themselves never reference each other.
-- Nothing user-supplied that resolves to a network address is fetched
-  without going through a SSRF-safe client: `cards` fetches an attendee's
-  external photo URL (submitted, unauthenticated, through the public
-  sign-up form) via a custom `DialContext` that re-resolves and validates
-  the IP is public *at connect time*, not just when the URL is parsed —
-  see `internal/modules/cards/fetchimage.go`. Any failure (blocked
-  address, wrong content-type, oversized body) just means the card renders
-  without a photo; it never fails generation over a URL we don't control.
-- ID card PDFs (with an embedded QR code, see `internal/qrtoken`) are
-  generated fresh on every request and never persisted, matching the "no
-  server-side photo/PDF storage" decision from the project's Phase 0
-  scoping — `cards.Service.generate` is the one place that assembles one.
-- A scanner-bot device never logs in as an org member — it authenticates
-  every request with an opaque key (paired once via OTP, stored only as a
-  hash) sent as `X-Device-Key`, not a session cookie. Because validating it
-  means a DB lookup, its middleware lives as a method on `devices.Service`
-  (`RequireDevice`) rather than in the generic, stateless
-  `internal/middleware` package — see `internal/modules/devices/middleware.go`.
-  The scanner UI calls this API directly from the browser (the key lives in
-  `localStorage`, so there's no server-side proxy to forward it through),
-  which is why `X-Device-Key` is in the CORS `AllowHeaders` list in
-  `cmd/server/main.go` alongside `Content-Type`.
-- Two modules each own routes on the scanner URL group under `public`:
-  `devices.RegisterRoutes` mounts the device-authenticated `/scanner/me` route,
-  and `attendance.RegisterRoutes` mounts the device-authenticated `/scanner/scan`
-  route using device authentication middleware.
-- `attendance.Service.BuildRoster` is the single source of truth for "who
-  was expected on which date, and did they show up" — it's not just a scan
-  log query, it includes people who were never scanned at all (`Attended:
-  false`). `analytics.Service` never touches `attendance_records` directly;
-  it calls `BuildRoster` (whole-event, and once per sub-event) and rolls
-  the same rows up into summary/daily numbers, so "expected" and
-  "attended" can't drift into two different definitions across modules.
-- **Auth is entirely better-auth's** (`apps/web/lib/auth.ts` — jwt,
-  organization, emailOTP, twoFactor plugins). This API never issues a
-  session; `internal/middlewares/auth.go`'s `RequireAuth` only verifies
-  the bearer JWT against better-auth's JWKS endpoint
-  (`internal/pkg/jwt.Verifier`, fetched once and refreshed in the
-  background, not per request). `organizationId`/`role` are read straight
-  off the JWT's claims (baked in at issue time by better-auth's
-  `definePayload`) — no DB round trip needed for RBAC.
-- **Add-ons** (`internal/modules/addons`) are purchased on top of an
-  existing subscription without changing plans — a separate concept from
-  `plans.kind = 'flash'`, which is a standalone plan chosen at
-  registration. Stubbed the same way `plans.CreateSubscription` is: a
-  purchase just inserts an `active` `subscription_addons` row, no payment
-  gateway call.
-- **Plan upgrade** (`plans.Service.Upgrade`, `POST
-  /plans/subscription/upgrade`) cancels the org's current active
-  subscription and inserts a new one atomically (`db.WithTx`), keeping
-  subscription history instead of mutating `plan_id` in place — mirrors
-  how Stripe-style plan changes are usually modeled. Also stubbed, no
-  payment call.
-- `GET /analytics/overview` (dashboard home page's stats) is built the
-  same way `analytics.Service.Summary`/`Daily` are: it calls
-  `attendance.Service.BuildRoster` once per event and rolls the results
-  up, rather than querying `attendance_records` or `people` directly, so
-  org-wide numbers can't drift from the per-event definitions of
-  "expected"/"attended". The daily trend is capped to the last 30 days
-  (`overviewTrendDays`) for the same reason the per-event daily chart has
-  no pagination yet — an unbounded trend line for a long-running org would
-  be unreadable.
+- **SQL:** queries return JSON built in Postgres (`jsonb_build_object`) and are
+  decoded with `postgres.QueryJSON[T]` / `QueryJSONSlice[T]`; writes use
+  `postgres.Exec`. Multi-statement writes use `postgres.WithTx`. Postgres errors
+  map to `postgres.ErrNotFound` / `ErrConflict` via `MapPgError`.
+- **Responses:** always through `internal/utils` (`OK`, `Created`, `ErrBadRequest`,
+  `ErrConflict`, `ErrInternal`, ...), giving `{success, message, data | error}`.
+- **Cache:** `internal/pkg/cache` over Redis; reads use `RememberWithJitter`,
+  services delete key patterns after writes. Key formats live in
+  `internal/generic/constants.go`.
+- **Money** is an integer in the smallest currency unit (paise), never a float.
+- **Rate limiting:** `middlewares.RateLimiterMiddleware` is a Redis token
+  bucket (Lua script, atomic) per client IP: 100-request burst refilling at
+  100/min, `X-RateLimit-*` and `Retry-After` headers. If Redis fails the
+  request is allowed.
+- **Applicant limits:** every applicant insert (dashboard, bulk, public form)
+  goes through `applicants.InsertApplicant`, which checks the event's credit
+  (`credit_entitlements` view) under a per-event advisory lock.
+- **Background jobs** (inside the client API, each guarded by a Redis lock):
+  `retention` (hourly) deletes events past their credit's backup period;
+  `cards` (every minute) publishes due cards and re-queues stuck ones;
+  `reminders` (every 10 min) queues client reminder emails.
+- **Email queue:** `internal/pkg/jobqueue` on the Redis stream `jobs:email`
+  (consumer group, retry sorted set, 5 attempts, reclaim after 5 min idle),
+  sending one email per 600 ms. Handlers must be idempotent.
+- **ID cards:** `internal/pkg/idcard` renders the PDF; `internal/pkg/qrsign`
+  signs and verifies QR payloads.
+- **Scanner devices** authenticate with the `X-Device-Token` header (paired by
+  PIN, optional WebAuthn), not a user session.
+- **Migrations:** plain numbered SQL in `internal/migrations`. During the
+  prototype phase, change schemas freely; no data-preserving migrations are
+  needed (see `CLAUDE.md`).
+- **Formatting:** 4-space indentation in all files (`AGENTS.md`).
 
 ## Commands
 
-| command              | what it does                                   |
-| -------------------- | ----------------------------------------------- |
-| `make dev`            | run the API with live env from `.env`           |
-| `make build`           | build `bin/api`                                |
-| `make seed`             | create the first org + super_admin user      |
-| `make migrate-up/down`   | apply/rollback one migration               |
-| `make migrate-new name=` | scaffold a new migration pair             |
-| `make sqlc-generate`      | regenerate typed query code               |
-| `make lint`                | `go vet` + `gofmt -l`                   |
+| Command | What it does |
+|---|---|
+| `make dev` / `make dev-admin` | run the client / admin API |
+| `make build` / `make build-admin` | build `bin/server` / `bin/admin` |
+| `make seed`, `make flush` | seed or wipe demo data (`SEED_CLIENT_EMAIL` owns it) |
+| `make migrate-up` / `migrate-down` | apply / roll back one migration |
+| `make migrate-new name=<desc>` | scaffold a migration pair |
+| `make lint` | `go vet` + `gofmt -l` |

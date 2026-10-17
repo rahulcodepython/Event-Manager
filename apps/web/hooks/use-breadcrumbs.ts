@@ -1,21 +1,29 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { BreadcrumbItemData, useBreadcrumbStore } from "@/store/breadcrumb.store";
+import * as React from "react";
 
-export type { BreadcrumbItemData };
+import type { Breadcrumb } from "../schema/breadcrumb.types";
+import { useBreadcrumbStore } from "../store/breadcrumb.store";
 
-export function useSetBreadcrumbs(items: BreadcrumbItemData[]) {
-    const setBreadcrumbs = useBreadcrumbStore((s) => s.setBreadcrumbs);
-    const clearBreadcrumbs = useBreadcrumbStore((s) => s.clearBreadcrumbs);
+/**
+ * Custom hook to set page breadcrumbs without boilerplate.
+ * Safely compares breadcrumbs by serialized value so inline array literals do not trigger re-render loops.
+ *
+ * @example
+ * useBreadcrumbs([
+ *     { title: "Dashboard", url: "/dashboard" },
+ *     { title: "Events" },
+ * ]);
+ */
+export function useBreadcrumbs(breadcrumbs: Breadcrumb[]): void {
+    const setBreadcrumbs = useBreadcrumbStore((state) => state.setBreadcrumbs);
 
-    // Serialized comparison prevents infinite re-render loops when inline array literals are passed
-    const serialized = useMemo(() => JSON.stringify(items), [items]);
+    const serialized = React.useMemo(
+        () => JSON.stringify(breadcrumbs),
+        [breadcrumbs]
+    );
 
-    useEffect(() => {
-        setBreadcrumbs(items);
-        return () => {
-            clearBreadcrumbs();
-        };
-    }, [serialized, setBreadcrumbs, clearBreadcrumbs]);
+    React.useEffect(() => {
+        setBreadcrumbs(breadcrumbs);
+    }, [setBreadcrumbs, serialized]);
 }

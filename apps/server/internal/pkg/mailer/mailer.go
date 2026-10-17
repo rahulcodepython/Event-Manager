@@ -1,146 +1,105 @@
+// Package mailer sends email through the Resend HTTP API.
 package mailer
 
 import (
+    "bytes"
     "context"
+    "encoding/base64"
+    "encoding/json"
+    "errors"
     "fmt"
     "io"
-
-    "github.com/resend/resend-go/v2"
-    "gopkg.in/gomail.v2"
-
-    "identitycard-server/internal/config"
+    "net/http"
+    "time"
 )
 
-type Mailer struct {
-    resendClient *resend.Client
-    from         string
-    dialer       *gomail.Dialer
-}
-
-func New(cfg *config.Config) *Mailer {
-    var client *resend.Client
-    if cfg.ResendAPIKey != "" {
-        client = resend.NewClient(cfg.ResendAPIKey)
-    }
-
-    from := cfg.ResendFrom
-    if from == "" {
-        from = cfg.SMTPFrom
-    }
-
-    dialer := gomail.NewDialer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword)
-
-    return &Mailer{
-        resendClient: client,
-        from:         from,
-        dialer:       dialer,
-    }
-}
+var ErrNotConfigured = errors.New("email is not configured (RESEND_API_KEY)")
 
 type Attachment struct {
-    Filename    string
-    ContentType string
-    Data        []byte
+    Filename string
+    Content  []byte
 }
 
-type BatchMessage struct {
+type Message struct {
     To          string
     Subject     string
-    Body        string
+    HTML        string
+    Text        string
     Attachments []Attachment
 }
 
-// Send sends a single email with attachments via Resend if configured, or falls back to SMTP.
-func (m *Mailer) Send(ctx context.Context, to, subject, body string, attachments ...Attachment) error {
-    if m.resendClient != nil {
-        var resendAtts []*resend.Attachment
-        for _, a := range attachments {
-            resendAtts = append(resendAtts, &resend.Attachment{
-                Content:     a.Data,
-                Filename:    a.Filename,
-                ContentType: a.ContentType,
-            })
-        }
+type Mailer struct {
+    apiKey  string
+    from    string
+    baseURL string // RESEND_BASE_URL, e.g. https://api.resend.com
+    http    *http.Client
+}
 
-        req := &resend.SendEmailRequest{
-            From:        m.from,
-            To:          []string{to},
-            Subject:     subject,
-            Text:        body,
-            Attachments: resendAtts,
-        }
+func New(apiKey, from, baseURL string) *Mailer {
+    return &Mailer{apiKey: apiKey, from: from, baseURL: baseURL, http: &http.Client{Timeout: 30 * time.Second}}
+}
 
-        _, err := m.resendClient.Emails.SendWithContext(ctx, req)
+type resendAttachment struct {
+    Filename string `json:"filename"`
+    Content  string `json:"content"`
+}
+
+type resendEmail struct {
+    From        string             `json:"from"`
+    To          []string           `json:"to"`
+    Subject     string             `json:"subject"`
+    HTML        string             `json:"html,omitempty"`
+    Text        string             `json:"text,omitempty"`
+    Attachments []resendAttachment `json:"attachments,omitempty"`
+}
+
+// Send delivers one message. A 4xx other than 429 is permanent: retrying
+// will not help (bad address, invalid sender).
+func (m *Mailer) Send(ctx context.Context, msg Message) error {
+    if m.apiKey == "" {
+        return ErrNotConfigured
+    }
+
+    body := resendEmail{From: m.from, To: []string{msg.To}, Subject: msg.Subject, HTML: msg.HTML, Text: msg.Text}
+    for _, a := range msg.Attachments {
+        body.Attachments = append(body.Attachments, resendAttachment{
+            Filename: a.Filename,
+            Content:  base64.StdEncoding.EncodeToString(a.Content),
+        })
+    }
+    raw, err := json.Marshal(body)
+    if err != nil {
         return err
     }
 
-    msg := gomail.NewMessage()
-    msg.SetHeader("From", m.from)
-    msg.SetHeader("To", to)
-    msg.SetHeader("Subject", subject)
-    msg.SetBody("text/plain", body)
-
-    for _, a := range attachments {
-        data := a.Data
-        msg.Attach(a.Filename,
-            gomail.SetCopyFunc(func(w io.Writer) error {
-                _, err := w.Write(data)
-                return err
-            }),
-            gomail.SetHeader(map[string][]string{"Content-Type": {a.ContentType}}),
-        )
+    req, err := http.NewRequestWithContext(ctx, http.MethodPost, m.baseURL+"/emails", bytes.NewReader(raw))
+    if err != nil {
+        return err
     }
+    req.Header.Set("Authorization", "Bearer "+m.apiKey)
+    req.Header.Set("Content-Type", "application/json")
 
-    return m.dialer.DialAndSend(msg)
-}
-
-// SendBatch dispatches a bunch of emails to Resend using its Batch API (up to 100 per call).
-func (m *Mailer) SendBatch(ctx context.Context, messages []BatchMessage) error {
-    if len(messages) == 0 {
+    resp, err := m.http.Do(req)
+    if err != nil {
+        return fmt.Errorf("resend: %w", err)
+    }
+    defer resp.Body.Close()
+    if resp.StatusCode < 300 {
         return nil
     }
 
-    if m.resendClient != nil {
-        const batchLimit = 100
-        for i := 0; i < len(messages); i += batchLimit {
-            end := i + batchLimit
-            if end > len(messages) {
-                end = len(messages)
-            }
-            chunk := messages[i:end]
-
-            var batchReqs []*resend.SendEmailRequest
-            for _, msg := range chunk {
-                var resendAtts []*resend.Attachment
-                for _, a := range msg.Attachments {
-                    resendAtts = append(resendAtts, &resend.Attachment{
-                        Content:     a.Data,
-                        Filename:    a.Filename,
-                        ContentType: a.ContentType,
-                    })
-                }
-
-                batchReqs = append(batchReqs, &resend.SendEmailRequest{
-                    From:        m.from,
-                    To:          []string{msg.To},
-                    Subject:     msg.Subject,
-                    Text:        msg.Body,
-                    Attachments: resendAtts,
-                })
-            }
-
-            if _, err := m.resendClient.Batch.SendWithContext(ctx, batchReqs); err != nil {
-                return fmt.Errorf("resend batch send failed: %w", err)
-            }
-        }
-        return nil
+    detail, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+    err = fmt.Errorf("resend: status %d: %s", resp.StatusCode, bytes.TrimSpace(detail))
+    if resp.StatusCode >= 400 && resp.StatusCode < 500 && resp.StatusCode != http.StatusTooManyRequests {
+        return &PermanentError{Err: err}
     }
-
-    // Fallback: send one by one over SMTP
-    for _, msg := range messages {
-        if err := m.Send(ctx, msg.To, msg.Subject, msg.Body, msg.Attachments...); err != nil {
-            return err
-        }
-    }
-    return nil
+    return err
 }
+
+// PermanentError marks a failure that a retry cannot fix.
+type PermanentError struct {
+    Err error
+}
+
+func (e *PermanentError) Error() string { return e.Err.Error() }
+func (e *PermanentError) Unwrap() error { return e.Err }

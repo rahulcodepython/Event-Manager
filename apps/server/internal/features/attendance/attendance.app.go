@@ -2,36 +2,26 @@ package attendance
 
 import (
     "github.com/jackc/pgx/v5/pgxpool"
-    "identitycard-server/internal/config"
-    "identitycard-server/internal/features/devices"
-    "identitycard-server/internal/features/events"
-    "identitycard-server/internal/features/people"
-    "identitycard-server/internal/features/subevents"
+
+    "identitycard-server/internal/pkg/cache"
+    "identitycard-server/internal/pkg/qrsign"
+    "identitycard-server/internal/pkg/storage"
 )
 
+// App is the composition root for the attendance feature.
 type App struct {
-    cfg       *config.Config
-    pool      *pgxpool.Pool
-    events    *events.App
-    people    *people.App
-    subevents *subevents.App
-    devices   *devices.App
+    DB     *pgxpool.Pool
+    Cache  *cache.Cache
+    Signer *qrsign.Signer
+    Store  *storage.Store
 }
 
-func New(
-    cfg *config.Config,
-    pool *pgxpool.Pool,
-    eventsApp *events.App,
-    peopleApp *people.App,
-    subEventsApp *subevents.App,
-    devicesApp *devices.App,
-) *App {
+// NewApp creates a new App instance for attendance.
+func NewApp(db *pgxpool.Pool, cache *cache.Cache, signer *qrsign.Signer, store *storage.Store) *App {
     return &App{
-        cfg:       cfg,
-        pool:      pool,
-        events:    eventsApp,
-        people:    peopleApp,
-        subevents: subEventsApp,
-        devices:   devicesApp,
+        DB:     db,
+        Cache:  cache,
+        Signer: signer,
+        Store:  store,
     }
 }

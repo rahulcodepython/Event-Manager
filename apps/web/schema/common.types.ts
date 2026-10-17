@@ -1,43 +1,66 @@
 import { z } from "zod";
 
-export const ApiResponseZod = <T extends z.ZodTypeAny>(dataSchema: T) =>
+// =====================================================================
+// Common Wire Envelopes & Primitive Types
+// Matches apps/server/internal/generic/types.go exactly
+// =====================================================================
+
+// Response is the canonical wire envelope.
+export const ResponseZod = <T extends z.ZodTypeAny>(dataSchema: T) =>
     z.object({
         success: z.boolean(),
         message: z.string(),
-        data: dataSchema.nullable().optional(),
-        error: z.any().optional().nullable(),
+        data: dataSchema.optional().nullable(),
+        error: z.string().optional().nullable(),
     });
 
-export type ApiResponse<T> = {
+export type Response<T> = {
     success: boolean;
     message: string;
-    data: T | null;
-    error?: string | Record<string, string> | null;
+    data?: T | null;
+    error?: string | null;
 };
 
+// Alias for ApiResponse
+export const ApiResponseZod = ResponseZod;
+export type ApiResponse<T> = Response<T>;
+
+// PaginatedResponse wraps standard offset-paginated listings.
 export const PaginatedResponseZod = <T extends z.ZodTypeAny>(itemSchema: T) =>
     z.object({
-        items: z.array(itemSchema),
+        data: z.array(itemSchema),
         total: z.number(),
         page: z.number(),
-        page_size: z.number(),
-        total_pages: z.number(),
+        limit: z.number(),
     });
 
 export type PaginatedResponse<T> = {
-    items: T[];
+    data: T[];
     total: number;
     page: number;
-    page_size: number;
-    total_pages: number;
+    limit: number;
 };
 
+// DeleteResponse returns the identifier of a deleted record.
 export const DeleteResponseZod = z.object({
-    id: z.string().uuid().optional(),
-    success: z.boolean().optional(),
+    id: z.string(),
 });
 
+export type DeleteResponse = z.infer<typeof DeleteResponseZod>;
+
+// SuccessResponse confirms generic boolean outcomes.
 export const SuccessResponseZod = z.object({
-    message: z.string().optional(),
+    success: z.boolean(),
 });
 
+export type SuccessResponse = z.infer<typeof SuccessResponseZod>;
+
+// MessageResponse provides a standard message payload.
+export const MessageResponseZod = z.object({
+    message: z.string(),
+});
+
+export type MessageResponse = z.infer<typeof MessageResponseZod>;
+
+// UserID represents an application user identifier string.
+export type UserID = string;

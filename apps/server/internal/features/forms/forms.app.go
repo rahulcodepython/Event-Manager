@@ -2,23 +2,20 @@ package forms
 
 import (
     "github.com/jackc/pgx/v5/pgxpool"
-    "identitycard-server/internal/features/events"
-    "identitycard-server/internal/features/people"
-    "identitycard-server/internal/features/subevents"
+
+    "identitycard-server/internal/pkg/cache"
 )
 
+// App is the composition root for the forms feature.
 type App struct {
-    pool      *pgxpool.Pool
-    events    *events.App
-    subevents *subevents.App
-    people    *people.App
+    DB    *pgxpool.Pool
+    Cache *cache.Cache
 }
 
-func New(pool *pgxpool.Pool, eventsApp *events.App, subEventsApp *subevents.App, peopleApp *people.App) *App {
+// NewApp wires together repository, service, and handler for forms.
+func NewApp(db *pgxpool.Pool, cache *cache.Cache) *App {
     return &App{
-        pool:      pool,
-        events:    eventsApp,
-        subevents: subEventsApp,
-        people:    peopleApp,
+        DB:    db,
+        Cache: cache,
     }
 }

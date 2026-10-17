@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS form_templates CASCADE;
+DROP TABLE IF EXISTS field_types CASCADE;

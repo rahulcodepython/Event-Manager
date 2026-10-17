@@ -1,78 +1,65 @@
 package utils
 
 import (
-    "identitycard-server/internal/generic"
-
     "github.com/gofiber/fiber/v2"
+
+    "identitycard-server/internal/generic"
 )
 
-// Response is an alias for the canonical wire envelope.
-type Response = generic.Response[any]
-
-// json is the canonical response envelope used by every handler (success,
-// via OK/Created below) and by the central ErrorHandler (errors.go/
-// error.handler.go) for every failure. It's the one place the wire shape is
-// defined.
-func json[T interface{}](c *fiber.Ctx, status int, success bool, message string, data T, err error) error {
-    var errStr string
-    if err != nil {
-        errStr = err.Error()
-        c.Locals("handler_error", err)
-    } else if status >= 400 {
-        errStr = message
-    }
-    if status >= 400 {
-        c.Locals("handler_error_msg", message)
-    }
+// Respond writes the canonical wire envelope response for both success and error outcomes.
+func Respond[T any](c *fiber.Ctx, status int, success bool, message string, data T, err error) error {
     body := generic.Response[T]{
         Success: success,
         Message: message,
         Data:    data,
-        Error:   errStr,
+        Error:   err,
     }
     return c.Status(status).JSON(body)
 }
 
-// OK writes a success payload with HTTP 200 OK (or custom 2xx status) in the standard envelope.
-// Supports both OK(c, message, data) and OK(c, status, data).
-func OK[T interface{}](c *fiber.Ctx, msgOrStatus any, data ...T) error {
-    status := fiber.StatusOK
-    message := "success"
-
-    switch v := msgOrStatus.(type) {
-    case int:
-        status = v
-    case string:
-        message = v
-    }
-
-    var payload T
-    if len(data) > 0 {
-        payload = data[0]
-    }
-
-    return json(c, status, true, message, payload, nil)
+// OK writes a 200 OK success response.
+func OK[T any](c *fiber.Ctx, message string, data T) error {
+    return Respond(c, fiber.StatusOK, true, message, data, nil)
 }
 
-// OKEmpty writes a success payload with no data.
+// OKEmpty writes a 200 OK success response with no data payload.
 func OKEmpty(c *fiber.Ctx, message string) error {
-    return json[*struct{}](c, fiber.StatusOK, true, message, nil, nil)
+    return Respond(c, fiber.StatusOK, true, message, any(nil), nil)
 }
 
-// Created writes a success payload with HTTP 201 Created.
-// Supports both Created(c, message, data) and Created(c, data).
-func Created[T interface{}](c *fiber.Ctx, msgOrData any, optionalData ...T) error {
-    if msg, ok := msgOrData.(string); ok && len(optionalData) > 0 {
-        return json(c, fiber.StatusCreated, true, msg, optionalData[0], nil)
-    }
-    var d any = msgOrData
-    if len(optionalData) > 0 {
-        d = optionalData[0]
-    }
-    return json(c, fiber.StatusCreated, true, "created", d, nil)
+// Created writes a 201 Created success response.
+func Created[T any](c *fiber.Ctx, message string, data T) error {
+    return Respond(c, fiber.StatusCreated, true, message, data, nil)
 }
 
-// OKWithMessage writes a success payload with a custom status and message.
-func OKWithMessage(c *fiber.Ctx, status int, message string, data any) error {
-    return json(c, status, true, message, data, nil)
+func ErrBadRequest(c *fiber.Ctx, message string, err error) error {
+    return Respond(c, fiber.StatusBadRequest, false, message, any(nil), err)
+}
+
+func ErrUnauthorized(c *fiber.Ctx, message string, err error) error {
+    return Respond(c, fiber.StatusUnauthorized, false, message, any(nil), err)
+}
+
+func ErrForbidden(c *fiber.Ctx, message string, err error) error {
+    return Respond(c, fiber.StatusForbidden, false, message, any(nil), err)
+}
+
+func ErrNotFound(c *fiber.Ctx, message string, err error) error {
+    return Respond(c, fiber.StatusNotFound, false, message, any(nil), err)
+}
+
+func ErrConflict(c *fiber.Ctx, message string, err error) error {
+    return Respond(c, fiber.StatusConflict, false, message, any(nil), err)
+}
+
+func ErrValidation(c *fiber.Ctx, message string, err error) error {
+    return Respond(c, fiber.StatusUnprocessableEntity, false, message, any(nil), err)
+}
+
+func ErrTooManyRequests(c *fiber.Ctx, message string, err error) error {
+    return Respond(c, fiber.StatusTooManyRequests, false, message, any(nil), err)
+}
+
+func ErrInternal(c *fiber.Ctx, message string, err error) error {
+    return Respond(c, fiber.StatusInternalServerError, false, message, any(nil), err)
 }

@@ -1,207 +1,155 @@
 "use client";
 
-import { apiRequest } from "@/react-query/client";
 import {
-    removeFromArray,
-    useArrayMutation,
-    useObjectMutation,
-    useSimpleMutation,
-    useWithExecute,
-} from "@/react-query/mutation";
-import { useAppQuery } from "@/react-query/query";
-import { queryKeys } from "@/react-query/query-keys";
+    useInfiniteQuery,
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type InfiniteData,
+} from "@tanstack/react-query";
+import { toast } from "sonner";
+
+import { apiRequest } from "../react-query/client";
+import { queryKeys } from "../react-query/query-keys";
+import { DeleteResponseZod, type DeleteResponse } from "../schema/common.types";
 import {
+    CreateEventSchema,
+    EventListResponseSchema,
+    EventSchema,
     type CreateEventInput,
-    type DayImportSummary,
-    type EventDetail,
-    type EventSummary,
+    type Event,
+    type EventListResponse,
     type UpdateEventInput,
-    dayImportSummarySchema,
-    eventResponseSchema,
-    eventsListResponseSchema,
-} from "@/schema/events.types";
-import {
-    MSG_BANNER_UPLOADED,
-    MSG_EVENT_CREATED,
-    MSG_EVENT_DELETED,
-    MSG_EVENT_PUBLISHED,
-    MSG_EVENT_UPDATED,
-    MSG_SCHEDULE_DAYS_IMPORTED,
-    MSG_SIGNATURE_UPLOADED,
-} from "@/lib/constants";
-import { z } from "zod";
+} from "../schema/events.types";
 
-export function useEventsListQuery(enabled = true) {
-    return useAppQuery<EventSummary[]>(
-        queryKeys.events(),
-        () =>
-            apiRequest(
-                { url: "/events", method: "GET" },
-                eventsListResponseSchema
-            ),
-        { enabled }
-    );
+interface EventsFilter {
+    search?: string;
+    organization_id?: string;
 }
 
-export function useEventDetailQuery(eventId: string, enabled = true) {
-    return useAppQuery<EventDetail>(
-        queryKeys.event(eventId),
-        () =>
-            apiRequest(
-                { url: `/events/${eventId}`, method: "GET" },
-                eventResponseSchema
-            ),
-        { enabled: enabled && !!eventId }
-    );
+// React-query hook to fetch a single event by id
+export function useEventQuery(id: string) {
+    return useQuery<Event, Error>({
+        queryKey: queryKeys.events.detail(id),
+        queryFn: () => apiRequest<Event>(
+            {
+                url: `/events/${id}`,
+                method: "GET",
+            },
+            EventSchema,
+        ),
+        enabled: Boolean(id),
+    });
 }
 
-export function useCreateEventMutation() {
-    return useWithExecute(
-        useArrayMutation<EventSummary, EventDetail, CreateEventInput>({
-            mutationFn: (data) =>
-                apiRequest(
-                    {
-                        url: "/events",
-                        method: "POST",
-                        data,
-                    },
-                    eventResponseSchema
-                ),
-            queryKey: queryKeys.events(),
-            updater: (created) => (old) => [
-                ...(old ?? []),
+// Infinite query for paginated event listings (20 items per page)
+export function useEventsInfiniteQuery(filters?: EventsFilter) {
+    const search = filters?.search?.trim() || undefined;
+    const organization_id = filters?.organization_id?.trim() || undefined;
+
+    return useInfiniteQuery<EventListResponse, Error, InfiniteData<EventListResponse>, readonly unknown[], number>({
+        queryKey: queryKeys.events.list({ search }),
+        queryFn: async ({ pageParam = 1 }) => {
+            return apiRequest<EventListResponse>(
                 {
-                    id: created.id,
-                    name: created.name,
-                    event_type: created.event_type,
-                    status: created.status,
-                    start_date: created.start_date,
-                    end_date: created.end_date,
-                    venue: created.venue,
-                    organizer_name: created.organizer_name,
-                    has_image: created.has_image,
-                    has_organizer_signature: created.has_organizer_signature,
-                    published_at: created.published_at,
+                    url: "/events",
+                    method: "GET",
+                    params: {
+                        page: pageParam,
+                        limit: 20,
+                        search,
+                        organization_id,
+                    },
                 },
-            ],
-            invalidateKeys: [queryKeys.orgSubscriptions()],
-            showToast: { success: MSG_EVENT_CREATED },
-        })
-    );
+                EventListResponseSchema,
+            );
+        },
+        initialPageParam: 1,
+        getNextPageParam: (lastPage) => {
+            if (!lastPage || lastPage.data.length < lastPage.limit) {
+                return undefined;
+            }
+            if (lastPage.page * lastPage.limit >= lastPage.total) {
+                return undefined;
+            }
+            return lastPage.page + 1;
+        },
+    });
 }
 
-export function useUpdateEventMutation(eventId: string) {
-    return useWithExecute(
-        useObjectMutation<EventDetail, UpdateEventInput>({
-            mutationFn: (data) =>
-                apiRequest(
-                    {
-                        url: `/events/${eventId}`,
-                        method: "PATCH",
-                        data,
-                    },
-                    eventResponseSchema
-                ),
-            queryKey: queryKeys.event(eventId),
-            updater: (updated) => () => updated,
-            invalidateKeys: [queryKeys.events()],
-            showToast: { success: MSG_EVENT_UPDATED },
-        })
-    );
+// Mutation to create a new event
+export function useCreateEventMutation() {
+    const queryClient = useQueryClient();
+
+    return useMutation<Event, Error, CreateEventInput>({
+        mutationFn: async (input: CreateEventInput) => {
+            const validated = CreateEventSchema.parse(input);
+            return apiRequest<Event>(
+                {
+                    url: "/events",
+                    method: "POST",
+                    data: validated,
+                },
+                EventSchema,
+            );
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.credits.all });
+            toast.success("Event created successfully");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to create event");
+        },
+    });
 }
 
-export function usePublishEventMutation(eventId: string) {
-    return useWithExecute(
-        useObjectMutation<EventDetail, void>({
-            mutationFn: () =>
-                apiRequest(
-                    {
-                        url: `/events/${eventId}/publish`,
-                        method: "POST",
-                    },
-                    eventResponseSchema
-                ),
-            queryKey: queryKeys.event(eventId),
-            updater: (updated) => () => updated,
-            invalidateKeys: [queryKeys.events()],
-            showToast: { success: MSG_EVENT_PUBLISHED },
-        })
-    );
+// Mutation to update an event
+export function useUpdateEventMutation() {
+    const queryClient = useQueryClient();
+
+    return useMutation<Event, Error, { id: string } & UpdateEventInput>({
+        mutationFn: async ({ id, ...data }) => {
+            return apiRequest<Event>(
+                {
+                    url: `/events/${id}`,
+                    method: "PATCH",
+                    data,
+                },
+                EventSchema,
+            );
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
+            toast.success("Event updated successfully");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to update event");
+        },
+    });
 }
 
-export function useDeleteEventMutation(eventId: string) {
-    return useWithExecute(
-        useArrayMutation<EventSummary, void, void>({
-            mutationFn: () =>
-                apiRequest(
-                    {
-                        url: `/events/${eventId}`,
-                        method: "DELETE",
-                    },
-                    z.any()
-                ),
-            queryKey: queryKeys.events(),
-            updater: () => removeFromArray(eventId),
-            invalidateKeys: [queryKeys.event(eventId), queryKeys.orgSubscriptions()],
-            showToast: { success: MSG_EVENT_DELETED },
-        })
-    );
-}
+// Mutation to delete an event
+export function useDeleteEventMutation() {
+    const queryClient = useQueryClient();
 
-export function useImportDaysMutation(eventId: string) {
-    return useWithExecute(
-        useSimpleMutation<DayImportSummary, FormData>({
-            mutationFn: (formData) =>
-                apiRequest(
-                    {
-                        url: `/events/${eventId}/days/import`,
-                        method: "POST",
-                        data: formData,
-                        headers: { "Content-Type": "multipart/form-data" },
-                    },
-                    dayImportSummarySchema
-                ),
-            invalidateKeys: [queryKeys.event(eventId), queryKeys.events()],
-            showToast: { success: MSG_SCHEDULE_DAYS_IMPORTED },
-        })
-    );
+    return useMutation<DeleteResponse, Error, string>({
+        mutationFn: async (id: string) => {
+            return apiRequest<DeleteResponse>(
+                {
+                    url: `/events/${id}`,
+                    method: "DELETE",
+                },
+                DeleteResponseZod,
+            );
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.credits.all });
+            toast.success("Event deleted successfully");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to delete event");
+        },
+    });
 }
-
-export function useUploadEventImageMutation(eventId: string) {
-    return useWithExecute(
-        useSimpleMutation<void, FormData>({
-            mutationFn: (formData) =>
-                apiRequest(
-                    {
-                        url: `/events/${eventId}/image`,
-                        method: "POST",
-                        data: formData,
-                        headers: { "Content-Type": "multipart/form-data" },
-                    },
-                    z.any()
-                ),
-            invalidateKeys: [queryKeys.event(eventId), queryKeys.events()],
-            showToast: { success: MSG_BANNER_UPLOADED },
-        })
-    );
-}
-
-export function useUploadOrganizerSignatureMutation(eventId: string) {
-    return useWithExecute(
-        useSimpleMutation<void, FormData>({
-            mutationFn: (formData) =>
-                apiRequest(
-                    {
-                        url: `/events/${eventId}/signature`,
-                        method: "POST",
-                        data: formData,
-                        headers: { "Content-Type": "multipart/form-data" },
-                    },
-                    z.any()
-                ),
-            invalidateKeys: [queryKeys.event(eventId), queryKeys.events()],
-            showToast: { success: MSG_SIGNATURE_UPLOADED },
-        })
-    );
-}
-

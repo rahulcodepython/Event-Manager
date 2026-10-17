@@ -1,115 +1,149 @@
 // =====================================================================
-// API Route Prefixes & Public Unscoped Routes
+// API Routing & Environment Defaults
 // =====================================================================
 export const API_V1_PREFIX = "/api/v1";
-
 export const DEFAULT_API_BASE_URL = "http://localhost:8000";
 export const DEFAULT_APP_BASE_URL = "http://localhost:3000";
-
-// Paths that should not be automatically scoped under /organization/:orgId
-export const PUBLIC_OR_UNSCOPED_PREFIXES = [
-    "/organization/",
-    "/organizations",
-    "/plans",
-    "/public/",
-    "/forms/public/",
-    "/devices/pair",
-    "/scanner/",
-] as const;
-
-// =====================================================================
-// Application Routes
-// =====================================================================
-export const ROUTE_LOGIN = "/auth/login";
-export const ROUTE_REGISTER = "/auth/register";
-export const ROUTE_DASHBOARD = "/dashboard";
-export const ROUTE_ACCEPT_INVITATION = "/accept-invitation";
-export const ROUTE_PAIR = "/pair";
-export const ROUTE_SCANNER = "/scanner";
-
-// =====================================================================
-// User & Platform Roles
-// =====================================================================
-export const USER_ROLE_ADMIN = "admin";
-export const USER_ROLE_USER = "user";
-export type UserRole = typeof USER_ROLE_ADMIN | typeof USER_ROLE_USER;
-
-// =====================================================================
-// Organization Member Roles (Better-Auth defaults: owner, admin, member)
-// =====================================================================
-export const ROLE_OWNER = "owner";
-export const ROLE_ADMIN = "admin";
-export const ROLE_MEMBER = "member";
-export type OrgRole = typeof ROLE_OWNER | typeof ROLE_ADMIN | typeof ROLE_MEMBER;
-
-// =====================================================================
-// Storage Keys
-// =====================================================================
-export const STORAGE_KEY_SESSION = "identitycard_session";
-export const STORAGE_KEY_DEVICE = "identitycard_device";
-export const STORAGE_KEY_DEVICE_KEY = "identitycard_device_key";
-
-// =====================================================================
-// File Sizes & Network Timing Limits
-// =====================================================================
-export const MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
-export const MAX_BANNER_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-export const TOKEN_EXPIRY_BUFFER_MS = 15_000; // 15 seconds
 
 // =====================================================================
 // Common Error Messages
 // =====================================================================
 export const ERR_MSG_GENERIC = "An unexpected error occurred. Please try again.";
-export const ERR_MSG_UNAUTHORIZED = "You must be signed in to perform this action.";
-export const ERR_MSG_SESSION_EXPIRED = "Your session has expired. Please sign in again.";
-export const ERR_MSG_FAILED_INVITE = "Couldn't send invitation.";
-export const ERR_MSG_FAILED_ROLE_UPDATE = "Couldn't update role.";
-export const ERR_MSG_FAILED_REMOVE_MEMBER = "Couldn't remove member.";
-export const ERR_MSG_FAILED_CANCEL_INVITE = "Couldn't cancel invitation.";
-export const ERR_MSG_LOGO_TOO_LARGE = "Logo image file size must be less than 2MB.";
-export const ERR_MSG_ORG_NAME_REQUIRED = "Organization name cannot be empty.";
-export const ERR_MSG_FAILED_DELETE_LOGO = "Failed to delete logo.";
-export const ERR_MSG_FAILED_UPDATE_NAME = "Failed to update name.";
-export const ERR_MSG_FAILED_UPLOAD_LOGO = "Failed to upload logo.";
 export const ERR_MSG_REQUEST_FAILED = "Request failed";
-export const ERR_MSG_PAIRING_FAILED = "Invalid code or pairing failed. Please try again.";
 
 // =====================================================================
-// Common Success / Toast Messages
+// LocalStorage & Session Keys
 // =====================================================================
-export const MSG_INVITE_SENT = "Invitation sent successfully";
-export const MSG_INVITE_CANCELED = "Invitation canceled";
-export const MSG_ROLE_UPDATED = "Role updated";
-export const MSG_CARD_RESENT = "Card resent";
-export const MSG_SETTINGS_SAVED = "Settings saved";
-export const MSG_LOGO_REMOVED = "Logo removed.";
-export const MSG_LOGO_UPLOADED = "Logo uploaded";
-export const MSG_ORG_METADATA_UPDATED = "Organization metadata updated successfully!";
-export const MSG_DEVICE_PAIRED = "Device paired successfully!";
-export const MSG_SIGNED_IN = "Signed in successfully!";
-export const MSG_ACCOUNT_CREATED = "Account created successfully!";
-export const MSG_EVENT_CREATED = "Event created successfully";
-export const MSG_EVENT_UPDATED = "Event updated successfully";
-export const MSG_EVENT_PUBLISHED = "Event published successfully";
-export const MSG_EVENT_DELETED = "Draft event deleted";
-export const MSG_SCHEDULE_DAYS_IMPORTED = "Schedule days imported";
-export const MSG_BANNER_UPLOADED = "Event banner uploaded";
-export const MSG_SIGNATURE_UPLOADED = "Signature uploaded";
-export const MSG_CARD_EMAIL_RESENT = "ID card email resent";
-export const MSG_DEVICE_CREATED = "Device created — enter OTP on device";
-export const MSG_DEVICE_REVOKED = "Device access revoked";
-export const MSG_ORG_SETTINGS_UPDATED = "Organization settings updated";
-export const MSG_ORG_DELETED = "Organization deleted";
-export const MSG_FORM_LINK_CREATED = "Registration link created";
-export const MSG_FORM_SETTINGS_UPDATED = "Form settings updated";
-export const MSG_FORM_DELETED = "Form deleted";
-export const MSG_REGISTRATION_SUBMITTED = "Registration submitted successfully!";
-export const MSG_ATTENDEE_ADDED = "Attendee added";
-export const MSG_ATTENDEE_UPDATED = "Attendee updated";
-export const MSG_ATTENDEE_REMOVED = "Attendee removed";
-export const MSG_ATTENDEES_CSV_IMPORTED = "Attendees CSV imported";
-export const MSG_CREDITS_PURCHASED = "Credits purchased successfully!";
-export const MSG_ANNUAL_RENEWED = "Annual subscription renewed successfully!";
-export const MSG_SUBEVENT_CREATED = "Sub-event created";
-export const MSG_SUBEVENT_UPDATED = "Sub-event updated";
-export const MSG_SUBEVENT_DELETED = "Sub-event deleted";
+export const STORAGE_KEYS = {
+    DEVICE_TOKEN: "device_token",
+} as const;
+
+// =====================================================================
+// Internal Application Routes (Next.js Pages)
+// =====================================================================
+export const APP_ROUTES = {
+    HOME: "/",
+    DASHBOARD: "/dashboard",
+    EVENTS: "/dashboard/events",
+    EVENT_OVERVIEW: (eventId: string) => `/dashboard/events/${eventId}`,
+    EVENT_DATES: (eventId: string) => `/dashboard/events/${eventId}/dates`,
+    EVENT_FORM: (eventId: string) => `/dashboard/events/${eventId}/form`,
+    EVENT_APPLICANTS: (eventId: string) => `/dashboard/events/${eventId}/applicants`,
+    EVENT_DEVICES: (eventId: string) => `/dashboard/events/${eventId}/devices`,
+    EVENT_ANALYSIS: (eventId: string) => `/dashboard/events/${eventId}/analysis`,
+    EVENT_SETTINGS: (eventId: string) => `/dashboard/events/${eventId}/settings`,
+    FORMS: "/dashboard/forms",
+    FORM_DESIGNER: (formId: string) => `/dashboard/forms/${formId}/design`,
+    DEVICES: "/dashboard/devices",
+    PAYOUTS: "/dashboard/payouts",
+    DEVICE_PAIR: "/devices/pair",
+    DEVICE_SCAN: "/devices/scan",
+    PUBLIC_APPLY: (formId: string) => `/apply/${formId}`,
+} as const;
+
+// =====================================================================
+// Backend API Endpoints (relative to base API prefix)
+// =====================================================================
+export const API_ENDPOINTS = {
+    EVENTS: "/events",
+    EVENT_BY_ID: (id: string) => `/events/${id}`,
+    EVENT_DATES: (eventId: string) => `/events/${eventId}/dates`,
+    EVENT_DATES_OVERRIDE: (eventId: string) => `/events/${eventId}/dates/override`,
+    EVENT_DATES_SYNC: (eventId: string) => `/events/${eventId}/dates/sync`,
+    FORMS: "/forms",
+    FORM_BY_ID: (id: string) => `/forms/${id}`,
+    FORM_FIELDS: (id: string) => `/forms/${id}/fields`,
+    EVENT_FORM: (eventId: string) => `/events/${eventId}/form`,
+    EVENT_FORM_LOCK: (eventId: string) => `/events/${eventId}/form/lock`,
+    PUBLIC_APPLY: (eventFormId: string) => `/public/apply/${eventFormId}`,
+    APPLICANTS: (eventId: string) => `/events/${eventId}/applicants`,
+    APPLICANTS_SCHEMA: (eventId: string) => `/events/${eventId}/applicants/schema`,
+    APPLICANT_BY_ID: (eventId: string, applicantId: string) => `/events/${eventId}/applicants/${applicantId}`,
+    DEVICES: "/devices",
+    DEVICE_BY_ID: (id: string) => `/devices/${id}`,
+    DEVICES_ME: "/devices/me",
+    DEVICES_VERIFY: "/devices/verify",
+    DEVICE_REGEN_PIN: (id: string) => `/devices/${id}/regenerate-pin`,
+    WEBAUTHN_REG_OPTIONS: "/devices/webauthn/register-options",
+    WEBAUTHN_REG_VERIFY: "/devices/webauthn/register-verify",
+    WEBAUTHN_LOGIN_OPTIONS: "/devices/webauthn/login-options",
+    WEBAUTHN_LOGIN_VERIFY: "/devices/webauthn/login-verify",
+    EVENT_DEVICES: (eventId: string) => `/events/${eventId}/devices`,
+    EVENT_DEVICES_AVAILABLE: (eventId: string) => `/events/${eventId}/devices/available`,
+    EVENT_DEVICES_ASSIGN: (eventId: string) => `/events/${eventId}/devices/assign`,
+    EVENT_DEVICE_UNASSIGN: (eventId: string, deviceId: string) => `/events/${eventId}/devices/${deviceId}`,
+    ATTENDANCE_SCAN: (eventId: string) => `/events/${eventId}/attendance/scan`,
+    ATTENDANCE_ENTRY: (eventId: string) => `/events/${eventId}/attendance/entry`,
+    ATTENDANCE_EXIT: (eventId: string) => `/events/${eventId}/attendance/exit`,
+    ANALYSIS_METRICS: (eventId: string) => `/events/${eventId}/analysis/metrics`,
+    ANALYSIS_ATTENDEES: (eventId: string) => `/events/${eventId}/analysis/attendees`,
+} as const;
+
+// =====================================================================
+// Query Key Roots
+// =====================================================================
+export const QUERY_KEY_ROOTS = {
+    EVENTS: "events",
+    EVENT_DATES: "event-dates",
+    FORMS: "forms",
+    EVENT_FORM: "event-form",
+    PUBLIC_APPLY: "public-apply",
+    APPLICANTS: "applicants",
+    DEVICES: "devices",
+    ATTENDANCE: "attendance",
+    ANALYSIS: "analysis",
+} as const;
+
+// =====================================================================
+// Form Field Types
+// =====================================================================
+export const FIELD_TYPES = {
+    TEXT: "text",
+    TEXTAREA: "textarea",
+    NUMBER: "number",
+    EMAIL: "email",
+    PHONE: "phone",
+    SELECT: "select",
+    RADIO: "radio",
+    CHECKBOX: "checkbox",
+    DATE: "date",
+    TIME: "time",
+    FILE: "file",
+    SWITCH: "switch",
+} as const;
+
+// =====================================================================
+// Toast Messages
+// =====================================================================
+export const TOAST_MESSAGES = {
+    GENERIC_ERROR: "An unexpected error occurred. Please try again.",
+    EVENT_CREATED: "Event created successfully",
+    EVENT_UPDATED: "Event updated successfully",
+    EVENT_DELETED: "Event deleted successfully",
+    DATES_SAVED: "Event dates saved successfully",
+    DATES_DELETED: "Event dates deleted successfully",
+    DATES_OVERRIDDEN: "All event dates overridden successfully",
+    FORM_CREATED: "Form template created successfully",
+    FORM_UPDATED: "Form template updated successfully",
+    FORM_LOCKED: "Event form locked successfully",
+    APPLICANT_CREATED: "Applicant registered successfully",
+    APPLICANT_DELETED: "Applicant deleted successfully",
+    APPLICATION_SUBMITTED: "Application submitted successfully!",
+    DEVICE_CREATED: "Scanner device created successfully",
+    DEVICE_VERIFIED: "Device paired successfully",
+    DEVICE_DELETED: "Device deleted successfully",
+    PIN_REGENERATED: "PIN regenerated successfully",
+    DEVICES_ASSIGNED: "Devices assigned successfully",
+    DEVICE_UNASSIGNED: "Device removed from event",
+    ENTRY_MARKED: "Attendee checked in successfully",
+    EXIT_MARKED: "Attendee checked out successfully",
+} as const;
+
+// =====================================================================
+// Hardware & Fallback Constants
+// =====================================================================
+export const FALLBACK_CONSTANTS = {
+    DEVICE_NAME: "Scanner Terminal",
+    FINGERPRINT: "fp_browser_device",
+    PUBLIC_APPLY_TITLE: "Event Registration",
+} as const;

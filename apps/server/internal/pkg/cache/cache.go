@@ -1,31 +1,34 @@
 package cache
 
 import (
-    "context"
-    "fmt"
+	"context"
+	"fmt"
 
-    "github.com/redis/go-redis/v9"
+	"github.com/redis/go-redis/v9"
 )
 
-// Cache wraps the Redis client and exposes caching, locking, and invalidation operations.
+// Cache wraps a Redis client with resilient JSON caching, scanning, and invalidation.
 type Cache struct {
-    client *redis.Client
+	client *redis.Client
 }
 
-// NewCache initializes a new Cache instance with the provided Redis client.
-func NewCache(client *redis.Client) *Cache {
-    return &Cache{client: client}
-}
-
-// New is an alias for NewCache for backward compatibility.
+// New initializes a new Cache instance.
 func New(client *redis.Client) *Cache {
-    return NewCache(client)
+	return &Cache{client: client}
 }
 
-// Ping checks the health status of the Redis connection.
+// Client returns the underlying Redis client.
+func (c *Cache) Client() *redis.Client {
+	if c == nil {
+		return nil
+	}
+	return c.client
+}
+
+// Ping checks whether Redis is reachable.
 func (c *Cache) Ping(ctx context.Context) error {
-    if c == nil || c.client == nil {
-        return fmt.Errorf("redis cache client not initialized")
-    }
-    return c.client.Ping(ctx).Err()
+	if c == nil || c.client == nil {
+		return fmt.Errorf("cache: redis client not initialized")
+	}
+	return c.client.Ping(ctx).Err()
 }

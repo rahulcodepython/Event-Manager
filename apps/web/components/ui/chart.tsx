@@ -97,13 +97,13 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
             ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ??
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join("\n")}
+                .map(([key, itemConfig]) => {
+                  const color =
+                    itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ??
+                    itemConfig.color
+                  return color ? `  --color-${key}: ${color};` : null
+                })
+                .join("\n")}
 }
 `
           )
@@ -190,12 +190,12 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "grid min-w-32 items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs/relaxed shadow-xl",
+        "grid min-w-32 items-start gap-2 rounded-md border border-border/50 bg-background px-2.5 py-1.5 text-xs/relaxed shadow-xl",
         className
       )}
     >
       {!nestLabel ? tooltipLabel : null}
-      <div className="grid gap-1.5">
+      <div className="grid gap-2">
         {payload
           .filter((item) => item.type !== "none")
           .map((item, index) => {
@@ -245,7 +245,7 @@ function ChartTooltipContent({
                         nestLabel ? "items-end" : "items-center"
                       )}
                     >
-                      <div className="grid gap-1.5">
+                      <div className="grid gap-2">
                         {nestLabel ? tooltipLabel : null}
                         <span className="text-muted-foreground">
                           {itemConfig?.label ?? item.name}
@@ -305,7 +305,7 @@ function ChartLegendContent({
             <div
               key={index}
               className={cn(
-                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
+                "flex items-center gap-2 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
               )}
             >
               {itemConfig?.icon && !hideIcon ? (
@@ -337,8 +337,8 @@ function getPayloadConfigFromPayload(
 
   const payloadPayload =
     "payload" in payload &&
-    typeof payload.payload === "object" &&
-    payload.payload !== null
+      typeof payload.payload === "object" &&
+      payload.payload !== null
       ? payload.payload
       : undefined
 

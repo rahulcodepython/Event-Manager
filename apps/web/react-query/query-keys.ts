@@ -1,60 +1,94 @@
-export type PeopleFilter = { subEventId?: string; search?: string };
-export type RosterFilter = {
-    subEventId?: string;
-    date?: string;
-    attended?: boolean;
-    status?: string;
-};
-
 export const queryKeys = {
-    // auth / session
-    me: () => ["me"] as const,
-
-    // organizations
-    orgSettings: () => ["organizations", "settings"] as const,
-
-    organizations: () => ["organizations"] as const,
-
-    // plans / billing
-    plans: () => ["plans"] as const,
-    orgSubscriptions: () => ["plans", "subscriptions"] as const,
-
-    // members
-    members: () => ["members"] as const,
-
-    // devices
-    devices: () => ["devices"] as const,
-
-    // events
-    events: () => ["events"] as const,
-    event: (eventId: string) => ["events", eventId] as const,
-
-    // sub-events (nested under an event)
-    subEvents: (eventId: string) => ["events", eventId, "subevents"] as const,
-    subEvent: (eventId: string, id: string) =>
-        ["events", eventId, "subevents", id] as const,
-
-    // people (nested under an event)
-    people: (eventId: string, filter: PeopleFilter = {}) =>
-        ["events", eventId, "people", filter] as const,
-    person: (eventId: string, id: string) =>
-        ["events", eventId, "people", id] as const,
-
-    // forms (nested under an event) — plus the public, unauthenticated read
-    forms: (eventId: string) => ["events", eventId, "forms"] as const,
-    publicForm: (token: string) => ["public", "forms", token] as const,
-
-    // attendance roster (nested under an event)
-    roster: (eventId: string, filter: RosterFilter = {}) =>
-        ["events", eventId, "attendance", filter] as const,
-
-    // analytics (nested under an event, plus org-wide overview)
-    analyticsSummary: (eventId: string) =>
-        ["events", eventId, "analytics", "summary"] as const,
-    analyticsDaily: (eventId: string, subEventId?: string) =>
-        ["events", eventId, "analytics", "daily", subEventId ?? null] as const,
-    analyticsOverview: () => ["analytics", "overview"] as const,
-
-    // scanner device (device-key auth, not JWT — see store/device.store.ts)
-    scannerMe: () => ["scanner", "me"] as const,
+    auth: {
+        me: ["auth", "me"] as const,
+    },
+    pricing: {
+        catalog: ["pricing", "catalog"] as const,
+        quote: (selections: unknown) => ["pricing", "quote", selections] as const,
+    },
+    credits: {
+        all: ["credits"] as const,
+    },
+    events: {
+        all: ["events"] as const,
+        list: (filters?: { search?: string }) => ["events", "list", filters] as const,
+        detail: (id: string) => ["events", "detail", id] as const,
+    },
+    eventDates: {
+        all: ["eventDates"] as const,
+        byEvent: (eventId: string) => ["eventDates", "event", eventId] as const,
+        byMonth: (eventId: string, month: string) =>
+            ["eventDates", "event", eventId, "month", month] as const,
+    },
+    forms: {
+        all: ["forms"] as const,
+        list: (filters?: { search?: string; published?: boolean }) =>
+            ["forms", "list", filters] as const,
+        detail: (id: string) => ["forms", "detail", id] as const,
+    },
+    eventForm: {
+        all: ["eventForm"] as const,
+        detail: (eventId: string) => ["eventForm", "detail", eventId] as const,
+    },
+    payouts: {
+        status: ["payouts", "status"] as const,
+        fee: (eventId: string) => ["payouts", "fee", eventId] as const,
+        drafts: (eventId: string) => ["payouts", "drafts", eventId] as const,
+    },
+    applyFlow: {
+        state: (eventFormId: string) => ["applyFlow", "state", eventFormId] as const,
+    },
+    publicApply: {
+        all: ["publicApply"] as const,
+        detail: (eventFormId: string) => ["publicApply", "detail", eventFormId] as const,
+    },
+    applicants: {
+        all: ["applicants"] as const,
+        schema: (eventId: string) => ["applicants", "schema", eventId] as const,
+        byEvent: (eventId: string, filters?: { search?: string; filters?: unknown }) =>
+            ["applicants", "event", eventId, filters] as const,
+    },
+    subEvents: {
+        overview: (eventId: string) => ["subEvents", "overview", eventId] as const,
+        enrolled: (subEventId: string, params: { search: string; page: number }) => ["subEvents", "enrolled", subEventId, params] as const,
+        dates: (subEventId: string) => ["subEvents", "dates", subEventId] as const,
+        device: ["subEvents", "device"] as const,
+    },
+    sites: {
+        detail: (eventId: string) => ["sites", "detail", eventId] as const,
+        check: (eventId: string, slug: string) => ["sites", "check", eventId, slug] as const,
+    },
+    cards: {
+        status: (eventId: string) => ["cards", "status", eventId] as const,
+        qr: (eventId: string, applicantId: string) => ["cards", "qr", eventId, applicantId] as const,
+    },
+    devices: {
+        all: ["devices"] as const,
+        list: (filters?: { search?: string; page?: number; limit?: number }) =>
+            ["devices", "list", filters] as const,
+        detail: (id: string) => ["devices", "detail", id] as const,
+        byEvent: (eventId: string) => ["devices", "event", eventId] as const,
+        available: (eventId: string) => ["devices", "available", eventId] as const,
+        me: ["devices", "me"] as const,
+    },
+    analysis: {
+        all: ["analysis"] as const,
+        metrics: (eventId: string, filters?: { fromDate?: string; toDate?: string; subEventId?: string }) =>
+            ["analysis", "metrics", eventId, filters] as const,
+        attendees: (
+            eventId: string,
+            params?: {
+                search?: string;
+                status?: string;
+                fromDate?: string;
+                toDate?: string;
+                selectedDate?: string;
+                subEventId?: string;
+                page?: number;
+                limit?: number;
+            },
+        ) => ["analysis", "attendees", eventId, params] as const,
+    },
 } as const;
+
+

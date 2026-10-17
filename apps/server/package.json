@@ -1,21 +1,19 @@
 {
-  "name": "server",
-  "version": "0.0.1",
-  "private": true,
-  "scripts": {
-    "dev": "make dev",
-    "build": "make build",
-    "seed": "make seed",
-    "migrate:up": "make migrate-up",
-    "migrate-up": "make migrate-up",
-    "migrate:down": "make migrate-down",
-    "migrate-down": "make migrate-down",
-    "migrate:new": "make migrate-new",
-    "migrate-new": "make migrate-new",
-    "migrate:force": "make migrate-force",
-    "migrate-force": "make migrate-force",
-    "sqlc:generate": "make sqlc-generate",
-    "sqlc-generate": "make sqlc-generate",
-    "lint": "make lint"
-  }
+    "name": "server",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "dev": "make dev",
+        "dev:admin": "make dev-admin",
+        "dev:sites": "make dev-sites",
+        "build": "make build",
+        "seed": "make seed",
+        "flush": "make flush",
+        "seeds:regenerate": "make seeds-regenerate",
+        "migrate:up": "make migrate-up",
+        "migrate:down": "make migrate-down",
+        "migrate:new": "make migrate-new",
+        "migrate:force": "make migrate-force",
+        "lint": "make lint"
+    }
 }

@@ -5,72 +5,72 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.141 0.005 285.823);
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.141 0.005 285.823);
+    --card-foreground: oklch(0.148 0.004 228.8);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.141 0.005 285.823);
-    --primary: oklch(0.508 0.118 165.612);
-    --primary-foreground: oklch(0.979 0.021 166.113);
+    --popover-foreground: oklch(0.148 0.004 228.8);
+    --primary: oklch(0.491 0.27 292.581);
+    --primary-foreground: oklch(0.969 0.016 293.756);
     --secondary: oklch(0.967 0.001 286.375);
     --secondary-foreground: oklch(0.21 0.006 285.885);
-    --muted: oklch(0.967 0.001 286.375);
-    --muted-foreground: oklch(0.552 0.016 285.938);
-    --accent: oklch(0.967 0.001 286.375);
-    --accent-foreground: oklch(0.21 0.006 285.885);
+    --muted: oklch(0.963 0.002 197.1);
+    --muted-foreground: oklch(0.56 0.021 213.5);
+    --accent: oklch(0.963 0.002 197.1);
+    --accent-foreground: oklch(0.218 0.008 223.9);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.92 0.004 286.32);
-    --input: oklch(0.92 0.004 286.32);
-    --ring: oklch(0.705 0.015 286.067);
-    --chart-1: oklch(0.845 0.143 164.978);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.596 0.145 163.225);
-    --chart-4: oklch(0.508 0.118 165.612);
-    --chart-5: oklch(0.432 0.095 166.913);
+    --border: oklch(0.925 0.005 214.3);
+    --input: oklch(0.925 0.005 214.3);
+    --ring: oklch(0.723 0.014 214.4);
+    --chart-1: oklch(0.827 0.119 306.383);
+    --chart-2: oklch(0.627 0.265 303.9);
+    --chart-3: oklch(0.558 0.288 302.321);
+    --chart-4: oklch(0.496 0.265 301.924);
+    --chart-5: oklch(0.438 0.218 303.724);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.141 0.005 285.823);
-    --sidebar-primary: oklch(0.596 0.145 163.225);
-    --sidebar-primary-foreground: oklch(0.979 0.021 166.113);
-    --sidebar-accent: oklch(0.967 0.001 286.375);
-    --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-    --sidebar-border: oklch(0.92 0.004 286.32);
-    --sidebar-ring: oklch(0.705 0.015 286.067);
+    --sidebar: oklch(0.987 0.002 197.1);
+    --sidebar-foreground: oklch(0.148 0.004 228.8);
+    --sidebar-primary: oklch(0.541 0.281 293.009);
+    --sidebar-primary-foreground: oklch(0.969 0.016 293.756);
+    --sidebar-accent: oklch(0.963 0.002 197.1);
+    --sidebar-accent-foreground: oklch(0.218 0.008 223.9);
+    --sidebar-border: oklch(0.925 0.005 214.3);
+    --sidebar-ring: oklch(0.723 0.014 214.4);
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.148 0.004 228.8);
 }
 
 .dark {
-    --background: oklch(0.141 0.005 285.823);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.21 0.006 285.885);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.21 0.006 285.885);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.432 0.095 166.913);
-    --primary-foreground: oklch(0.979 0.021 166.113);
+    --background: oklch(0.148 0.004 228.8);
+    --foreground: oklch(0.987 0.002 197.1);
+    --card: oklch(0.218 0.008 223.9);
+    --card-foreground: oklch(0.987 0.002 197.1);
+    --popover: oklch(0.218 0.008 223.9);
+    --popover-foreground: oklch(0.987 0.002 197.1);
+    --primary: oklch(0.432 0.232 292.759);
+    --primary-foreground: oklch(0.969 0.016 293.756);
     --secondary: oklch(0.274 0.006 286.033);
     --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.274 0.006 286.033);
-    --muted-foreground: oklch(0.705 0.015 286.067);
-    --accent: oklch(0.274 0.006 286.033);
-    --accent-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.275 0.011 216.9);
+    --muted-foreground: oklch(0.723 0.014 214.4);
+    --accent: oklch(0.275 0.011 216.9);
+    --accent-foreground: oklch(0.987 0.002 197.1);
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.552 0.016 285.938);
-    --chart-1: oklch(0.845 0.143 164.978);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.596 0.145 163.225);
-    --chart-4: oklch(0.508 0.118 165.612);
-    --chart-5: oklch(0.432 0.095 166.913);
-    --sidebar: oklch(0.21 0.006 285.885);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.696 0.17 162.48);
-    --sidebar-primary-foreground: oklch(0.262 0.051 172.552);
-    --sidebar-accent: oklch(0.274 0.006 286.033);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --ring: oklch(0.56 0.021 213.5);
+    --chart-1: oklch(0.827 0.119 306.383);
+    --chart-2: oklch(0.627 0.265 303.9);
+    --chart-3: oklch(0.558 0.288 302.321);
+    --chart-4: oklch(0.496 0.265 301.924);
+    --chart-5: oklch(0.438 0.218 303.724);
+    --sidebar: oklch(0.218 0.008 223.9);
+    --sidebar-foreground: oklch(0.987 0.002 197.1);
+    --sidebar-primary: oklch(0.606 0.25 292.717);
+    --sidebar-primary-foreground: oklch(0.969 0.016 293.756);
+    --sidebar-accent: oklch(0.275 0.011 216.9);
+    --sidebar-accent-foreground: oklch(0.987 0.002 197.1);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.552 0.016 285.938);
+    --sidebar-ring: oklch(0.56 0.021 213.5);
 }
 
 @theme inline {
@@ -115,16 +115,119 @@
     --radius-4xl: calc(var(--radius) * 2.6);
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);
+    --animate-mouse-move-in: mouseMoveIn 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    --animate-mouse-move-out: mouseMoveOut 120ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes mouseMoveIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.94) translateY(4px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes mouseMoveOut {
+    0% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.94) translateY(4px);
+    }
+}
+
+@utility animate-mouseMoveIn {
+    animation: mouseMoveIn 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-mouseMoveOut {
+    animation: mouseMoveOut 120ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-mouseMoveIn,
+[data-open].animate-mouse-move {
+    animation: mouseMoveIn 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-mouseMoveOut,
+[data-closed].animate-mouse-move {
+    animation: mouseMoveOut 120ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Centered, width-capped page body with a minimum gutter on every screen size. */
+@utility container {
+    margin-inline: auto;
+    padding-inline: 0.5rem;
+}
+
+@utility no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+    }
 }
 
 @layer base {
     * {
         @apply border-border outline-ring/50;
         font-family: var(--font-montserrat), sans-serif;
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in oklch, var(--muted-foreground) 30%, transparent) transparent;
     }
 
+    /* WebKit / Chromium custom overlay scrollbars (synced with light/dark theme) */
+    ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+        background-color: transparent;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background-color: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
+        border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
+    }
+
+    ::-webkit-scrollbar-thumb:active {
+        background-color: color-mix(in oklch, var(--muted-foreground) 85%, transparent);
+    }
+
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+
+    /* Overlay scrollbar: does not consume layout width, floats on top of content */
+    html,
     body {
         @apply bg-background text-foreground;
+        overflow-y: overlay;
+    }
+
+    [class*="overflow-y-auto"] {
+        overflow-y: overlay;
+    }
+
+    [class*="overflow-x-auto"] {
+        overflow-x: overlay;
+    }
+
+    [class*="overflow-auto"] {
+        overflow: overlay;
     }
 
     button:not(:disabled),

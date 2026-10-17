@@ -1,19 +1,23 @@
 package attendance
 
 import (
-	"github.com/gofiber/fiber/v2"
-
-	"identitycard-server/internal/generic"
-	"identitycard-server/internal/middlewares"
+    "github.com/gofiber/fiber/v2"
 )
 
-func (a *App) RegisterRoutes(protected, public fiber.Router) {
-	manage := middlewares.RequireRole(generic.RoleOwner, generic.RoleMember)
-	g := protected.Group("/events/:eventId/attendance", manage)
+// RegisterPublicRoutes mounts the scanner endpoints, authenticated by the
+// X-Device-Token header instead of a user session.
+func (h *App) RegisterPublicRoutes(r fiber.Router) {
+    group := r.Group("/events/:eventId/attendance")
+    group.Post("/scan", h.ScanApplicantHandler)
+    group.Post("/entry", h.MarkEntryHandler)
+    group.Post("/exit", h.MarkExitHandler)
 
-	g.Get("/", a.handleListForEvent)
-	g.Get("/export", a.handleExport)
+    r.Get("/attendance/sub-events", h.ListDeviceSubEventsHandler)
+}
 
-	scanner := public.Group("/scanner", a.devices.RequireDevice())
-	scanner.Post("/scan", a.handleScan)
+// RegisterRoutes mounts the organization's analysis endpoints.
+func (h *App) RegisterRoutes(r fiber.Router) {
+    group := r.Group("/events/:eventId/analysis")
+    group.Get("/metrics", h.GetAttendanceMetricsHandler)
+    group.Get("/attendees", h.ListAttendeeAnalysisHandler)
 }

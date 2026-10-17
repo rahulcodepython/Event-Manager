@@ -1,154 +1,181 @@
 package subevents
 
 import (
-	"context"
-	"errors"
+    "context"
+    "errors"
+    "fmt"
+    "strings"
 
-	"uuid"
-
-	"identitycard-server/internal/generic"
-	"identitycard-server/internal/pkg/postgres"
-	"identitycard-server/internal/utils"
+    "identitycard-server/internal/pkg/entitlements"
 )
 
-func (a *App) Create(ctx context.Context, orgID, eventID uuid.UUID, req CreateSubEventRequest) (SubEventResponse, error) {
-	parent, err := a.events.GetContext(ctx, orgID, eventID)
-	if err != nil {
-		return SubEventResponse{}, err
-	}
-	if !parent.IsDraft() {
-		return SubEventResponse{}, utils.ErrConflict("Sub-events can only be added while the event is a draft.", generic.ErrEventsNotDraft)
-	}
-	if parent.EventType != "grouped" {
-		return SubEventResponse{}, utils.ErrValidation(map[string]string{"event_type": "Sub-events can only be added to a grouped event."})
-	}
+var (
+    ErrInvalid        = errors.New("invalid sub-event")
+    ErrLimitReached   = errors.New("sub-event limit reached")
+    ErrNoSubEvents    = errors.New("this event's credit does not include sub-events")
+    ErrCapBelowCount  = errors.New("capacity is below the number already enrolled")
+    ErrNoForm         = errors.New("create the registration form first")
+    ErrInvalidSetting = errors.New("mode must be off, one or many")
+    ErrNotEnrolled    = errors.New("applicant is not enrolled in this sub-event")
+)
 
-	pgDate, err := utils.ParseDate(req.Date)
-	if err != nil {
-		return SubEventResponse{}, utils.ErrValidation(map[string]string{"date": "Invalid date."})
-	}
-	date := pgDate.Time
-	parentStart, _ := utils.ParseDate(parent.StartDate)
-	parentEnd, _ := utils.ParseDate(parent.EndDate)
-	if date.Before(parentStart.Time) || date.After(parentEnd.Time) {
-		return SubEventResponse{}, utils.ErrValidation(map[string]string{"date": "Date must fall within the parent event's date range."})
-	}
-	entry, exit, err := parseTimeWindow(req.EntryTime, req.ExitTime)
-	if err != nil {
-		return SubEventResponse{}, err
-	}
-
-	subEvent, err := a.CreateSubEvent(ctx, orgID, eventID, req.Name, date, entry, exit)
-	if err != nil {
-		return SubEventResponse{}, utils.ErrInternal("Failed to create sub-event.", err)
-	}
-	return *subEvent, nil
+func limitError(limit int) error {
+    if limit == 0 {
+        return ErrNoSubEvents
+    }
+    return fmt.Errorf("%w: this event's credit allows %d", ErrLimitReached, limit)
 }
 
-func (a *App) Get(ctx context.Context, orgID, eventID, id uuid.UUID) (SubEventResponse, error) {
-	if _, err := a.events.GetContext(ctx, orgID, eventID); err != nil {
-		return SubEventResponse{}, err
-	}
-	subEvent, err := a.GetSubEvent(ctx, orgID, eventID, id)
-	if err != nil {
-		if errors.Is(err, postgres.ErrNotFound) || errors.Is(err, generic.ErrSubEventsNotFound) {
-			return SubEventResponse{}, utils.ErrNotFound("Sub-event not found.", err)
-		}
-		return SubEventResponse{}, utils.ErrInternal("Failed to fetch sub-event.", err)
-	}
-	return *subEvent, nil
+func (s *App) OverviewService(ctx context.Context, eventID string) (*Overview, error) {
+    return s.OverviewRepository(ctx, eventID)
 }
 
-func (a *App) List(ctx context.Context, orgID, eventID uuid.UUID) ([]SubEventResponse, error) {
-	if _, err := a.events.GetContext(ctx, orgID, eventID); err != nil {
-		return nil, err
-	}
-	rows, err := a.ListSubEvents(ctx, orgID, eventID)
-	if err != nil {
-		return nil, utils.ErrInternal("Failed to list sub-events.", err)
-	}
-	return rows, nil
+func normalize(req *SubEventRequest) error {
+    req.Name = strings.TrimSpace(req.Name)
+    req.Description = strings.TrimSpace(req.Description)
+    req.Venue = strings.TrimSpace(req.Venue)
+    if req.Name == "" {
+        return fmt.Errorf("%w: name is required", ErrInvalid)
+    }
+    if req.Capacity != nil && *req.Capacity < 1 {
+        return fmt.Errorf("%w: capacity must be at least 1, or empty for no cap", ErrInvalid)
+    }
+    return nil
 }
 
-func (a *App) Update(ctx context.Context, orgID, eventID, id uuid.UUID, req UpdateSubEventRequest) (SubEventResponse, error) {
-	parent, err := a.events.GetContext(ctx, orgID, eventID)
-	if err != nil {
-		return SubEventResponse{}, err
-	}
-	if !parent.IsDraft() {
-		return SubEventResponse{}, utils.ErrConflict("Sub-events can only be edited while the event is a draft.", generic.ErrEventsNotDraft)
-	}
-
-	pgDate, err := utils.ParseDate(req.Date)
-	if err != nil {
-		return SubEventResponse{}, utils.ErrValidation(map[string]string{"date": "Invalid date."})
-	}
-	date := pgDate.Time
-	parentStart, _ := utils.ParseDate(parent.StartDate)
-	parentEnd, _ := utils.ParseDate(parent.EndDate)
-	if date.Before(parentStart.Time) || date.After(parentEnd.Time) {
-		return SubEventResponse{}, utils.ErrValidation(map[string]string{"date": "Date must fall within the parent event's date range."})
-	}
-	entry, exit, err := parseTimeWindow(req.EntryTime, req.ExitTime)
-	if err != nil {
-		return SubEventResponse{}, err
-	}
-
-	subEvent, err := a.UpdateSubEvent(ctx, orgID, eventID, id, req.Name, date, entry, exit)
-	if err != nil {
-		if errors.Is(err, postgres.ErrNotFound) || errors.Is(err, generic.ErrSubEventsNotFound) {
-			return SubEventResponse{}, utils.ErrNotFound("Sub-event not found.", err)
-		}
-		return SubEventResponse{}, utils.ErrInternal("Failed to update sub-event.", err)
-	}
-	return *subEvent, nil
+func (s *App) CreateService(ctx context.Context, eventID string, req SubEventRequest) (*SubEvent, error) {
+    if err := normalize(&req); err != nil {
+        return nil, err
+    }
+    id, err := s.CreateRepository(ctx, eventID, req)
+    if err != nil {
+        return nil, err
+    }
+    s.invalidate(ctx)
+    return s.GetRepository(ctx, id)
 }
 
-func (a *App) Delete(ctx context.Context, orgID, eventID, id uuid.UUID) error {
-	parent, err := a.events.GetContext(ctx, orgID, eventID)
-	if err != nil {
-		return err
-	}
-	if !parent.IsDraft() {
-		return utils.ErrConflict("Sub-events can only be removed while the event is a draft.", generic.ErrEventsNotDraft)
-	}
-
-	deleted, err := a.DeleteSubEvent(ctx, orgID, eventID, id)
-	if err != nil {
-		return utils.ErrInternal("Failed to delete sub-event.", err)
-	}
-	if !deleted {
-		return utils.ErrNotFound("Sub-event not found.", generic.ErrSubEventsNotFound)
-	}
-	return nil
+func (s *App) UpdateService(ctx context.Context, id string, req SubEventRequest) (*SubEvent, error) {
+    if err := normalize(&req); err != nil {
+        return nil, err
+    }
+    if req.Capacity != nil {
+        n, err := s.EnrolledCountRepository(ctx, id)
+        if err != nil {
+            return nil, err
+        }
+        if *req.Capacity < n {
+            return nil, fmt.Errorf("%w (%d)", ErrCapBelowCount, n)
+        }
+    }
+    if err := s.UpdateRepository(ctx, id, req); err != nil {
+        return nil, err
+    }
+    s.invalidate(ctx)
+    return s.GetRepository(ctx, id)
 }
 
-func (a *App) ValidateIDs(ctx context.Context, orgID, eventID uuid.UUID, ids []uuid.UUID) (map[uuid.UUID]bool, error) {
-	if len(ids) == 0 {
-		return map[uuid.UUID]bool{}, nil
-	}
-	valid, err := a.ValidateSubEventIDs(ctx, orgID, eventID, ids)
-	if err != nil {
-		return nil, utils.ErrInternal("Failed to validate sub-event IDs.", err)
-	}
-	result := make(map[uuid.UUID]bool, len(valid))
-	for _, id := range valid {
-		result[id] = true
-	}
-	return result, nil
+// DeleteService removes a sub-event with its days, enrollments and
+// attendance. Enrollments are frozen once applications close, so is this.
+func (s *App) DeleteService(ctx context.Context, eventID, id string) error {
+    if err := entitlements.RequireApplicationsOpen(ctx, s.DB, eventID); err != nil {
+        return err
+    }
+    if err := s.DeleteRepository(ctx, id); err != nil {
+        return err
+    }
+    s.invalidate(ctx)
+    return nil
 }
 
-func parseTimeWindow(entryStr, exitStr string) (string, string, error) {
-	entry, err := utils.ParseClock(entryStr)
-	if err != nil {
-		return "", "", utils.ErrValidation(map[string]string{"entry_time": "Invalid entry_time: " + entryStr})
-	}
-	exit, err := utils.ParseClock(exitStr)
-	if err != nil {
-		return "", "", utils.ErrValidation(map[string]string{"exit_time": "Invalid exit_time: " + exitStr})
-	}
-	if exit.Microseconds <= entry.Microseconds {
-		return "", "", utils.ErrValidation(map[string]string{"exit_time": "exit_time must be after entry_time"})
-	}
-	return entryStr, exitStr, nil
+// SettingsService sets how applicants choose sub-events on the public form.
+func (s *App) SettingsService(ctx context.Context, eventID string, req SettingsRequest) (*Overview, error) {
+    switch req.Mode {
+    case "off", "one", "many":
+    default:
+        return nil, ErrInvalidSetting
+    }
+    if req.Mode == "off" {
+        req.Required = false
+    }
+    if err := entitlements.RequireApplicationsOpen(ctx, s.DB, eventID); err != nil {
+        return nil, err
+    }
+    ok, err := s.UpdateSettingsRepository(ctx, eventID, req)
+    if err != nil {
+        return nil, err
+    }
+    if !ok {
+        return nil, ErrNoForm
+    }
+    s.invalidate(ctx)
+    return s.OverviewRepository(ctx, eventID)
 }
+
+func (s *App) ListEnrolledService(ctx context.Context, id, search string, page, limit int) (*EnrolledList, error) {
+    res, err := s.ListEnrolledRepository(ctx, id, strings.TrimSpace(search), page, limit)
+    if err != nil {
+        return nil, err
+    }
+    res.Page, res.Limit = page, limit
+    return res, nil
+}
+
+// AssignService enrolls applicants chosen by the organizer, each on its own
+// so one full or unknown applicant does not block the rest.
+func (s *App) AssignService(ctx context.Context, eventID, id string, req AssignRequest) (*AssignResponse, error) {
+    if len(req.ApplicantIDs) == 0 || len(req.ApplicantIDs) > 500 {
+        return nil, fmt.Errorf("%w: send 1 to 500 applicant ids", ErrInvalid)
+    }
+    if err := entitlements.RequireApplicationsOpen(ctx, s.DB, eventID); err != nil {
+        return nil, err
+    }
+    res := &AssignResponse{Failed: []AssignError{}}
+    for _, applicantID := range dedupe(req.ApplicantIDs) {
+        if err := s.EnrollRepository(ctx, eventID, applicantID, []string{id}); err != nil {
+            if !IsEnrollError(err) {
+                return nil, err
+            }
+            res.Failed = append(res.Failed, AssignError{ApplicantID: applicantID, Error: err.Error()})
+            continue
+        }
+        res.Added++
+    }
+    s.invalidate(ctx)
+    return res, nil
+}
+
+func (s *App) UnassignService(ctx context.Context, eventID, id, applicantID string) error {
+    if err := entitlements.RequireApplicationsOpen(ctx, s.DB, eventID); err != nil {
+        return err
+    }
+    ok, err := s.UnenrollRepository(ctx, id, applicantID)
+    if err != nil {
+        return err
+    }
+    if !ok {
+        return ErrNotEnrolled
+    }
+    s.invalidate(ctx)
+    return nil
+}
+
+// IsEnrollError reports whether err is a rule failure of EnrollTx (shown to
+// the user) rather than an internal error.
+func IsEnrollError(err error) bool {
+    for _, target := range []error{ErrSubEventNotFound, ErrNotRegistered, ErrSubEventFull, ErrOnlyOne, ErrSelectionRequired, ErrNotSelectable} {
+        if errors.Is(err, target) {
+            return true
+        }
+    }
+    return false
+}
+
+// invalidate drops cached public form data, which lists sub-events.
+func (s *App) invalidate(ctx context.Context) {
+    if s.Cache != nil {
+        _ = s.Cache.DeletePattern(ctx, "cache:public_apply:*")
+        _ = s.Cache.DeletePattern(ctx, "cache:attendance:metrics:*")
+    }
+}
+

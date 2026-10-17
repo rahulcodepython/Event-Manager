@@ -1,1 +1,0 @@
-ALTER TABLE people DROP COLUMN IF EXISTS card_sent_at;

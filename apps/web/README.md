@@ -1,69 +1,51 @@
 # apps/web
 
-Next.js (App Router) frontend: shadcn/ui, react-hook-form + zod, Server
-Components talking to `apps/server` directly. Owns auth entirely (see
-below) — `apps/server` is a pure resource server that trusts this app's
-JWTs.
+Client-facing Next.js app (App Router): organizer dashboard, the public
+registration form (`/apply/[eventFormId]`) and the scanner device screens
+(`/devices/pair`, `/devices/scan`). All data comes from `apps/server` through
+the browser.
 
 ## Setup
 
-```bash
-cp .env.example .env.local   # fill in BETTER_AUTH_SECRET, DATABASE_URL
-bun install                  # from the repo root, or here — workspaces resolve either way
-bun dev                      # http://localhost:3000, expects apps/server on :8000
-```
+Env comes from the repo-root `.env`, loaded in `next.config.ts`.
 
-`DATABASE_URL` points at the same Postgres `apps/server` uses — this app
-and the Go API share one database (see `apps/server/internal/db/migrations/
-000035_better_auth_schema.up.sql`).
+```bash
+bun install
+bun dev                       # http://localhost:3000
+```
 
 ## Auth
 
-Auth lives entirely here now, via [better-auth](https://better-auth.com)
-(`lib/auth.ts` server config, `lib/auth-client.ts` client) — plugins:
-`jwt` (bearer tokens for `apps/server`), `organization` (custom
-`super_admin`/`admin`/`scanner` roles, see `lib/auth-access-control.ts`),
-`emailOTP` (the one credential — passwordless), `twoFactor` (TOTP,
-`allowPasswordless: true`, tabbed sign-in/sign-up — see
-`components/auth/`). `proxy.ts` does a fast cookie-presence
-check at the edge; `components/session-provider.tsx` calls
-`getSession()`/`token()` exactly once per tab and writes the result into
-`store/session.store.ts` — nothing else should call those again.
-`organizationId`/`role` are baked into the JWT at issue time
-(`definePayload` in `lib/auth.ts`) and decoded client-side
-(`lib/jwt.ts`) rather than re-fetched, so switching the active org (see
-the switcher in `components/app-sidebar.tsx`) only needs a fresh
-`token()` call, not a second `getSession()`.
+- `/login` sends the browser to the API's Google login. The API sets
+  `HttpOnly` cookies and redirects back to `/dashboard`, or `/onboarding` on
+  first login.
+- `useMeQuery` (`query-hooks/auth.api.ts`) is the session. The dashboard
+  layout waits for it and sends users without an organization to onboarding.
+- Any 401 on `/dashboard` or `/onboarding` pages makes the axios client
+  reload on `/login`, which logs out and drops all cached data.
+- Requests carry cookies (`withCredentials`); the token refresh happens on the
+  API side, so the client never handles tokens.
 
-A new organization is never created from a standalone form — only as a
-side effect of a successful plan purchase (see `app/select-plan` and
-`subscribe-dialog.tsx`), gated by `organizationLimit: 1` in `lib/auth.ts`.
-Plans/checkout go directly to the backend API (`/api/v1/plans/purchase`).
-Go's `plans`/`billing` tables stay the system of record for what an org
-purchased and its event quota.
+## Structure
+
+| Path | What lives there |
+|---|---|
+| `app/` | routes; `login`, `onboarding`, `dashboard/` (guarded), `apply/` and `devices/` (public) |
+| `components/<domain>/` | feature components (`applicants`, `events`, `forms`, `devices`, `analysis`, ...) |
+| `components/generic/` | shared building blocks: `PageHeader`, `InfiniteDataTable`, `DebouncedInput` |
+| `components/ui/` | shadcn/ui primitives (`@base-ui/react`, use `render={...}`, not `asChild`) |
+| `query-hooks/<module>.api.ts` | TanStack Query hooks per backend feature; mutations toast their own result |
+| `react-query/` | axios client (`apiRequest` validates every response with zod) and query keys |
+| `schema/<module>.types.ts` | zod schemas mirroring the Go entities, kept in sync by hand |
+| `lib/` | `nav.ts` (sidebar + event sections), `csv.ts`, date and misc utils |
 
 ## Conventions
 
-- Every form: `react-hook-form` + a zod schema via
-  `@hookform/resolvers/zod`. Schemas live in `schema/<module>.types.ts`
-  and mirror the matching Go module's request/response DTOs 1:1 — when a
-  backend field changes, update the schema here by hand (no codegen yet).
-- `lib/api/<module>.ts`: thin typed fetch wrappers per backend module,
-  server-only (mint a fresh bearer JWT per call via `auth.api.getToken`,
-  see `lib/api/client.ts`). `lib/client-api/<module>.ts` is the client-side
-  equivalent, reading the token from `store/session.store.ts` (see
-  `react-query/client.ts`'s interceptor — it also retries once with a
-  freshly minted token on a 401, since the JWT is short-lived by design).
-  Every response is parsed through its zod schema before being trusted.
-- Route Handlers are only for a true BFF proxy need — e.g.
-  `app/dashboard/events/[id]/people/export/route.ts`, which a
-  browser-navigated download link can't attach a bearer token to itself
-  and which returns CSV, not the JSON `apiFetch` expects. Same
-  fresh-token-per-request pattern as `lib/api/client.ts`.
-- A file upload (CSV import) posts a `FormData` body through the same
-  `apiFetch` — it skips the JSON `Content-Type` automatically when the body
-  is `FormData` so the browser can set its own multipart boundary. Native
-  `<input type="file">` + `useActionState`, not react-hook-form, since
-  there's nothing to client-validate before the file reaches the server.
-- shadcn/ui components: `npx shadcn@latest add <component>` (see
-  `components.json` for the configured style/aliases).
+- **Event pages** call `useEventPage("Title")` (from `components/events/event-context.tsx`)
+  to get the event and set breadcrumbs, and render a `PageHeader` first. The
+  layout already wraps them in the `container` utility.
+- **Forms:** react-hook-form + zod resolver.
+- **JSX conditionals and lists:** braces on their own lines, no wrapping parens
+  (see "tsx code writting pattern" in `PROJECT_MEMORY.md`). Prettier rewrites
+  this style, so don't run it over hand-written JSX.
+- **Formatting:** 4-space indentation (`AGENTS.md`).

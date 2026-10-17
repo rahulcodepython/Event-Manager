@@ -9,7 +9,7 @@ import {
   type Locale,
 } from "react-day-picker"
 
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "./button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 
 function Calendar({
@@ -69,7 +69,7 @@ function Calendar({
           defaultClassNames.month_caption
         ),
         dropdowns: cn(
-          "flex h-(--cell-size) w-full items-center justify-center gap-1.5 text-sm font-medium",
+          "flex h-(--cell-size) w-full items-center justify-center gap-2 text-sm font-medium",
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(

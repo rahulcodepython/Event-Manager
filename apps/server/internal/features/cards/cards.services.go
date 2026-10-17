@@ -1,184 +1,225 @@
 package cards
 
 import (
-	"context"
-	"fmt"
-	"log"
-	"time"
+    "context"
+    "errors"
+    "io"
+    "log/slog"
+    "strings"
+    "time"
 
-	"uuid"
-
-	"identitycard-server/internal/features/events"
-	"identitycard-server/internal/features/people"
-	"identitycard-server/internal/generic"
-	"identitycard-server/internal/pkg/mailer"
-	"identitycard-server/internal/pkg/qrtoken"
-	"identitycard-server/internal/utils"
+    "identitycard-server/internal/features/uploads"
+    "identitycard-server/internal/pkg/idcard"
+    "identitycard-server/internal/pkg/postgres"
 )
 
-func (a *App) GenerateForPerson(ctx context.Context, orgID, eventID, personID uuid.UUID) ([]byte, error) {
-	pdfBytes, _, err := a.generate(ctx, orgID, eventID, personID)
-	return pdfBytes, err
+var (
+    ErrNoForm          = errors.New("this event has no registration form")
+    ErrPublished       = errors.New("cards are already published; the schedule is frozen")
+    ErrNotPublished    = errors.New("cards are not published yet")
+    ErrWindowOpen      = errors.New("close the application window before publishing cards")
+    ErrInvalidSchedule = errors.New("invalid schedule")
+    ErrInvalidScope    = errors.New("scope must be failed or all")
+    ErrNothingToSend   = errors.New("no cards to send")
+)
+
+func (s *App) StatusService(ctx context.Context, eventID string) (*Status, error) {
+    return s.GetStatusRepository(ctx, eventID)
 }
 
-func (a *App) ResendForPerson(ctx context.Context, orgID, eventID, personID uuid.UUID) error {
-	event, err := a.events.Get(ctx, orgID, eventID)
-	if err != nil {
-		return err
-	}
-	if event.Status != "published" {
-		return utils.ErrConflict("Cards can only be sent once the event is published.", generic.ErrEventsNotDraft)
-	}
-
-	pdfBytes, person, err := a.generate(ctx, orgID, eventID, personID)
-	if err != nil {
-		return err
-	}
-	if err := a.sendCard(ctx, person, event, pdfBytes); err != nil {
-		return utils.ErrInternal("Failed to send ID card email.", err)
-	}
-	return a.people.UpdateCardSentAt(ctx, personID)
+// formState loads the event's form state, mapping a missing form to ErrNoForm.
+func (s *App) formState(ctx context.Context, eventID string) (published, closed bool, err error) {
+    published, closed, err = s.FormStateRepository(ctx, eventID)
+    if errors.Is(err, postgres.ErrNotFound) {
+        return false, false, ErrNoForm
+    }
+    return published, closed, err
 }
 
-func (a *App) SendForEvent(ctx context.Context, orgID, eventID uuid.UUID) error {
-	event, err := a.events.Get(ctx, orgID, eventID)
-	if err != nil {
-		log.Printf("cards: SendForEvent: get event %s: %v", eventID, err)
-		return err
-	}
-
-	attendees, err := a.people.List(ctx, orgID, eventID, people.PeopleListFilter{})
-	if err != nil {
-		log.Printf("cards: SendForEvent: list people for event %s: %v", eventID, err)
-		return err
-	}
-
-	var batch []mailer.BatchMessage
-	var sentPersonIDs []uuid.UUID
-
-	for _, person := range attendees {
-		pdfBytes, _, err := a.generate(ctx, orgID, eventID, person.ID)
-		if err != nil {
-			log.Printf("cards: SendForEvent: generate for person %s: %v", person.ID, err)
-			continue
-		}
-
-		subject := fmt.Sprintf("Your ID card for %s", event.Name)
-		body := fmt.Sprintf(
-			"Hi %s,\n\nYour ID card for %s is attached as a PDF. Please bring it (digitally or printed) to the event.\n",
-			person.Name, event.Name,
-		)
-
-		batch = append(batch, mailer.BatchMessage{
-			To:      person.Email,
-			Subject: subject,
-			Body:    body,
-			Attachments: []mailer.Attachment{
-				{Filename: "id-card.pdf", ContentType: "application/pdf", Data: pdfBytes},
-			},
-		})
-		sentPersonIDs = append(sentPersonIDs, person.ID)
-	}
-
-	if len(batch) > 0 {
-		if err := a.mailer.SendBatch(ctx, batch); err != nil {
-			log.Printf("cards: SendForEvent: batch send via Resend failed: %v", err)
-			return err
-		}
-		for _, pid := range sentPersonIDs {
-			if err := a.people.UpdateCardSentAt(ctx, pid); err != nil {
-				log.Printf("cards: SendForEvent: mark sent for person %s: %v", pid, err)
-			}
-		}
-	}
-	return nil
+// ScheduleService sets the closing and publishing dates. A closed window
+// reopens when the new closing date is in the future; nothing changes once
+// cards are published.
+func (s *App) ScheduleService(ctx context.Context, eventID string, req ScheduleRequest) (*Status, error) {
+    switch {
+    case req.ClosesAt.IsZero() || req.PublishAt.IsZero():
+        return nil, errorf(ErrInvalidSchedule, "both dates are required")
+    case !req.ClosesAt.After(time.Now()):
+        return nil, errorf(ErrInvalidSchedule, "the closing date must be in the future; use close now instead")
+    case req.PublishAt.Before(req.ClosesAt):
+        return nil, errorf(ErrInvalidSchedule, "cards cannot be published before the application window closes")
+    }
+    if err := s.requireUnpublished(ctx, eventID); err != nil {
+        return nil, err
+    }
+    if _, err := s.UpdateScheduleRepository(ctx, eventID, req.ClosesAt, req.PublishAt); err != nil {
+        return nil, err
+    }
+    s.invalidate(ctx, eventID)
+    return s.StatusService(ctx, eventID)
 }
 
-func (a *App) generate(ctx context.Context, orgID, eventID, personID uuid.UUID) ([]byte, people.PersonResponse, error) {
-	event, err := a.events.Get(ctx, orgID, eventID)
-	if err != nil {
-		return nil, people.PersonResponse{}, err
-	}
-	person, err := a.people.Get(ctx, orgID, eventID, personID)
-	if err != nil {
-		return nil, people.PersonResponse{}, err
-	}
-
-	var subSchedules []subEventSchedule
-	for _, subEventID := range person.SubEventIDs {
-		se, err := a.subevents.Get(ctx, orgID, eventID, subEventID)
-		if err != nil {
-			continue
-		}
-		subSchedules = append(subSchedules, subEventSchedule{
-			Name: se.Name,
-			Days: []events.EventDayResponse{{Date: se.Date, EntryTime: se.EntryTime, ExitTime: se.ExitTime}},
-		})
-	}
-
-	org, err := a.orgs.GetSettings(ctx, orgID)
-	if err != nil {
-		return nil, people.PersonResponse{}, err
-	}
-	var orgLogo []byte
-
-	var eventImage []byte
-	if event.HasImage {
-		if data, _, err := a.events.GetImage(ctx, orgID, eventID); err == nil {
-			eventImage = data
-		}
-	}
-	var organizerSignature []byte
-	if event.HasOrganizerSignature {
-		if data, _, err := a.events.GetOrganizerSignature(ctx, orgID, eventID); err == nil {
-			organizerSignature = data
-		}
-	}
-
-	token, err := qrtoken.Issue(a.cfg.QRSecret, personID, eventID, orgID, qrExpiry(event.EndDate))
-	if err != nil {
-		return nil, people.PersonResponse{}, utils.ErrInternal("Failed to issue QR token.", err)
-	}
-
-	photo := fetchPersonPhoto(ctx, peopleDerefOrEmpty(person.ImageURL))
-
-	pdfBytes, err := renderCardPDF(renderInput{
-		OrgName: org.Name, OrgLogo: orgLogo,
-		Event: event, Person: person, SubEvents: subSchedules,
-		PersonPhoto: photo, QRToken: token,
-		EventImage: eventImage, OrganizerSignature: organizerSignature,
-	})
-	if err != nil {
-		return nil, people.PersonResponse{}, utils.ErrInternal("Failed to render card PDF.", err)
-	}
-	return pdfBytes, person, nil
+// CloseNowService closes the application window immediately.
+func (s *App) CloseNowService(ctx context.Context, eventID string) (*Status, error) {
+    if err := s.requireUnpublished(ctx, eventID); err != nil {
+        return nil, err
+    }
+    if _, err := s.CloseNowRepository(ctx, eventID); err != nil {
+        return nil, err
+    }
+    s.invalidate(ctx, eventID)
+    return s.StatusService(ctx, eventID)
 }
 
-func (a *App) sendCard(ctx context.Context, person people.PersonResponse, event events.EventResponse, pdfBytes []byte) error {
-	subject := fmt.Sprintf("Your ID card for %s", event.Name)
-	body := fmt.Sprintf(
-		"Hi %s,\n\nYour ID card for %s is attached as a PDF. Please bring it (digitally or printed) to the event.\n",
-		person.Name, event.Name,
-	)
-	return a.mailer.Send(ctx, person.Email, subject, body, mailer.Attachment{
-		Filename: "id-card.pdf", ContentType: "application/pdf", Data: pdfBytes,
-	})
+// PublishNowService publishes the cards of a closed window immediately.
+func (s *App) PublishNowService(ctx context.Context, eventID string) (*Status, error) {
+    published, closed, err := s.formState(ctx, eventID)
+    if err != nil {
+        return nil, err
+    }
+    if published {
+        return nil, ErrPublished
+    }
+    if !closed {
+        return nil, ErrWindowOpen
+    }
+    if _, err := s.PublishNowRepository(ctx, eventID); err != nil {
+        return nil, err
+    }
+    if err := s.publishDue(ctx, eventID); err != nil {
+        return nil, err
+    }
+    s.invalidate(ctx, eventID)
+    return s.StatusService(ctx, eventID)
 }
 
-func qrExpiry(endDate string) time.Time {
-	if endDate == "" {
-		return time.Now().Add(48 * time.Hour)
-	}
-	t, err := time.Parse(utils.DateLayout, endDate)
-	if err != nil {
-		return time.Now().Add(24 * time.Hour)
-	}
-	return t.Add(48 * time.Hour)
+// ResendService requeues failed cards or all cards of a published event.
+func (s *App) ResendService(ctx context.Context, eventID string, req ResendRequest) (*Status, error) {
+    if req.Scope != "failed" && req.Scope != "all" {
+        return nil, ErrInvalidScope
+    }
+    return s.resend(ctx, eventID, req.Scope, "")
 }
 
-func peopleDerefOrEmpty(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
+// ResendOneService requeues one applicant's card.
+func (s *App) ResendOneService(ctx context.Context, eventID, applicantID string) (*Status, error) {
+    return s.resend(ctx, eventID, "applicant", applicantID)
+}
+
+func (s *App) resend(ctx context.Context, eventID, scope, applicantID string) (*Status, error) {
+    published, _, err := s.formState(ctx, eventID)
+    if err != nil {
+        return nil, err
+    }
+    if !published {
+        return nil, ErrNotPublished
+    }
+    ids, err := s.ResendRepository(ctx, eventID, scope, applicantID)
+    if err != nil {
+        return nil, err
+    }
+    if len(ids) == 0 {
+        return nil, ErrNothingToSend
+    }
+    if err := s.Queue.EnqueueAll(ctx, JobType, ids); err != nil {
+        // The stale sweep picks them up later.
+        slog.Error("cards: enqueue resend", "event", eventID, "error", err)
+    }
+    return s.StatusService(ctx, eventID)
+}
+
+// CardPDFService renders one applicant's card for the organizer.
+func (s *App) CardPDFService(ctx context.Context, eventID, applicantID string) ([]byte, string, error) {
+    data, err := s.CardByApplicantRepository(ctx, eventID, applicantID)
+    if err != nil {
+        return nil, "", err
+    }
+    card := s.card(ctx, data)
+    pdf, err := idcard.Render(ctx, card)
+    return pdf, idcard.Filename(card), err
+}
+
+// QRService returns the signed QR text of one applicant.
+func (s *App) QRService(ctx context.Context, eventID, applicantID string) (*QRResponse, error) {
+    data, err := s.CardByApplicantRepository(ctx, eventID, applicantID)
+    if err != nil {
+        return nil, err
+    }
+    return &QRResponse{QR: s.Signer.Sign(data.EventID, data.ApplicantID)}, nil
+}
+
+func (s *App) requireUnpublished(ctx context.Context, eventID string) error {
+    published, _, err := s.formState(ctx, eventID)
+    if err != nil {
+        return err
+    }
+    if published {
+        return ErrPublished
+    }
+    return nil
+}
+
+// publishDue queues the cards of due events (one event, or all with "").
+func (s *App) publishDue(ctx context.Context, eventID string) error {
+    ids, err := s.PublishDueRepository(ctx, eventID)
+    if err != nil {
+        return err
+    }
+    if err := s.Queue.EnqueueAll(ctx, JobType, ids); err != nil {
+        slog.Error("cards: enqueue published cards", "error", err)
+    }
+    return nil
+}
+
+func (s *App) card(ctx context.Context, d *cardData) idcard.Card {
+    subEvents := make([]idcard.SubEvent, 0, len(d.SubEvents))
+    for _, se := range d.SubEvents {
+        item := idcard.SubEvent{Name: se.Name}
+        if se.FirstDay != nil && se.LastDay != nil {
+            item.StartDate, item.EndDate = *se.FirstDay, *se.LastDay
+        }
+        subEvents = append(subEvents, item)
+    }
+    return idcard.Card{
+        SubEvents:     subEvents,
+        EventName:     d.EventName,
+        StartDate:     d.StartDate,
+        EndDate:       d.EndDate,
+        Venue:         d.Venue,
+        Organizer:     d.Organizer,
+        ApplicantName: d.Name,
+        ApplicantID:   d.ApplicantID,
+        Email:         d.Email,
+        QR:            s.Signer.Sign(d.EventID, d.ApplicantID),
+        Branding:      d.Branding,
+        LogoURL:       d.Logo,
+        Photo:         s.image(ctx, d.EventID, d.PhotoKey),
+        Signature:     s.image(ctx, d.EventID, d.SignatureKey),
+    }
+}
+
+// image loads an applicant image; a missing one is left off the card.
+func (s *App) image(ctx context.Context, eventID string, key *string) []byte {
+    if key == nil || !strings.HasPrefix(*key, uploads.EventPrefix(eventID)) {
+        return nil
+    }
+    obj, err := s.Store.Get(ctx, *key)
+    if err != nil {
+        return nil
+    }
+    defer obj.Body.Close()
+    data, err := io.ReadAll(io.LimitReader(obj.Body, 4<<20))
+    if err != nil {
+        return nil
+    }
+    return data
+}
+
+// invalidate drops cached form data, which includes the closing date.
+func (s *App) invalidate(ctx context.Context, eventID string) {
+    if s.Cache == nil {
+        return
+    }
+    _ = s.Cache.DeletePattern(ctx, "cache:event_forms:event:"+eventID+"*")
+    _ = s.Cache.DeletePattern(ctx, "cache:public_apply:*")
+    _ = s.Cache.Delete(ctx, "cache:events:detail:"+eventID)
 }

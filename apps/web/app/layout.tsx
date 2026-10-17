@@ -1,9 +1,9 @@
 import { Montserrat } from "next/font/google"
 import { Toaster } from "sonner"
 import "./globals.css"
-import { QueryProvider } from "@/components/providers/query-provider"
-import { ThemeProvider } from "@/components/providers/theme-provider"
-import { cn } from "@/lib/utils"
+import { QueryProvider } from "../components/providers/query-provider"
+import { ThemeProvider } from "../components/providers/theme-provider"
+import { cn } from "../lib/utils"
 
 const montserrat = Montserrat({
     subsets: ["latin"],

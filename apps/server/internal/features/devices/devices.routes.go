@@ -1,26 +1,31 @@
 package devices
 
-import (
-    "github.com/gofiber/fiber/v2"
+import "github.com/gofiber/fiber/v2"
 
-    "identitycard-server/internal/generic"
-    "identitycard-server/internal/middlewares"
-)
+// RegisterPublicRoutes mounts the scanner-device endpoints, authenticated
+// by pairing PIN, WebAuthn or the X-Device-Token header instead of a user session.
+func (h *App) RegisterPublicRoutes(api fiber.Router) {
+    group := api.Group("/devices")
+    group.Get("/me", h.GetMyDeviceHandler)
+    group.Post("/verify", h.VerifyDeviceHandler)
+    group.Post("/webauthn/register-options", h.WebAuthnRegisterOptionsHandler)
+    group.Post("/webauthn/register-verify", h.WebAuthnRegisterVerifyHandler)
+    group.Post("/webauthn/login-options", h.WebAuthnLoginOptionsHandler)
+    group.Post("/webauthn/login-verify", h.WebAuthnLoginVerifyHandler)
+}
 
-func (a *App) RegisterRoutes(protected, public fiber.Router) {
-    manage := middlewares.RequireRole(generic.RoleOwner, generic.RoleMember)
+// RegisterRoutes mounts the organization's device management endpoints.
+func (h *App) RegisterRoutes(api fiber.Router) {
+    devices := api.Group("/devices")
+    devices.Post("/", h.CreateDeviceHandler)
+    devices.Get("/", h.ListDevicesHandler)
+    devices.Patch("/:id", h.UpdateDeviceHandler)
+    devices.Post("/:id/regenerate-pin", h.RegeneratePINHandler)
+    devices.Delete("/:id", h.DeleteDeviceHandler)
 
-    g := protected.Group("/devices", manage)
-
-    g.Post("/", a.handleCreate)
-    g.Get("/", a.handleList)
-    g.Delete("/:id", a.handleRevoke)
-    g.Post("/:id/revoke", a.handleRevoke)
-
-    // Device pairing: canonical /public/devices/pair and alias /devices/pair
-    public.Post("/public/devices/pair", a.handlePair)
-    public.Post("/devices/pair", a.handlePair)
-
-    scanner := public.Group("/scanner", a.RequireDevice())
-    scanner.Get("/me", a.handleMe)
+    eventDevices := api.Group("/events/:eventId/devices")
+    eventDevices.Get("/", h.ListEventDevicesHandler)
+    eventDevices.Get("/available", h.ListAvailableGlobalDevicesHandler)
+    eventDevices.Post("/assign", h.AssignEventDevicesHandler)
+    eventDevices.Delete("/:deviceId", h.UnassignEventDeviceHandler)
 }

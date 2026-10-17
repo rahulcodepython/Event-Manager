@@ -5,7 +5,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-} from "@/components/ui/dropdown-menu"
+} from "./dropdown-menu"
 import { RiComputerLine, RiMoonLine, RiSunLine } from "@remixicon/react"
 
 export function ModeToggle() {

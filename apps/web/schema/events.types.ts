@@ -1,80 +1,65 @@
 import { z } from "zod";
 
-export const eventDayInputSchema = z.object({
-    date: z.string().min(1, "Date is required"),
-    entry_time: z.string().min(1, "Entry time is required"),
-    exit_time: z.string().min(1, "Exit time is required"),
-});
-export type EventDayInput = z.infer<typeof eventDayInputSchema>;
+import { PaginatedResponseZod, type PaginatedResponse } from "./common.types";
 
-export const eventDayResponseSchema = z.object({
-    date: z.string(),
-    entry_time: z.string(),
-    exit_time: z.string(),
-});
-export type EventDay = z.infer<typeof eventDayResponseSchema>;
+// =====================================================================
+// Event Models & Schemas
+// =====================================================================
 
-export const eventTypeSchema = z.string().default("standard");
-export type EventType = string;
-
-export const eventStatusSchema = z.enum(["draft", "published"]);
-export type EventStatus = z.infer<typeof eventStatusSchema>;
-
-export const createEventSchema = z.object({
-    name: z.string().min(2, "Enter an event name").max(200),
-    venue: z.string().max(300).optional(),
-    organizer_name: z.string().max(200).optional(),
-    start_date: z.string().optional(),
-    end_date: z.string().optional(),
-    event_type: z.string().optional(),
-    days: z.array(eventDayInputSchema).optional(),
-    range_start: z.string().optional(),
-    range_end: z.string().optional(),
-});
-export type CreateEventInput = z.infer<typeof createEventSchema>;
-
-export const updateEventSchema = z.object({
-    name: z.string().min(2, "Enter an event name").max(200),
-    venue: z.string().max(300).optional(),
-    organizer_name: z.string().max(200).optional(),
-    start_date: z.string().optional(),
-    end_date: z.string().optional(),
-    days: z.array(eventDayInputSchema).optional(),
-    range_start: z.string().optional(),
-    range_end: z.string().optional(),
-});
-export type UpdateEventInput = z.infer<typeof updateEventSchema>;
-
-export const eventSummarySchema = z.object({
-    id: z.string().uuid(),
-    event_type: z.string().default("standard"),
-    status: eventStatusSchema,
+export const EventSchema = z.object({
+    id: z.string(),
+    name: z.string(),
     start_date: z.string(),
     end_date: z.string(),
-    name: z.string(),
-    venue: z.string().nullable().optional(),
-    organizer_name: z.string().nullable().optional(),
-    has_image: z.boolean(),
-    has_organizer_signature: z.boolean(),
-    published_at: z.string().nullable().optional(),
-});
-export type EventSummary = z.infer<typeof eventSummarySchema>;
-
-export const eventResponseSchema = eventSummarySchema.extend({
-    days: z.array(eventDayResponseSchema),
-});
-export type EventDetail = z.infer<typeof eventResponseSchema>;
-
-export const eventsListResponseSchema = z.array(eventSummarySchema);
-
-export const dayImportRowErrorSchema = z.object({
-    row: z.number(),
-    message: z.string(),
+    venue: z.string().optional().nullable(),
+    logo: z.string().optional().nullable(),
+    organizer: z.string().optional().nullable(),
+    credit: z
+        .object({
+            id: z.string(),
+            name: z.string(),
+            kind: z.enum(["trial", "paid", "granted"]),
+            ends_at: z.string(),
+            is_expired: z.boolean(),
+            prune_at: z.string(),
+            has_branding: z.boolean(),
+        })
+        .nullable(),
+    created_at: z.string(),
+    updated_at: z.string(),
 });
 
-export const dayImportSummarySchema = z.object({
-    imported: z.number(),
-    skipped: z.number(),
-    errors: z.array(dayImportRowErrorSchema),
+export type Event = z.infer<typeof EventSchema>;
+
+// Payload schema for creating a new event (name, start_date, end_date)
+export const CreateEventSchema = z
+    .object({
+        credit_id: z.string().min(1, "Choose a credit"),
+        name: z.string().min(1, "Event name is required"),
+        start_date: z.string().min(1, "Start date is required"),
+        end_date: z.string().min(1, "End date is required"),
+    })
+    .refine(
+        (data) => !data.start_date || !data.end_date || data.end_date >= data.start_date,
+        {
+            message: "End date must be greater than or equal to start date",
+            path: ["end_date"],
+        }
+    );
+
+export type CreateEventInput = z.infer<typeof CreateEventSchema>;
+
+// Payload schema for updating an existing event
+export const UpdateEventSchema = z.object({
+    name: z.string().min(1, "Event name is required").optional(),
+    start_date: z.string().min(1, "Start date is required").optional(),
+    end_date: z.string().min(1, "End date is required").optional(),
+    venue: z.string().optional().nullable(),
+    logo: z.string().optional().nullable(),
+    organizer: z.string().optional().nullable(),
 });
-export type DayImportSummary = z.infer<typeof dayImportSummarySchema>;
+export type UpdateEventInput = z.infer<typeof UpdateEventSchema>;
+
+// Paginated listing schema
+export const EventListResponseSchema = PaginatedResponseZod(EventSchema);
+export type EventListResponse = PaginatedResponse<Event>;

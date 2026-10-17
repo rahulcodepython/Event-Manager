@@ -1,18 +1,29 @@
 package devices
 
 import (
+    "time"
+
+    "github.com/go-webauthn/webauthn/webauthn"
     "github.com/jackc/pgx/v5/pgxpool"
-    "identitycard-server/internal/features/organizations"
+    "github.com/redis/go-redis/v9"
 )
 
 type App struct {
-    pool *pgxpool.Pool
-    orgs *organizations.App
+    DB              *pgxpool.Pool
+    Redis           *redis.Client
+    WebAuthn        *webauthn.WebAuthn
+    RPID            string
+    CanonicalOrigin string
+    PINTTL          time.Duration // DEVICE_PIN_TTL
 }
 
-func New(pool *pgxpool.Pool, orgsApp *organizations.App) *App {
+func NewApp(db *pgxpool.Pool, rdb *redis.Client, wa *webauthn.WebAuthn, rpID, canonicalOrigin string, pinTTL time.Duration) *App {
     return &App{
-        pool: pool,
-        orgs: orgsApp,
+        DB:              db,
+        Redis:           rdb,
+        WebAuthn:        wa,
+        RPID:            rpID,
+        CanonicalOrigin: canonicalOrigin,
+        PINTTL:          pinTTL,
     }
 }

@@ -1,31 +1,46 @@
 # Identity Card
 
-Identity card generator + attendance tracker for organizations running
-events (established or flash) with optional sub-events.
+Event registration, QR identity and attendance platform. Organizers create an
+event, publish a registration form, collect applicants, and scan their QR codes
+at the door with paired scanner devices.
 
 ## Layout
 
-- `apps/web` — Next.js app (App Router, shadcn/ui, react-hook-form + zod).
-  Owns auth entirely, via [better-auth](https://better-auth.com).
-- `apps/server` — Go/Fiber API (Postgres via sqlc + pgx). Verifies
-  bearer JWTs against `apps/web`'s JWKS endpoint; issues none itself.
-- `infra` — local dev infrastructure (Postgres, MinIO, Mailhog via
-  Docker Compose).
+- `apps/web` — client dashboard, public registration form and scanner UI
+  (Next.js App Router, shadcn/ui, TanStack Query, react-hook-form + zod).
+- `apps/admin` — platform admin web app (Next.js, same stack as `apps/web`):
+  dashboard, clients, ledger, subscriptions, pricing catalog.
+- `apps/landing` — public marketing site (Next.js): home, pricing
+  calculator, contact and legal pages.
+- `apps/server` — Go/Fiber API. Two binaries share one codebase:
+  `cmd/server` (client API, port 8000), `cmd/admin` (platform admin API,
+  port 8001) and `cmd/sites` (uploaded event sites, port 8002).
+- `infra` — local Postgres, migrations, Redis and MinIO via Docker Compose.
 
-See `apps/web/README.md` and `apps/server/README.md` for per-app setup.
+The roadmap lives in [PLAN.md](docs/PLAN.md); project history and coding rules in
+[PROJECT_MEMORY.md](docs/PROJECT_MEMORY.md).
+
+## Environment
+
+One `.env` at the repo root serves every app: copy `.env.example` to `.env`
+and fill in the secrets. The Go binaries find it by walking up from their
+working directory, `apps/web/next.config.ts` loads it with `@next/env`, and
+Docker Compose reads it via `--env-file .env`. `${VAR}` references expand.
 
 ## Local development
 
 ```bash
-cd infra && docker compose up -d      # postgres, minio, mailhog
-cd apps/server && make dev            # migrates on boot
-cd apps/web && bun install && bun dev
+cp .env.example .env                      # then fill JWT secrets, Google keys, passwords
+bun run docker:up                         # postgres, migrate (runs once), redis
+cd apps/server && make dev                # client API on :8000
+cd apps/server && make dev-admin          # admin API on :8001
+cd apps/server && make dev-sites          # event sites on :8002 (http://<slug>.sites.localhost:8002)
+cd apps/web && bun install && bun dev     # :3000
+cd apps/admin && bun dev                  # admin web on :3001
+cd apps/landing && bun dev                # marketing site on :3002
 ```
 
-Publishing an event emails every attendee their ID card (PDF + QR) — locally
-that mail goes to Mailhog, not a real inbox: http://localhost:8025.
+The admin logs in with `ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env`.
 
-## Architecture & Billing Documentation
-
-For a detailed explanation of the credit-based event permission model, payment flows, subscription lifecycle, and event creation authorization, see [BILLING_SYSTEM.md](BILLING_SYSTEM.md).
-
+Google login needs the redirect URI `${API_URL}/api/v1/auth/google/callback`
+registered on the Google OAuth client.
