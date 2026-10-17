@@ -60,6 +60,7 @@ func useCommonMiddlewares(app *fiber.App, cfg *config.Config, rdb *redis.Client,
         AllowHeaders:     allowHeaders,
         AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
         AllowCredentials: true,
+        ExposeHeaders:    "X-RateLimit-Limit,X-RateLimit-Remaining,Retry-After",
     }))
     // 7. Rate limiting: Redis token bucket per client IP
     app.Use(middlewares.RateLimiterMiddleware(rdb, cfg.RateLimitPerMinute, cfg.RateLimitBurst))

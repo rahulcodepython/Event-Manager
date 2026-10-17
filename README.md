@@ -17,8 +17,8 @@ at the door with paired scanner devices.
   port 8001) and `cmd/sites` (uploaded event sites, port 8002).
 - `infra` — local Postgres, migrations, Redis and MinIO via Docker Compose.
 
-The roadmap lives in [PLAN.md](PLAN.md); project history and coding rules in
-[PROJECT_MEMORY.md](PROJECT_MEMORY.md).
+The roadmap lives in [PLAN.md](docs/PLAN.md); project history and coding rules in
+[PROJECT_MEMORY.md](docs/PROJECT_MEMORY.md).
 
 ## Environment
 
