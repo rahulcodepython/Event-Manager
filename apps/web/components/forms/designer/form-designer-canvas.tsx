@@ -25,6 +25,7 @@ import { EditFieldDialog } from "./edit-field-dialog";
 import { createNewField } from "./field-type-config";
 import type { Form, FormField, FormFieldType } from "../../../schema/forms.types";
 import { SortableFormFieldCard } from "./sortable-form-field-card";
+import { useUnsavedChangesGuard } from "../../../hooks/use-unsaved-changes";
 
 interface FormDesignerCanvasProps {
 
@@ -46,6 +47,7 @@ export function FormDesignerCanvas({
     hasUnsavedChanges,
     isPublished,
 }: FormDesignerCanvasProps) {
+    useUnsavedChangesGuard(hasUnsavedChanges);
 
     const [editingField, setEditingField] = React.useState<FormField | null>(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -146,7 +148,7 @@ export function FormDesignerCanvas({
                     </div> : <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-2.5 text-[11px] text-muted-foreground">
                         <Info className="size-3.5 shrink-0 mt-0.5 text-primary" />
                         <span>
-                            Full Name and Email Address are mandatory system fields. They cannot be removed or set to optional.
+                            Full Name, Email Address and Mobile Number are mandatory system fields. They cannot be removed or set to optional.
                         </span>
                     </div>
                 }

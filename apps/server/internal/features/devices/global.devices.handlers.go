@@ -147,7 +147,8 @@ func (h *App) VerifyDeviceHandler(c *fiber.Ctx) error {
     return utils.OK(c, "device verified and paired successfully", res)
 }
 
-func (h *App) GetMyDeviceHandler(c *fiber.Ctx) error {
+// deviceToken reads this browser's device token: cookie, bearer or header.
+func deviceToken(c *fiber.Ctx) string {
     token := c.Cookies("device_token")
     if token == "" {
         authHeader := c.Get("Authorization")
@@ -158,7 +159,11 @@ func (h *App) GetMyDeviceHandler(c *fiber.Ctx) error {
     if token == "" {
         token = c.Get("X-Device-Token")
     }
+    return token
+}
 
+func (h *App) GetMyDeviceHandler(c *fiber.Ctx) error {
+    token := deviceToken(c)
     if token == "" {
         return utils.ErrUnauthorized(c, "missing device authorization token", errors.New("unauthorized"))
     }
@@ -181,14 +186,20 @@ func (h *App) WebAuthnRegisterOptionsHandler(c *fiber.Ctx) error {
     }
 
     clientIP := c.IP()
-    res, err := h.WebAuthnRegisterOptionsService(c.UserContext(), clientIP, req)
+    res, err := h.WebAuthnRegisterOptionsService(c.UserContext(), clientIP, deviceToken(c), req)
     if err != nil {
         slog.Warn("webauthn registration options failed", "error", err, "ip", clientIP)
         if errors.Is(err, ErrRateLimitExceeded) || errors.Is(err, ErrTooManyWrongGuesses) {
             return utils.Respond(c, fiber.StatusTooManyRequests, false, err.Error(), any(nil), err)
         }
-        if errors.Is(err, ErrInvalidPIN) || errors.Is(err, ErrPINExpired) {
+        if errors.Is(err, ErrInvalidPIN) || errors.Is(err, ErrPINExpired) || errors.Is(err, ErrNotPaired) {
             return utils.ErrBadRequest(c, err.Error(), err)
+        }
+        if errors.Is(err, ErrDeviceExpired) {
+            return utils.ErrForbidden(c, err.Error(), err)
+        }
+        if errors.Is(err, ErrDeviceNotFound) {
+            return utils.ErrUnauthorized(c, err.Error(), err)
         }
         return utils.ErrInternal(c, "failed to generate registration options", err)
     }
@@ -272,6 +283,9 @@ func (h *App) WebAuthnLoginVerifyHandler(c *fiber.Ctx) error {
         if errors.Is(err, ErrWebAuthnVerificationFailed) {
             return utils.Respond(c, fiber.StatusUnauthorized, false, err.Error(), any(nil), err)
         }
+        if errors.Is(err, ErrDeviceExpired) {
+            return utils.ErrForbidden(c, err.Error(), err)
+        }
         return utils.ErrInternal(c, "failed to verify biometric login", err)
     }
 
@@ -286,4 +300,26 @@ func (h *App) WebAuthnLoginVerifyHandler(c *fiber.Ctx) error {
     })
 
     return utils.OK(c, "biometric login successful", res)
+}
+
+// UnpairHandler ends this browser's pairing on the server and drops its cookie.
+func (h *App) UnpairHandler(c *fiber.Ctx) error {
+    err := h.UnpairService(c.UserContext(), deviceToken(c))
+    c.Cookie(&fiber.Cookie{
+        Name:     "device_token",
+        Value:    "",
+        Expires:  time.Unix(0, 0),
+        MaxAge:   -1,
+        HTTPOnly: true,
+        Secure:   c.Protocol() == "https",
+        SameSite: "Lax",
+        Path:     "/",
+    })
+    if err != nil {
+        if errors.Is(err, ErrNotPaired) {
+            return utils.ErrBadRequest(c, err.Error(), err)
+        }
+        return utils.ErrInternal(c, "failed to unpair device", err)
+    }
+    return utils.OKEmpty(c, "device unpaired")
 }

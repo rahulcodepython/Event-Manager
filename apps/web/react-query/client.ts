@@ -1,7 +1,7 @@
 "use client";
 
 import axios, { type AxiosRequestConfig } from "axios";
-import type { ZodType, ZodTypeDef } from "zod";
+import { ZodArray, type ZodType, type ZodTypeDef } from "zod";
 
 import { API_V1_PREFIX, DEFAULT_API_BASE_URL } from "../lib/constants";
 import { ResponseZod, type Response } from "../schema/common.types";
@@ -71,6 +71,8 @@ export async function apiRequest<T>(
 
     if (schema) {
         const parsed = ResponseZod(schema).parse(res.data);
+        // A list schema never yields null: an empty list may arrive without "data".
+        if (parsed.data == null && schema instanceof ZodArray) return [] as T;
         return (parsed.data ?? null) as T;
     }
 

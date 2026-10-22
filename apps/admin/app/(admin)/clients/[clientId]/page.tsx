@@ -254,7 +254,7 @@ export default function ClientDetailPage() {
                                             <TableCell className="text-right">{formatMoney(p.amount, p.currency)}</TableCell>
                                             <TableCell className="text-right">
                                                 {
-                                                    p.status === "paid" ? <RefundDialog payment={p} /> : <Badge variant="outline">Refunded</Badge>
+                                                    p.status !== "paid" ? <Badge variant="outline">Refunded</Badge> : p.amount > 0 ? <RefundDialog payment={p} /> : <span className="text-xs text-muted-foreground">Free</span>
                                                 }
                                             </TableCell>
                                         </TableRow>)

@@ -145,6 +145,9 @@ func (s *App) VerifyDeviceService(ctx context.Context, clientIP string, req Veri
             }
             return nil, ErrInvalidPIN
         }
+        if errors.Is(err, postgres.ErrConflict) {
+            return nil, ErrDeviceAlreadyPairedWithOther
+        }
         return nil, fmt.Errorf("failed to verify device: %w", err)
     }
 
@@ -160,27 +163,38 @@ func (s *App) VerifyDeviceService(ctx context.Context, clientIP string, req Veri
     }, nil
 }
 
-func (s *App) WebAuthnRegisterOptionsService(ctx context.Context, clientIP string, req WebAuthnRegisterOptionsRequest) (*WebAuthnRegisterOptionsResponse, error) {
+// WebAuthnRegisterOptionsService starts passkey enrolment for the device
+// this browser is paired as (deviceToken), or for the device of an active
+// PIN when there is no pairing yet.
+func (s *App) WebAuthnRegisterOptionsService(ctx context.Context, clientIP, deviceToken string, req WebAuthnRegisterOptionsRequest) (*WebAuthnRegisterOptionsResponse, error) {
     if err := s.checkVerifyRateLimit(ctx, clientIP); err != nil {
         return nil, err
-    }
-
-    pin := strings.TrimSpace(req.PIN)
-    if pin == "" {
-        return nil, ErrInvalidPIN
     }
 
     if s.WebAuthn == nil {
         return nil, errors.New("webauthn is not configured")
     }
 
-    device, err := s.GetDeviceByActivePINRepository(ctx, pin)
-    if err != nil {
-        tooMany, _ := s.recordFailedVerifyAttempt(ctx, clientIP, pin)
-        if tooMany {
-            return nil, ErrTooManyWrongGuesses
+    var device *Device
+    var err error
+    if strings.TrimSpace(deviceToken) != "" {
+        device, err = s.AuthenticateDeviceTokenService(ctx, deviceToken)
+        if err != nil {
+            return nil, err
         }
-        return nil, ErrInvalidPIN
+    } else {
+        pin := strings.TrimSpace(req.PIN)
+        if pin == "" {
+            return nil, ErrNotPaired
+        }
+        device, err = s.GetDeviceByActivePINRepository(ctx, pin)
+        if err != nil {
+            tooMany, _ := s.recordFailedVerifyAttempt(ctx, clientIP, pin)
+            if tooMany {
+                return nil, ErrTooManyWrongGuesses
+            }
+            return nil, ErrInvalidPIN
+        }
     }
 
     creation, sessionData, err := s.WebAuthn.BeginRegistration(
@@ -294,6 +308,9 @@ func (s *App) WebAuthnRegisterVerifyService(ctx context.Context, clientIP string
         &tokenHash,
     )
     if err != nil {
+        if errors.Is(err, postgres.ErrConflict) {
+            return nil, ErrDeviceAlreadyPairedWithOther
+        }
         return nil, fmt.Errorf("failed to save credential: %w", err)
     }
 
@@ -325,12 +342,24 @@ func (s *App) WebAuthnLoginOptionsService(ctx context.Context, clientIP string, 
     credID := strings.TrimSpace(req.CredentialID)
     deviceID := strings.TrimSpace(req.DeviceID)
 
+    if credID == "" && deviceID == "" {
+        // No device known yet: let the browser offer any passkey it holds
+        // for this site; the verify step finds the device by credential.
+        assertion, sessionData, err := s.WebAuthn.BeginDiscoverableLogin(
+            webauthn.WithUserVerification(protocol.VerificationPreferred),
+            webauthn.WithLoginRelyingPartyID(s.RPID),
+            webauthn.WithLoginOrigin(s.CanonicalOrigin),
+        )
+        if err != nil {
+            return nil, fmt.Errorf("failed to create login challenge: %w", err)
+        }
+        return s.storeLoginSession(ctx, "", sessionData, assertion)
+    }
+
     if credID != "" {
         device, err = s.GetDeviceByWebAuthnCredentialIDRepository(ctx, credID)
-    } else if deviceID != "" {
-        device, err = s.GetDeviceByIDRepository(ctx, deviceID)
     } else {
-        return nil, errors.New("missing device_id or credential_id")
+        device, err = s.GetDeviceByIDRepository(ctx, deviceID)
     }
 
     if err != nil {
@@ -355,10 +384,16 @@ func (s *App) WebAuthnLoginOptionsService(ctx context.Context, clientIP string, 
         return nil, fmt.Errorf("failed to create login challenge: %w", err)
     }
 
+    return s.storeLoginSession(ctx, device.ID, sessionData, assertion)
+}
+
+// storeLoginSession keeps a login challenge for the verify step. deviceID
+// is empty for a discoverable login.
+func (s *App) storeLoginSession(ctx context.Context, deviceID string, sessionData *webauthn.SessionData, assertion *protocol.CredentialAssertion) (*WebAuthnLoginOptionsResponse, error) {
     sessionID := "login_" + uuid.NewString()
     if s.Redis != nil {
         stored := StoredWebAuthnSession{
-            DeviceID:    device.ID,
+            DeviceID:    deviceID,
             RPID:        s.RPID,
             Origin:      s.CanonicalOrigin,
             SessionData: *sessionData,
@@ -394,11 +429,6 @@ func (s *App) WebAuthnLoginVerifyService(ctx context.Context, clientIP string, r
         return nil, ErrWebAuthnSessionExpired
     }
 
-    device, err := s.GetDeviceByIDRepository(ctx, stored.DeviceID)
-    if err != nil {
-        return nil, ErrDeviceNotFound
-    }
-
     parsedAssertion, err := protocol.ParseCredentialRequestResponseBody(bytes.NewReader(req.Response))
     if err != nil {
         return nil, fmt.Errorf("invalid assertion payload: %w", err)
@@ -408,9 +438,29 @@ func (s *App) WebAuthnLoginVerifyService(ctx context.Context, clientIP string, r
         return nil, errors.New("webauthn is not configured")
     }
 
-    cred, err := s.WebAuthn.ValidateLogin(device, stored.SessionData, parsedAssertion)
-    if err != nil {
+    var device *Device
+    var cred *webauthn.Credential
+    if stored.DeviceID == "" {
+        cred, err = s.WebAuthn.ValidateDiscoverableLogin(func(rawID, _ []byte) (webauthn.User, error) {
+            d, err := s.GetDeviceByWebAuthnCredentialIDRepository(ctx, base64.RawURLEncoding.EncodeToString(rawID))
+            if err != nil {
+                return nil, ErrDeviceNotFound
+            }
+            device = d
+            return d, nil
+        }, stored.SessionData, parsedAssertion)
+    } else {
+        device, err = s.GetDeviceByIDRepository(ctx, stored.DeviceID)
+        if err != nil {
+            return nil, ErrDeviceNotFound
+        }
+        cred, err = s.WebAuthn.ValidateLogin(device, stored.SessionData, parsedAssertion)
+    }
+    if err != nil || device == nil {
         return nil, fmt.Errorf("%w: %v", ErrWebAuthnVerificationFailed, err)
+    }
+    if device.IsExpired {
+        return nil, ErrDeviceExpired
     }
 
     rawToken, tokenHash, err := generateDeviceToken()
@@ -483,4 +533,13 @@ func (s *App) AuthenticateDeviceTokenService(ctx context.Context, token string) 
     }
 
     return device, nil
+}
+
+// UnpairService ends this browser's pairing: the device record stays, but
+// its token, browser binding and passkey are cleared, so it needs a new PIN.
+func (s *App) UnpairService(ctx context.Context, deviceToken string) error {
+    if strings.TrimSpace(deviceToken) == "" {
+        return ErrNotPaired
+    }
+    return s.UnpairDeviceRepository(ctx, hashToken(strings.TrimSpace(deviceToken)))
 }

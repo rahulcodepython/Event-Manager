@@ -33,6 +33,7 @@ import {
     ContextMenuSeparator,
     ContextMenuTrigger,
 } from "../ui/context-menu";
+import { RowActionsButton } from "../ui/data-table";
 import {
     Dialog,
     DialogBody,
@@ -188,6 +189,9 @@ export function DeviceTableRow({
                                     <DevicePINDisplay device={device} />
                                 </td>
                             )}
+                            <td className="py-3 px-2 text-right">
+                                <RowActionsButton />
+                            </td>
                         </tr>
                     }
                 />

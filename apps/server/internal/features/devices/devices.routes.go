@@ -8,6 +8,7 @@ func (h *App) RegisterPublicRoutes(api fiber.Router) {
     group := api.Group("/devices")
     group.Get("/me", h.GetMyDeviceHandler)
     group.Post("/verify", h.VerifyDeviceHandler)
+    group.Post("/unpair", h.UnpairHandler)
     group.Post("/webauthn/register-options", h.WebAuthnRegisterOptionsHandler)
     group.Post("/webauthn/register-verify", h.WebAuthnRegisterVerifyHandler)
     group.Post("/webauthn/login-options", h.WebAuthnLoginOptionsHandler)

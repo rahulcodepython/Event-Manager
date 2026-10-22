@@ -3,7 +3,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "../ui/badge";
 import type { ApplicantItem, FormFieldSummary } from "../../schema/applicants.types";
-import { ApplicantImage } from "./applicant-image";
+import { ApplicantFileLinks, ApplicantImage } from "./applicant-image";
 import { ApplicantUserIdCell } from "./applicant-user-id-cell";
 import { formatFieldValue } from "./applicants-utils";
 import { formatMoney } from "../../lib/money";
@@ -129,6 +129,9 @@ export function getApplicantsColumns(
             }
             if ((field.type === "photo" || field.type === "signature") && eventId) {
                 return <ApplicantImage eventId={eventId} applicantId={row.original.user_id} fieldKey={field.key} type={field.type} />;
+            }
+            if (field.type === "file" && eventId) {
+                return <ApplicantFileLinks eventId={eventId} applicantId={row.original.user_id} fieldKey={field.key} value={val} />;
             }
 
             if (typeof val === "boolean") {

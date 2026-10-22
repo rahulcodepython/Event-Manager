@@ -13,7 +13,7 @@ import {
     DialogTitle,
 } from "../ui/dialog";
 import type { ApplicantItem, FormFieldSummary, FormFieldValue } from "../../schema/applicants.types";
-import { ApplicantImage } from "./applicant-image";
+import { ApplicantFileLinks, ApplicantImage } from "./applicant-image";
 import { formatFieldValue } from "./applicants-utils";
 
 interface ApplicantDataDialogProps {
@@ -32,9 +32,14 @@ export function ApplicantDataDialog({
     open,
     onOpenChange,
 }: ApplicantDataDialogProps) {
-    const entries = Object.entries(applicant.data || {}).filter(
-        ([key]) => key !== "phone" && key !== "mobile" && key !== "name" && key !== "email"
-    );
+    // Form order first, then any keys the form no longer has.
+    const order = (key: string) => {
+        const i = formFields?.findIndex((f) => f.key === key) ?? -1;
+        return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    const entries = Object.entries(applicant.data || {})
+        .filter(([key]) => key !== "phone" && key !== "mobile" && key !== "name" && key !== "email")
+        .sort(([a], [b]) => order(a) - order(b));
     const phone =
         applicant.phone ||
         (typeof applicant.data?.phone === "string" ? applicant.data.phone : "") ||
@@ -123,7 +128,7 @@ export function ApplicantDataDialog({
                                             key={key}
                                             className="flex items-start justify-between gap-4 p-2.5 text-xs"
                                         >
-                                            <span className="font-mono text-[11px] text-muted-foreground capitalize">
+                                            <span className="font-mono text-[11px] text-muted-foreground">
                                                 {displayLabel}:
                                             </span>
                                             {
@@ -133,6 +138,11 @@ export function ApplicantDataDialog({
                                                     fieldKey={key}
                                                     type={isGooglePhoto ? "photo" : fieldDef?.type ?? "photo"}
                                                     className={isGooglePhoto || fieldDef?.type === "photo" ? "size-24 rounded-md object-cover" : "h-14 max-w-48 rounded border bg-white object-contain"}
+                                                /> : eventId && fieldDef?.type === "file" ? <ApplicantFileLinks
+                                                    eventId={eventId}
+                                                    applicantId={applicant.user_id}
+                                                    fieldKey={key}
+                                                    value={val}
                                                 /> : <span className="font-medium text-foreground text-right break-all">
                                                     {displayVal}
                                                 </span>

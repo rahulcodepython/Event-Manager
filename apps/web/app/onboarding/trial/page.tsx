@@ -28,27 +28,34 @@ export default function TrialPage() {
     const skip = useSkipTrialMutation()
 
     const decided = Boolean(me?.organization?.trial_choice)
+    // Set once the client picks an option, so the "already decided"
+    // redirect does not override where that choice leads.
+    const leaving = React.useRef(false)
 
     React.useEffect(() => {
-        if (!me) return
+        if (!me || leaving.current) return
         if (!me.organization) router.replace("/onboarding")
         else if (decided) router.replace("/dashboard")
     }, [me, decided, router])
 
     const startTrial = async () => {
+        leaving.current = true
         try {
             await claim.mutateAsync()
             router.replace("/dashboard/credits")
         } catch {
+            leaving.current = false
             // Handled by mutation toast
         }
     }
 
     const buyInstead = async () => {
+        leaving.current = true
         try {
             await skip.mutateAsync()
             router.replace("/dashboard/credits/new")
         } catch {
+            leaving.current = false
             // Handled by mutation toast
         }
     }
@@ -77,7 +84,8 @@ export default function TrialPage() {
                             catalog?.features.map((f) => <li key={f.key} className="flex items-center justify-between gap-2">
                                 <span className="flex items-center gap-2">
                                     <CheckIcon className="size-4 text-primary" />
-                                    {f.name}
+                                    {/* On a trial the duration is how long the credit lasts; events are shorter. */}
+                                    {f.key === "duration" ? "Credit valid for" : f.name}
                                 </span>
                                 <span className="text-muted-foreground">{trialLabel(f)}</span>
                             </li>)

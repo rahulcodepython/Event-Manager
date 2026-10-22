@@ -38,6 +38,9 @@ func NewFiberApp(cfg *config.Config, name string, bodyLimit int) *fiber.App {
         EnableTrustedProxyCheck: true,
         TrustedProxies:          cfg.TrustedProxies,
         ProxyHeader:             fiber.HeaderXForwardedFor,
+        // A trusted peer without a valid X-Forwarded-For (a direct request
+        // from the proxy host) is keyed by its socket IP, never by "".
+        EnableIPValidation: true,
     })
 }
 

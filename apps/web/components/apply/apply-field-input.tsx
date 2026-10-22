@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { type Control } from "react-hook-form";
-import { UploadCloud } from "lucide-react";
 
 import { Checkbox } from "../ui/checkbox";
 import { DatePicker } from "../ui/date-picker";
@@ -25,6 +24,7 @@ import {
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
 import { TimePicker } from "../ui/time-picker";
+import { FileFieldInput } from "./file-field-input";
 import { ImageFieldInput } from "./image-field-input";
 import type { FormField as FormFieldType } from "../../schema/forms.types";
 import type { PublicApplyFormValues } from "../../schema/publicapply.types";
@@ -32,7 +32,7 @@ import type { PublicApplyFormValues } from "../../schema/publicapply.types";
 interface ApplyFieldInputProps {
     control: Control<PublicApplyFormValues>;
     field: FormFieldType;
-    /** Needed for photo and signature fields (they upload to the form). */
+    /** Needed for upload fields (photo, signature, file): they upload to the form. */
     eventFormId?: string;
 }
 
@@ -57,6 +57,7 @@ export function ApplyFieldInput({ control, field, eventFormId }: ApplyFieldInput
                             {/* Textarea */}
                             {field.type === "textarea" && (
                                 <Textarea
+                                    aria-label={field.label}
                                     placeholder={
                                         field.placeholder ||
                                         `Enter ${field.label.toLowerCase()}`
@@ -97,6 +98,7 @@ export function ApplyFieldInput({ control, field, eventFormId }: ApplyFieldInput
                             {/* Time Picker (ss-components/date-picker-09) */}
                             {field.type === "time" && (
                                 <TimePicker
+                                    aria-label={field.label}
                                     value={
                                         typeof formField.value === "string"
                                             ? formField.value
@@ -116,6 +118,7 @@ export function ApplyFieldInput({ control, field, eventFormId }: ApplyFieldInput
                                 field.type === "month" ||
                                 field.type === "week") && (
                                 <Input
+                                    aria-label={field.label}
                                     type={field.type}
                                     placeholder={
                                         field.placeholder ||
@@ -158,6 +161,7 @@ export function ApplyFieldInput({ control, field, eventFormId }: ApplyFieldInput
                             {/* Number */}
                             {field.type === "number" && (
                                 <Input
+                                    aria-label={field.label}
                                     type="number"
                                     placeholder={
                                         field.placeholder ||
@@ -255,6 +259,7 @@ export function ApplyFieldInput({ control, field, eventFormId }: ApplyFieldInput
                             {/* Select Dropdown */}
                             {field.type === "select" && (
                                 <Select
+                                    items={(field.options || []).map((opt) => ({ label: opt.label, value: opt.value }))}
                                     value={
                                         typeof formField.value === "string"
                                             ? formField.value
@@ -264,7 +269,7 @@ export function ApplyFieldInput({ control, field, eventFormId }: ApplyFieldInput
                                         formField.onChange(val)
                                     }
                                 >
-                                    <SelectTrigger className="h-10 text-sm w-full">
+                                    <SelectTrigger aria-label={field.label} className="h-10 text-sm w-full">
                                         <SelectValue
                                             placeholder={
                                                 field.placeholder ||
@@ -311,47 +316,14 @@ export function ApplyFieldInput({ control, field, eventFormId }: ApplyFieldInput
                                 )
                             }
 
-                            {/* File Upload Field */}
-                            {field.type === "file" && (
-                                <div className="space-y-2">
-                                    <label
-                                        htmlFor={`field-${field.id}`}
-                                        className="flex flex-col items-center justify-center p-6 border border-dashed rounded-lg bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors text-center"
-                                    >
-                                        <UploadCloud className="size-8 text-muted-foreground mb-2" />
-                                        <span className="text-sm font-medium text-foreground">
-                                            {formField.value
-                                                ? typeof formField.value === "string"
-                                                    ? formField.value
-                                                    : "File selected"
-                                                : "Click to select file"}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground mt-1">
-                                            {field.validation?.accept ||
-                                                "Any document format"}{" "}
-                                            (Max{" "}
-                                            {field.validation?.max_file_size_mb ||
-                                                10}
-                                            MB)
-                                        </span>
-                                    </label>
-                                    <input
-                                        id={`field-${field.id}`}
-                                        type="file"
-                                        accept={
-                                            field.validation?.accept ||
-                                            undefined
-                                        }
-                                        className="hidden"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                                formField.onChange(file.name);
-                                            }
-                                        }}
-                                    />
-                                </div>
-                            )}
+                            {
+                                field.type === "file" && (eventFormId ? <FileFieldInput
+                                    eventFormId={eventFormId}
+                                    field={field}
+                                    value={formField.value as string | string[] | undefined}
+                                    onChange={formField.onChange}
+                                /> : <p className="text-xs text-muted-foreground">Applicants upload this on the public form.</p>)
+                            }
                         </div>
                     </FormControl>
 

@@ -143,8 +143,13 @@ export function useDeleteEventMutation() {
                 DeleteResponseZod,
             );
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
+        onSuccess: (_res, id) => {
+            // Leave the deleted event's own query alone: refetching it while
+            // its page is still open would 404.
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.events.all,
+                predicate: (q) => !(q.queryKey[1] === "detail" && q.queryKey[2] === id),
+            });
             queryClient.invalidateQueries({ queryKey: queryKeys.credits.all });
             toast.success("Event deleted successfully");
         },

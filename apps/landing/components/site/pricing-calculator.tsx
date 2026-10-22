@@ -20,6 +20,8 @@ export function PricingCalculator({ initialCatalog }: { initialCatalog: Catalog 
         queryKey: ["catalog"],
         queryFn: () => getCatalog(),
         initialData: initialCatalog ?? undefined,
+        // The server-rendered catalog may be cached; load the live one at once.
+        initialDataUpdatedAt: 0,
     })
     const [values, setValues] = React.useState<Record<string, number>>({})
     const [couponInput, setCouponInput] = React.useState("")

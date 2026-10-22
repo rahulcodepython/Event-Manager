@@ -4,6 +4,10 @@
 export const API_V1_PREFIX = "/api/v1";
 export const DEFAULT_API_BASE_URL = "http://localhost:8000";
 export const DEFAULT_APP_BASE_URL = "http://localhost:3000";
+/** Server cap for File Upload fields (FILE_UPLOAD_MAX_MB). */
+export const FILE_UPLOAD_MAX_MB = Number(process.env.NEXT_PUBLIC_FILE_UPLOAD_MAX_MB) || 10;
+/** Types a File Upload field accepts when the organizer picks none. */
+export const DEFAULT_FILE_ACCEPT = ".pdf, .png, .jpg, .jpeg";
 
 // =====================================================================
 // Common Error Messages
@@ -16,6 +20,7 @@ export const ERR_MSG_REQUEST_FAILED = "Request failed";
 // =====================================================================
 export const STORAGE_KEYS = {
     DEVICE_TOKEN: "device_token",
+    DEVICE_INSTALL_ID: "device_install_id",
 } as const;
 
 // =====================================================================

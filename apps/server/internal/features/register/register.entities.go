@@ -22,6 +22,8 @@ type PublicApplyConfigResponse struct {
     EventFormID       string           `json:"event_form_id"`
     Status            string           `json:"status"` // "waiting" | "live"
     IsExpired         bool             `json:"is_expired"`
+    // ClosedReason: "deadline" or "unavailable" (credit ended, organization suspended).
+    ClosedReason      *string          `json:"closed_reason"`
     IsFull            bool             `json:"is_full"`
     MaxApplicants     int              `json:"max_applicants"`
     CurrentApplicants int              `json:"current_applicants"`

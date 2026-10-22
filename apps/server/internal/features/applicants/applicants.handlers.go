@@ -69,7 +69,7 @@ func (h *App) CreateApplicantHandler(c *fiber.Ctx) error {
     applicant, err := h.CreateApplicantService(c.UserContext(), eventID, req)
     if err != nil {
         slog.Error("failed to create applicant", "error", err, "eventId", eventID)
-        if errors.Is(err, ErrInvalidEventID) || errors.Is(err, ErrInvalidName) || errors.Is(err, ErrInvalidEmail) || errors.Is(err, ErrInvalidPhone) {
+        if errors.Is(err, ErrInvalidEventID) || errors.Is(err, ErrInvalidName) || errors.Is(err, ErrInvalidEmail) || errors.Is(err, ErrInvalidPhone) || errors.Is(err, ErrInvalidOption) {
             return utils.ErrBadRequest(c, err.Error(), err)
         }
         if errors.Is(err, ErrAlreadyRegistered) {

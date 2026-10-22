@@ -1,6 +1,8 @@
 package utils
 
 import (
+    "reflect"
+
     "github.com/gofiber/fiber/v2"
 
     "identitycard-server/internal/generic"
@@ -8,6 +10,19 @@ import (
 
 // Respond writes the canonical wire envelope response for both success and error outcomes.
 func Respond[T any](c *fiber.Ctx, status int, success bool, message string, data T, err error) error {
+    // A list is always sent, as [] when empty: "data" omitted or null
+    // would break clients that expect an array.
+    if v := reflect.ValueOf(&data).Elem(); v.Kind() == reflect.Slice {
+        if v.IsNil() {
+            v.Set(reflect.MakeSlice(v.Type(), 0, 0))
+        }
+        return c.Status(status).JSON(generic.ListResponse[T]{
+            Success: success,
+            Message: message,
+            Data:    data,
+            Error:   err,
+        })
+    }
     body := generic.Response[T]{
         Success: success,
         Message: message,

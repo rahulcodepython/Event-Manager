@@ -33,7 +33,11 @@ const (
     // ScanApplicantQuery checks device authentication, event mapping, applicant registration,
     // active event date, and current attendance status in one atomic query.
     ScanApplicantQuery = `
-        WITH device_check AS (
+        WITH -- The event's wall clock: dates and hours are in its timezone.
+        local_now AS (
+            SELECT now() AT TIME ZONE e.timezone AS ts FROM events e WHERE e.id = $1::uuid
+        ),
+        device_check AS (
             SELECT d.id, d.name, COALESCE(d.actual_name, 'Unknown Hardware') AS actual_name
             FROM devices d
             JOIN event_devices ed ON ed.device_id = d.id
@@ -83,7 +87,7 @@ const (
             FROM event_dates ed
             WHERE ed.event_id = $1::uuid
               AND ed.sub_event_id IS NOT DISTINCT FROM (SELECT id FROM sub_event_check)
-            ORDER BY (ed.date = CURRENT_DATE) DESC, ABS(ed.date - CURRENT_DATE) ASC
+            ORDER BY (ed.date = (SELECT ts::date FROM local_now)) DESC, ABS(ed.date - (SELECT ts::date FROM local_now)) ASC
             LIMIT 1
         ),
         attendance_check AS (
@@ -117,7 +121,7 @@ const (
                 'status', CASE
                     WHEN (SELECT id FROM attendance_check) IS NULL THEN
                         CASE
-                            WHEN (SELECT (edc.date::date < CURRENT_DATE OR (edc.date::date = CURRENT_DATE AND now()::time > edc.end_time::time)) FROM event_date_check edc) THEN 'session_ended'
+                            WHEN (SELECT (edc.date::date < (SELECT ts::date FROM local_now) OR (edc.date::date = (SELECT ts::date FROM local_now) AND (SELECT ts::time FROM local_now) > edc.end_time::time)) FROM event_date_check edc) THEN 'session_ended'
                             ELSE 'ready_for_entry'
                         END
                     WHEN (SELECT exited_at FROM attendance_check) IS NULL THEN 'ready_for_exit'
@@ -133,7 +137,11 @@ const (
     // MarkEntryAtomicQuery atomically validates device authorization, checks if already entered,
     // verifies event time has not ended, determines punctuality (is_early), and inserts entry attendance in one database roundtrip.
     MarkEntryAtomicQuery = `
-        WITH device_check AS (
+        WITH -- The event's wall clock: dates and hours are in its timezone.
+        local_now AS (
+            SELECT now() AT TIME ZONE e.timezone AS ts FROM events e WHERE e.id = $1::uuid
+        ),
+        device_check AS (
             SELECT d.id
             FROM devices d
             JOIN event_devices ed ON ed.device_id = d.id
@@ -174,7 +182,7 @@ const (
                     SELECT 1 FROM sub_event_applicants sea
                     WHERE sea.sub_event_id = (SELECT sub_event_id FROM event_date_check) AND sea.applicant_id = $2
                 ) THEN 'applicant_not_registered'
-                WHEN (SELECT (edc.date < CURRENT_DATE OR (edc.date = CURRENT_DATE AND now()::time > edc.end_time)) FROM event_date_check edc) THEN 'session_ended'
+                WHEN (SELECT (edc.date < (SELECT ts::date FROM local_now) OR (edc.date = (SELECT ts::date FROM local_now) AND (SELECT ts::time FROM local_now) > edc.end_time)) FROM event_date_check edc) THEN 'session_ended'
                 WHEN (SELECT id FROM existing_attendance) IS NOT NULL THEN 'already_entered'
                 ELSE 'ok'
             END AS code
@@ -196,7 +204,7 @@ const (
                 $2,
                 dc.id,
                 now(),
-                (now()::time <= edc.start_time),
+                ((SELECT ts::time FROM local_now) <= edc.start_time),
                 now(),
                 now()
             FROM validation_status vs

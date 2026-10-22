@@ -14,7 +14,7 @@ import { toast } from "sonner";
 
 import { CreateEventDialog } from "../../../../components/events/create-event-dialog";
 import { eventsColumns } from "../../../../components/events/events-columns";
-import { InfiniteDataTable } from "../../../../components/generic";
+import { InfiniteDataTable, PageHeader } from "../../../../components/generic";
 import {
     ContextMenuItem,
     ContextMenuSeparator,
@@ -116,21 +116,24 @@ export default function EventsPage() {
     };
 
     return (
-        <InfiniteDataTable
-            columns={eventsColumns}
-            data={flatEvents}
-            totalCount={totalCount}
-            isLoading={isLoading}
-            isError={isError}
-            error={error}
-            hasNextPage={hasNextPage}
-            isFetchingNextPage={isFetchingNextPage}
-            fetchNextPage={fetchNextPage}
-            searchPlaceholder="Search events..."
-            onSearchChange={setSearch}
-            toolbarActions={<CreateEventDialog />}
-            itemLabel="events"
-            renderRowContextMenu={renderRowContextMenu}
-        />
+        <>
+            <PageHeader title="Events" description="Each event runs on one credit." />
+            <InfiniteDataTable
+                columns={eventsColumns}
+                data={flatEvents}
+                totalCount={totalCount}
+                isLoading={isLoading}
+                isError={isError}
+                error={error}
+                hasNextPage={hasNextPage}
+                isFetchingNextPage={isFetchingNextPage}
+                fetchNextPage={fetchNextPage}
+                searchPlaceholder="Search events..."
+                onSearchChange={setSearch}
+                toolbarActions={<CreateEventDialog />}
+                itemLabel="events"
+                renderRowContextMenu={renderRowContextMenu}
+            />
+        </>
     );
 }

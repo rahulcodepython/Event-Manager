@@ -6,13 +6,13 @@ import type { Catalog } from "../../lib/pricing.types"
 
 export const metadata: Metadata = { title: "Pricing" }
 
-// Rendered on the server with the catalog (refreshed every 5 minutes);
-// the calculator quotes live on the client.
-export const revalidate = 300
+// Rendered on the server with a cached catalog (PRICING_CATALOG_REVALIDATE
+// seconds); the calculator reloads it and quotes live on the client.
+const catalogRevalidate = Number(process.env.PRICING_CATALOG_REVALIDATE) || 300
 
 async function loadCatalog(): Promise<Catalog | null> {
     try {
-        return await getCatalog({ next: { revalidate: 300 } } as RequestInit)
+        return await getCatalog({ next: { revalidate: catalogRevalidate } } as RequestInit)
     } catch {
         return null
     }

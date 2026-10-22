@@ -21,6 +21,9 @@ var (
     ErrInvalidName        = errors.New("name cannot be empty")
     ErrInvalidEmail       = errors.New("valid email address is required")
     ErrInvalidPhone       = errors.New("mobile number is required")
+    // ErrInvalidOption: a select, radio or checkbox answer that is not one
+    // of the field's options.
+    ErrInvalidOption = errors.New("invalid choice")
     ErrAlreadyRegistered  = errors.New("an applicant with this email is already registered for this event")
     ErrApplicantNotFound  = errors.New("applicant not found")
     ErrLimitReached       = errors.New("applicant limit of this event's credit reached")
@@ -148,6 +151,9 @@ func (s *App) InsertApplicant(ctx context.Context, eventID string, req CreateApp
 func (s *App) InsertApplicantTx(ctx context.Context, tx pgx.Tx, eventID string, req CreateApplicantRequest, extraCap int) (*ApplicantItem, error) {
     req, err := normalizeApplicant(req)
     if err != nil {
+        return nil, err
+    }
+    if err := checkChoices(ctx, tx, eventID, req.Data); err != nil {
         return nil, err
     }
 
@@ -292,5 +298,71 @@ func (s *App) RemoveApplicant(ctx context.Context, eventID, userID string) error
         hook(ctx, eventID, data)
     }
     s.InvalidateCaches(ctx, eventID)
+    return nil
+}
+
+// choiceField is a select, radio or checkbox field of the event's form.
+type choiceField struct {
+    Key     string            `json:"key"`
+    Label   string            `json:"label"`
+    Type    string            `json:"type"`
+    Options []json.RawMessage `json:"options"`
+}
+
+// optionValue reads an option stored as "value" or {"value": ..., "label": ...}.
+func optionValue(raw json.RawMessage) string {
+    var s string
+    if json.Unmarshal(raw, &s) == nil {
+        return s
+    }
+    var o struct {
+        Value any `json:"value"`
+    }
+    if json.Unmarshal(raw, &o) == nil && o.Value != nil {
+        return fmt.Sprint(o.Value)
+    }
+    return ""
+}
+
+// checkChoices rejects select, radio and checkbox answers that are not
+// options of the event form's field. Empty answers are left to the
+// required-field checks.
+func checkChoices(ctx context.Context, tx pgx.Tx, eventID string, data map[string]any) error {
+    var fields []choiceField
+    err := tx.QueryRow(ctx, `
+        SELECT COALESCE(jsonb_agg(f), '[]'::jsonb) FROM event_forms ef, jsonb_array_elements(ef.fields) f
+        WHERE ef.event_id = $1::uuid AND f->>'type' IN ('select', 'radio', 'checkbox')
+    `, eventID).Scan(&fields)
+    if err != nil {
+        return postgres.MapPgError(err)
+    }
+    for _, f := range fields {
+        allowed := make(map[string]bool, len(f.Options))
+        for _, o := range f.Options {
+            allowed[optionValue(o)] = true
+        }
+        var picked []string
+        switch v := data[f.Key].(type) {
+        case nil:
+        case string:
+            if v != "" {
+                picked = []string{v}
+            }
+        case []any:
+            for _, x := range v {
+                picked = append(picked, fmt.Sprint(x))
+            }
+        default:
+            return fmt.Errorf("%w: %s", ErrInvalidOption, f.Label)
+        }
+        if f.Type != "checkbox" && len(picked) > 1 {
+            return fmt.Errorf("%w: %s takes one answer", ErrInvalidOption, f.Label)
+        }
+        for _, p := range picked {
+            if !allowed[p] {
+                return fmt.Errorf("%w: %q is not an option of %s", ErrInvalidOption, p, f.Label)
+            }
+        }
+    }
     return nil
 }

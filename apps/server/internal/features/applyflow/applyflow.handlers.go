@@ -157,7 +157,7 @@ func flowError(c *fiber.Ctx, err error) error {
         return utils.ErrForbidden(c, err.Error(), err)
     case errors.Is(err, ErrDraftTooLarge), errors.Is(err, register.ErrDataPayloadTooLarge),
         errors.Is(err, applicants.ErrInvalidName), errors.Is(err, applicants.ErrInvalidEmail),
-        errors.Is(err, applicants.ErrInvalidPhone), errors.Is(err, register.ErrInvalidEventFormID),
+        errors.Is(err, applicants.ErrInvalidPhone), errors.Is(err, applicants.ErrInvalidOption), errors.Is(err, register.ErrInvalidEventFormID),
         errors.Is(err, uploads.ErrImageRequired), errors.Is(err, uploads.ErrBadToken),
         subevents.IsEnrollError(err):
         return utils.ErrBadRequest(c, err.Error(), err)

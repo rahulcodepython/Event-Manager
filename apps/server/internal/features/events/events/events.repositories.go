@@ -52,6 +52,7 @@ func (r *App) CreateRepository(ctx context.Context, orgID string, req CreateEven
         strings.TrimSpace(req.Name),
         orgID,
         req.CreditID,
+        req.Timezone,
     )
 }
 
@@ -66,7 +67,7 @@ func (r *App) CheckCreditRepository(ctx context.Context, creditID, orgID, eventI
 }
 
 // UpdateRepository modifies events and event_metadata in a single CTE network round-trip,
-// verifying that the event exists and has not already ended (end_date >= CURRENT_DATE).
+// verifying that the event exists and has not already ended (end_date >= the event's local date).
 func (r *App) UpdateRepository(ctx context.Context, id string, req UpdateEventRequest) (*Event, error) {
     result, err := postgres.QueryJSON[updateEventResult](
         ctx,
@@ -79,6 +80,7 @@ func (r *App) UpdateRepository(ctx context.Context, id string, req UpdateEventRe
         req.Venue,
         req.Logo,
         req.Organizer,
+        req.Timezone,
     )
     if err != nil {
         return nil, err

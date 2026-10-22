@@ -13,6 +13,7 @@ const (
                 em.venue,
                 em.logo,
                 em.organizer,
+                e.timezone,
                 e.created_at,
                 e.updated_at
             FROM events e
@@ -32,6 +33,7 @@ const (
                 'venue', fe.venue,
                 'logo', fe.logo,
                 'organizer', fe.organizer,
+                'timezone', fe.timezone,
                 'credit', (
                     SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at, 'is_expired', ce.is_expired, 'prune_at', ce.prune_at, 'has_branding', ce.has_branding)
                     FROM credits cr JOIN credit_entitlements ce ON ce.credit_id = cr.id WHERE cr.id = fe.credit_id
@@ -61,6 +63,7 @@ const (
             'venue', em.venue,
             'logo', em.logo,
             'organizer', em.organizer,
+            'timezone', e.timezone,
             'credit', (
                 SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at, 'is_expired', ce.is_expired, 'prune_at', ce.prune_at, 'has_branding', ce.has_branding)
                 FROM credits cr JOIN credit_entitlements ce ON ce.credit_id = cr.id WHERE cr.id = e.credit_id
@@ -82,6 +85,7 @@ const (
                 credit_id,
                 start_date,
                 end_date,
+                timezone,
                 created_at,
                 updated_at
             ) VALUES (
@@ -90,10 +94,11 @@ const (
                 $5::uuid,
                 $1::date,
                 $2::date,
+                $6,
                 now(),
                 now()
             )
-            RETURNING id, credit_id, start_date, end_date, created_at, updated_at
+            RETURNING id, credit_id, start_date, end_date, timezone, created_at, updated_at
         ),
         ins_meta AS (
             INSERT INTO event_metadata (
@@ -114,6 +119,7 @@ const (
             'venue', m.venue,
             'logo', m.logo,
             'organizer', m.organizer,
+            'timezone', e.timezone,
             'credit', (
                 SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at, 'is_expired', ce.is_expired, 'prune_at', ce.prune_at, 'has_branding', ce.has_branding)
                 FROM credits cr JOIN credit_entitlements ce ON ce.credit_id = cr.id WHERE cr.id = e.credit_id
@@ -126,10 +132,10 @@ const (
     `
 
     // UpdateEventQuery atomically updates events and event_metadata in a single CTE statement
-    // while verifying the event exists and has not already ended (end_date >= CURRENT_DATE).
+    // while verifying the event exists and has not already ended (end_date >= today in the event's timezone).
     UpdateEventQuery = `
         WITH target_event AS (
-            SELECT id, end_date
+            SELECT id, end_date, timezone
             FROM events
             WHERE id = $1
         ),
@@ -138,9 +144,10 @@ const (
             SET
                 start_date = COALESCE($2::date, start_date),
                 end_date = COALESCE($3::date, end_date),
+                timezone = COALESCE($8, timezone),
                 updated_at = now()
-            WHERE id = (SELECT id FROM target_event WHERE end_date >= CURRENT_DATE)
-            RETURNING id, credit_id, start_date, end_date, created_at, updated_at
+            WHERE id = (SELECT id FROM target_event WHERE end_date >= (now() AT TIME ZONE timezone)::date)
+            RETURNING id, credit_id, start_date, end_date, timezone, created_at, updated_at
         ),
         upd_meta AS (
             UPDATE event_metadata
@@ -155,7 +162,7 @@ const (
         SELECT jsonb_build_object(
             'status', CASE
                 WHEN NOT EXISTS (SELECT 1 FROM target_event) THEN 'not_found'
-                WHEN NOT EXISTS (SELECT 1 FROM target_event WHERE end_date >= CURRENT_DATE) THEN 'event_ended'
+                WHEN NOT EXISTS (SELECT 1 FROM target_event WHERE end_date >= (now() AT TIME ZONE timezone)::date) THEN 'event_ended'
                 ELSE 'success'
             END,
             'data', (
@@ -167,6 +174,7 @@ const (
                     'venue', m.venue,
                     'logo', m.logo,
                     'organizer', m.organizer,
+                    'timezone', e.timezone,
                     'credit', (
                         SELECT jsonb_build_object('id', cr.id, 'name', cr.name, 'kind', cr.kind, 'ends_at', cr.ends_at, 'is_expired', ce.is_expired, 'prune_at', ce.prune_at, 'has_branding', ce.has_branding)
                         FROM credits cr JOIN credit_entitlements ce ON ce.credit_id = cr.id WHERE cr.id = e.credit_id

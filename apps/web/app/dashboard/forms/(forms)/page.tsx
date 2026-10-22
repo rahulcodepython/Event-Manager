@@ -23,7 +23,7 @@ import {
 import { CreateFormDialog } from "../../../../components/forms/create-form-dialog";
 import { UpdateFormDialog } from "../../../../components/forms/update-form-dialog";
 import { formsColumns } from "../../../../components/forms/forms-columns";
-import { InfiniteDataTable } from "../../../../components/generic";
+import { InfiniteDataTable, PageHeader } from "../../../../components/generic";
 import { useBreadcrumbs } from "../../../../hooks/use-breadcrumbs";
 import {
     useDeleteFormMutation,
@@ -127,6 +127,7 @@ export default function FormsPage() {
 
     return (
         <>
+            <PageHeader title="Form templates" description="Reusable registration forms. An event copies a template when you set up its form." />
             <InfiniteDataTable
                 columns={formsColumns}
                 data={flatForms}

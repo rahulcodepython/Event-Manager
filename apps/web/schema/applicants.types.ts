@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { FieldValidationSchema } from "./forms.types";
+
 export const FormFieldValueSchema = z.union([
     z.string(),
     z.number(),
@@ -42,6 +44,8 @@ export const FormFieldSummarySchema = z.object({
     type: z.string(),
     required: z.boolean().default(false),
     placeholder: z.string().optional(),
+    is_system: z.boolean().optional(),
+    validation: FieldValidationSchema.nullish(),
     options: z
         .union([z.array(z.string()), z.array(FormFieldOptionSchema)])
         .nullish(),

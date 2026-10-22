@@ -171,7 +171,7 @@ export function ScannerCamera({ onScan, isProcessing }: ScannerCameraProps) {
                     showManualInput && <form onSubmit={handleManualSubmit} className="w-full space-y-2 pt-1 border-t">
                         <div className="flex gap-2">
                             <Input
-                                placeholder="Paste QR JSON or applicant ID"
+                                placeholder="Paste the code from the ID card QR"
                                 value={manualInput}
                                 onChange={(e) => setManualInput(e.target.value)}
                                 className="h-10 text-sm"

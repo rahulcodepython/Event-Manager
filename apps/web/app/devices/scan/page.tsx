@@ -34,7 +34,10 @@ export default function StandaloneDeviceScanPage() {
         }
     }, []);
 
-    const { data: myDevice } = useMyDeviceQuery(Boolean(hasDeviceToken));
+    const { data: myDevice, error: deviceError } = useMyDeviceQuery(Boolean(hasDeviceToken));
+    // 401: the pairing is gone; 403: the device's session expired.
+    const sessionExpired = deviceError?.status === 403;
+    const notPaired = hasDeviceToken === false || deviceError?.status === 401;
 
     const scanMutation = useScanApplicantMutation();
     const markEntryMutation = useMarkEntryMutation(currentEventId);
@@ -137,8 +140,8 @@ export default function StandaloneDeviceScanPage() {
         );
     }
 
-    // If device is not paired yet, show pairing prompt
-    if (hasDeviceToken === false) {
+    // Not paired, unpaired or expired: send the terminal back to pairing.
+    if (notPaired || sessionExpired) {
         return (
             <div className="flex flex-col items-center justify-center p-4 min-h-screen bg-muted/20">
                 <Card className="w-full max-w-md shadow-sm text-center border-amber-500/30 bg-card">
@@ -147,10 +150,10 @@ export default function StandaloneDeviceScanPage() {
                             <Smartphone className="size-6" />
                         </div>
                         <CardTitle className="text-lg font-bold text-foreground">
-                            Scanner Terminal Not Paired
+                            {sessionExpired ? "Scanner Session Expired" : "Scanner Terminal Not Paired"}
                         </CardTitle>
                         <CardDescription className="text-sm">
-                            This device must be paired using a 6-digit PIN before scanning attendance.
+                            {sessionExpired ? "This terminal's session has expired. Pair it again with a new PIN from the dashboard." : "This device must be paired using a 6-digit PIN before scanning attendance."}
                         </CardDescription>
                     </CardHeader>
 

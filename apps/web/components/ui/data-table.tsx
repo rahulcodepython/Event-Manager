@@ -9,6 +9,7 @@ import {
     getCoreRowModel,
     useReactTable,
 } from "@tanstack/react-table";
+import { MoreHorizontal } from "lucide-react";
 
 import {
     ContextMenu,
@@ -79,6 +80,9 @@ export function DataTable<TData, TValue>({
                                     </TableHead>
                                 );
                             })}
+                            {
+                                renderRowContextMenu && <TableHead className="w-10"><span className="sr-only">Actions</span></TableHead>
+                            }
                         </TableRow>
                     ))}
                 </TableHeader>
@@ -86,7 +90,7 @@ export function DataTable<TData, TValue>({
                     {isLoading && data.length === 0 ? (
                         <TableRow>
                             <TableCell
-                                colSpan={columns.length}
+                                colSpan={columns.length + (renderRowContextMenu ? 1 : 0)}
                                 className="h-24 text-center text-muted-foreground"
                             >
                                 {loadingMessage}
@@ -114,6 +118,11 @@ export function DataTable<TData, TValue>({
                                             </TableCell>
                                         );
                                     })}
+                                    {
+                                        renderRowContextMenu && <TableCell className="w-10 text-right">
+                                            <RowActionsButton />
+                                        </TableCell>
+                                    }
                                 </TableRow>
                             );
 
@@ -136,7 +145,7 @@ export function DataTable<TData, TValue>({
                     ) : (
                         <TableRow>
                             <TableCell
-                                colSpan={columns.length}
+                                colSpan={columns.length + (renderRowContextMenu ? 1 : 0)}
                                 className="h-24 text-center text-muted-foreground"
                             >
                                 {emptyMessage}
@@ -146,5 +155,29 @@ export function DataTable<TData, TValue>({
                 </TableBody>
             </Table>
         </div>
+    );
+}
+
+/** Opens the row's context menu, for people who do not right-click. */
+export function RowActionsButton() {
+    return (
+        <button
+            type="button"
+            aria-label="Row actions"
+            title="Actions"
+            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                e.currentTarget.dispatchEvent(new MouseEvent("contextmenu", {
+                    bubbles: true,
+                    cancelable: true,
+                    clientX: rect.left,
+                    clientY: rect.bottom,
+                }));
+            }}
+        >
+            <MoreHorizontal className="size-4" />
+        </button>
     );
 }

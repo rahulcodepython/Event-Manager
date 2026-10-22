@@ -70,9 +70,14 @@ export function EventFormSettingsDialog({
     const [isUnlimited, setIsUnlimited] = React.useState<boolean>(
         eventForm.max_applicants === -1
     );
-    const [maxApplicants, setMaxApplicants] = React.useState<number>(
-        eventForm.max_applicants === -1 ? 100 : eventForm.max_applicants
+    // Kept as typed so an invalid entry shows an error instead of being changed.
+    const [maxApplicants, setMaxApplicants] = React.useState<string>(
+        String(eventForm.max_applicants === -1 ? 100 : eventForm.max_applicants)
     );
+    const parsedMax = Number(maxApplicants);
+    const capacityError = !isUnlimited && (!Number.isInteger(parsedMax) || parsedMax < 1)
+        ? "Capacity must be a whole number of at least 1"
+        : "";
     const [expiresAt, setExpiresAt] = React.useState<string>(() =>
         formatForDatetimeLocal(eventForm.expires_at)
     );
@@ -82,19 +87,19 @@ export function EventFormSettingsDialog({
         if (open) {
             setIsUnlimited(eventForm.max_applicants === -1);
             setMaxApplicants(
-                eventForm.max_applicants === -1 ? 100 : eventForm.max_applicants
+                String(eventForm.max_applicants === -1 ? 100 : eventForm.max_applicants)
             );
             setExpiresAt(formatForDatetimeLocal(eventForm.expires_at));
         }
     }, [open, eventForm]);
 
     const hasChanges = React.useMemo(() => {
-        const currentMax = isUnlimited ? -1 : maxApplicants;
+        const currentMax = isUnlimited ? -1 : parsedMax;
         if (currentMax !== eventForm.max_applicants) return true;
         const currentFormatted = formatForDatetimeLocal(eventForm.expires_at);
         if (expiresAt !== currentFormatted) return true;
         return false;
-    }, [isUnlimited, maxApplicants, expiresAt, eventForm]);
+    }, [isUnlimited, parsedMax, expiresAt, eventForm]);
 
     const isFutureDate = React.useMemo(() => {
         if (!expiresAt) return false;
@@ -104,17 +109,22 @@ export function EventFormSettingsDialog({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (isLocked) return;
+        if (isLocked || capacityError) return;
 
-        const targetMax = isUnlimited ? -1 : Number(maxApplicants) || 1;
+        const targetMax = isUnlimited ? -1 : parsedMax;
         const targetExpires = expiresAt
             ? new Date(expiresAt).toISOString()
             : eventForm.expires_at;
 
-        await onSaveSettings({
-            max_applicants: targetMax,
-            expires_at: targetExpires,
-        });
+        try {
+            await onSaveSettings({
+                max_applicants: targetMax,
+                expires_at: targetExpires,
+            });
+        } catch {
+            // The mutation shows the error; keep the dialog open.
+            return;
+        }
 
         if (isLockPrompt && onProceedToLock) {
             onOpenChange(false);
@@ -191,13 +201,13 @@ export function EventFormSettingsDialog({
                                         disabled={isUnlimited || isLocked}
                                         value={isUnlimited ? "" : maxApplicants}
                                         placeholder={isUnlimited ? "Unlimited" : "e.g. 150"}
-                                        onChange={(e) =>
-                                            setMaxApplicants(
-                                                Math.max(1, Number(e.target.value))
-                                            )
-                                        }
+                                        onChange={(e) => setMaxApplicants(e.target.value)}
+                                        aria-invalid={Boolean(capacityError)}
                                         className="h-10 text-sm"
                                     />
+                                    {
+                                        capacityError && <p className="text-xs font-medium text-destructive">{capacityError}</p>
+                                    }
                                     <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                                         <Checkbox
                                             checked={isUnlimited}
@@ -267,7 +277,7 @@ export function EventFormSettingsDialog({
                                 disabled={
                                     isSaving ||
                                     !isFutureDate ||
-                                    (!isUnlimited && maxApplicants < 1) ||
+                                    Boolean(capacityError) ||
                                     (!isLockPrompt && !hasChanges)
                                 }
                             >

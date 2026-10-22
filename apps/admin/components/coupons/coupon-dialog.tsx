@@ -137,13 +137,13 @@ export function CouponDialog({ coupon, trigger }: { coupon?: Coupon, trigger: Re
                             <Input id="c-code" required className="uppercase" placeholder="SAVE20" value={form.code} onChange={set("code")} />
                         </div>
                         <div className="flex flex-col gap-2">
-                            <Label>Type</Label>
+                            <Label htmlFor="c-kind">Type</Label>
                             <Select
                                 value={form.kind}
                                 items={KIND_ITEMS}
                                 onValueChange={(v) => v && setForm((p) => ({ ...p, kind: v as FormState["kind"] }))}
                             >
-                                <SelectTrigger className="w-full">
+                                <SelectTrigger id="c-kind" className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
