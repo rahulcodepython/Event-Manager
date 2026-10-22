@@ -24,7 +24,9 @@ import {
     useWebAuthnLoginVerifyMutation,
     useWebAuthnRegisterOptionsMutation,
     useWebAuthnRegisterVerifyMutation,
+    useUnpairDeviceMutation,
 } from "../../../query-hooks/devices.api";
+import { ApiError } from "../../../react-query/client";
 import type { VerifyDeviceResponse } from "../../../schema/devices.types";
 
 export default function DevicePairPage() {
@@ -50,6 +52,7 @@ export default function DevicePairPage() {
     const regVerifyMutation = useWebAuthnRegisterVerifyMutation();
     const loginOptionsMutation = useWebAuthnLoginOptionsMutation();
     const loginVerifyMutation = useWebAuthnLoginVerifyMutation();
+    const unpairMutation = useUnpairDeviceMutation();
 
     // Check token and detect device hardware info
     React.useEffect(() => {
@@ -167,12 +170,21 @@ export default function DevicePairPage() {
         }
     };
 
-    const handleDisconnect = () => {
+    const handleDisconnect = async () => {
+        try {
+            await unpairMutation.mutateAsync();
+        } catch (err: unknown) {
+            // Already unpaired on the server (401/400): still forget it here.
+            if (!(err instanceof ApiError) || (err.status !== 400 && err.status !== 401)) {
+                toast.error(err instanceof Error ? err.message : "Could not unpair this terminal");
+                return;
+            }
+        }
         localStorage.removeItem("device_token");
         setHasStoredToken(false);
         setVerifiedDevice(null);
         setPin("");
-        toast.info("Terminal disconnected");
+        toast.info("Terminal unpaired");
     };
 
     // Loading session state: Wait until initialized and any token verification finishes

@@ -24,7 +24,9 @@ function formatDate(value: string): string {
 export default function EventOverviewPage() {
     const { event, eventId } = useEventPage()
 
-    const isEnded = event.end_date < new Date().toISOString().split("T")[0]
+    const isEnded = event.end_date < new Date().toLocaleDateString("en-CA", { timeZone: event.timezone })
+    const isReadOnly = Boolean(event.credit?.is_expired)
+    const status = isReadOnly ? "Read-only" : isEnded ? "Ended" : "Active"
     const sections = getEventSections(eventId).filter((s) => s.description)
 
     return (
@@ -33,10 +35,10 @@ export default function EventOverviewPage() {
                 title={event.name}
                 badge={
                     <Badge
-                        variant={isEnded ? "secondary" : "default"}
+                        variant={status === "Active" ? "default" : "secondary"}
                         className="text-xs"
                     >
-                        {isEnded ? "Ended" : "Active"}
+                        {status}
                     </Badge>
                 }
                 description={

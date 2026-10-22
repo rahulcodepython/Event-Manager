@@ -74,13 +74,22 @@ func NewAppRouter(
     rootCtx context.Context,
 ) *AppRouter {
     cch := cache.New(rdb)
+    authApp := auth.NewApp(pool, rdb, cfg)
     pricingApp := pricing.NewApp(pool, cch)
+    pricingApp.OrgOf = func(c *fiber.Ctx) string {
+        id, err := authApp.Sessions.ParseAccess(c.Cookies(authApp.Sessions.AccessCookie()))
+        if err != nil {
+            return ""
+        }
+        return id.Org
+    }
 
     applicantsApp := applicants.NewApp(pool, cch)
     eventsApp := events.NewApp(pool, cch)
+    eventsApp.DefaultTimezone = cfg.AppTimezone
     store := storage.Connect(rootCtx, cfg)
     sitesApp := sites.NewApp(pool, cch, store, cfg)
-    uploadsApp := uploads.NewApp(pool, rdb, store, cfg.QRSigningSecret, cfg.UploadMaxPerHour, cfg.UploadPendingTTL)
+    uploadsApp := uploads.NewApp(pool, rdb, store, cfg.QRSigningSecret, cfg.UploadMaxPerHour, cfg.UploadPendingTTL, int64(cfg.FileUploadMaxMB)<<20)
     uploadsApp.StartSweeper(rootCtx)
     eventsApp.OnDelete = append(eventsApp.OnDelete, sitesApp.OnEventDeleted, uploadsApp.OnEventDeleted)
     applicantsApp.OnDelete = append(applicantsApp.OnDelete, uploadsApp.DeleteFiles)
@@ -125,7 +134,7 @@ func NewAppRouter(
         Redis:   rdb,
         RootCtx: rootCtx,
 
-        Auth:       auth.NewApp(pool, rdb, cfg),
+        Auth:       authApp,
         Credits:    creditsApp,
         Events:     eventsApp,
         Dates:      dates.NewApp(pool, cch),

@@ -87,7 +87,8 @@ function buildColumns(formFields: FormFieldSummary[]): Column[] {
                   : "text",
     }))
     const custom: Column[] = formFields
-        .filter((f) => !BUILT_IN_KEYS.has(f.key) && f.type !== "photo" && f.type !== "signature")
+        // Uploads (photo, signature, file) come only from the public form.
+        .filter((f) => !BUILT_IN_KEYS.has(f.key) && f.type !== "photo" && f.type !== "signature" && f.type !== "file")
         .map((f) => ({
             key: f.key,
             label: f.label,
@@ -96,6 +97,24 @@ function buildColumns(formFields: FormFieldSummary[]): Column[] {
             field: f,
         }))
     return [...builtIn, ...custom]
+}
+
+/** A valid sample cell for the template row. */
+function exampleValue(field: FormFieldSummary): string {
+    const options = parseOptions(field.options)
+    if (options.length > 0) return options[0].value
+    switch (field.type) {
+        case "number": return String(field.validation?.min ?? 1)
+        case "switch": return "false"
+        case "email": return "jane.alt@example.com"
+        case "url": return "https://example.com"
+        case "phone": return "+919876543210"
+        case "date": return "2026-01-31"
+        case "time": return "09:00"
+        case "month": return "2026-01"
+        case "week": return "2026-W05"
+        default: return field.required ? "Sample" : ""
+    }
 }
 
 /** Converts one raw cell into the value shape the form field stores. */
@@ -227,7 +246,7 @@ export function BulkUploadApplicantsDialog({
             if (c.key === "name") return "Jane Doe"
             if (c.key === "email") return "jane@example.com"
             if (c.key === "phone") return "+919876543210"
-            return ""
+            return c.field ? exampleValue(c.field) : ""
         })
         downloadFile(
             "applicants-template.csv",

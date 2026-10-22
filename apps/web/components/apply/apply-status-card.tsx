@@ -114,7 +114,32 @@ export function ApplyStatusCard({
         );
     }
 
-    // 4. Expired Deadline
+    // 4. Unavailable: the event's credit ended or its organization is suspended.
+    if (config.is_expired && config.closed_reason === "unavailable") {
+        return (
+            <div className="flex min-h-screen w-full items-center justify-center p-4 bg-muted/20">
+                <Card className="max-w-md w-full text-center p-6 space-y-4">
+                    <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                        <CalendarX2 className="size-6" />
+                    </div>
+                    <div className="space-y-1">
+                        <CardTitle className="text-lg font-bold pt-2">
+                            Registration Unavailable
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                            Registration for{" "}
+                            <span className="font-semibold text-foreground">
+                                &ldquo;{config.event?.name || "this event"}&rdquo;
+                            </span>{" "}
+                            is not available right now. Please contact the organizer.
+                        </CardDescription>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
+
+    // 5. Expired Deadline
     if (config.is_expired) {
         const formattedDate = config.expires_at
             ? new Date(config.expires_at).toLocaleString()

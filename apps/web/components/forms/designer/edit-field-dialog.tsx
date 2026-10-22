@@ -231,7 +231,7 @@ function EditFieldDialogBody({
                         className="h-10 text-sm font-mono"
                     />
                     <p className="text-xs text-muted-foreground">
-                        System field keys are fixed and cannot be modified.
+                        Keys are set when a field is created and cannot be changed: saved answers use them.
                     </p>
                 </div>
 

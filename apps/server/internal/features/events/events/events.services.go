@@ -19,6 +19,7 @@ var (
     ErrInvalidDateFormat = errors.New("date must be in YYYY-MM-DD format")
     ErrInvalidDateRange  = errors.New("end_date must be greater than or equal to start_date")
     ErrEventEnded        = errors.New("cannot update an event that has already ended")
+    ErrInvalidTimezone   = errors.New("timezone must be an IANA name such as Asia/Kolkata")
     ErrEventNotFound     = errors.New("event not found")
     ErrCreditNotFound    = errors.New("credit not found")
     ErrCreditExpired     = errors.New("this credit has expired")
@@ -108,6 +109,12 @@ func (s *App) CreateService(ctx context.Context, orgID string, req CreateEventRe
     if end.Before(start) {
         return nil, ErrInvalidDateRange
     }
+    if req.Timezone == "" {
+        req.Timezone = s.DefaultTimezone
+    }
+    if !validTimezone(req.Timezone) {
+        return nil, ErrInvalidTimezone
+    }
     if err := s.checkCredit(ctx, req.CreditID, orgID, "", req.StartDate, req.EndDate); err != nil {
         return nil, err
     }
@@ -152,6 +159,10 @@ func (s *App) UpdateService(ctx context.Context, orgID, id string, req UpdateEve
 
     if req.StartDate != nil && req.EndDate != nil && end.Before(start) {
         return nil, ErrInvalidDateRange
+    }
+
+    if req.Timezone != nil && !validTimezone(*req.Timezone) {
+        return nil, ErrInvalidTimezone
     }
 
     if req.StartDate != nil || req.EndDate != nil {
@@ -218,4 +229,13 @@ func (s *App) DeleteService(ctx context.Context, id string) error {
     }
 
     return nil
+}
+
+// validTimezone accepts IANA names only ("Local" and "" are not event zones).
+func validTimezone(tz string) bool {
+    if tz == "" || tz == "Local" {
+        return false
+    }
+    _, err := time.LoadLocation(tz)
+    return err == nil
 }

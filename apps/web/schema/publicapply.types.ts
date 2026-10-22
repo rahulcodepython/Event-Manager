@@ -48,6 +48,7 @@ export const PublicApplyConfigSchema = z.object({
     event_form_id: z.string(),
     status: z.enum(["waiting", "live"]),
     is_expired: z.boolean(),
+    closed_reason: z.enum(["deadline", "unavailable"]).nullish(),
     is_full: z.boolean(),
     max_applicants: z.number(),
     current_applicants: z.number(),
@@ -93,6 +94,18 @@ export function buildPublicApplyFormSchema(
         let fieldSchema: z.ZodTypeAny;
 
         switch (field.type) {
+            case "file": {
+                // Upload token(s); a list when the field takes several files.
+                if (field.validation?.multiple) {
+                    const arr = z.array(z.string());
+                    fieldSchema = field.required ? arr.min(1, `${field.label} is required`) : arr.default([]);
+                } else {
+                    fieldSchema = field.required
+                        ? z.string().min(1, `${field.label} is required`)
+                        : z.string().default("");
+                }
+                break;
+            }
             case "photo":
             case "signature": {
                 // The value is the upload token.
@@ -207,9 +220,10 @@ export function buildPublicApplyFormSchema(
                     );
                 }
 
+                // An optional field left empty skips the format checks above.
                 fieldSchema = field.required
                     ? str.trim().min(1, `${field.label} is required`)
-                    : str.default("");
+                    : z.union([z.literal(""), str]).default("");
                 break;
             }
         }

@@ -13,6 +13,7 @@ type Event struct {
     Venue     *string   `json:"venue,omitempty"`
     Logo      *string   `json:"logo,omitempty"`
     Organizer *string   `json:"organizer,omitempty"`
+    Timezone  string    `json:"timezone"`
     Credit    *EventCredit `json:"credit"`
     CreatedAt time.Time `json:"created_at"`
     UpdatedAt time.Time `json:"updated_at"`
@@ -43,6 +44,8 @@ type CreateEventRequest struct {
     Name      string `json:"name" validate:"required"`
     StartDate string `json:"start_date" validate:"required"`
     EndDate   string `json:"end_date" validate:"required"`
+    // Timezone (IANA) of the event's dates and hours; empty: APP_TIMEZONE.
+    Timezone string `json:"timezone"`
 }
 
 // UpdateEventRequest payload for modifying an existing event.
@@ -53,4 +56,5 @@ type UpdateEventRequest struct {
     Venue     *string `json:"venue"`
     Logo      *string `json:"logo"`
     Organizer *string `json:"organizer"`
+    Timezone  *string `json:"timezone"`
 }

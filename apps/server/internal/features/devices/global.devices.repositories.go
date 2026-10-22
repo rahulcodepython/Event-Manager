@@ -204,3 +204,15 @@ func (r *App) DeleteDeviceRepository(ctx context.Context, id string) error {
     }
     return nil
 }
+
+// UnpairDeviceRepository clears the pairing of the device with this token.
+func (r *App) UnpairDeviceRepository(ctx context.Context, tokenHash string) error {
+    tag, err := r.DB.Exec(ctx, UnpairDeviceQuery, tokenHash)
+    if err != nil {
+        return postgres.MapPgError(err)
+    }
+    if tag.RowsAffected() == 0 {
+        return ErrNotPaired
+    }
+    return nil
+}

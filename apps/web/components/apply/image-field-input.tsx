@@ -4,7 +4,7 @@ import * as React from "react";
 import { ImageIcon, Loader2, RefreshCwIcon, XIcon } from "lucide-react";
 
 import { Button } from "../ui/button";
-import { apiBaseUrl } from "../../react-query/client";
+import { uploadFormFile } from "../../lib/uploads";
 import type { FormField } from "../../schema/forms.types";
 
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -31,18 +31,6 @@ function loadImage(file: File): Promise<HTMLImageElement> {
         img.onerror = () => reject(new Error("This file is not an image we can read."));
         img.src = URL.createObjectURL(file);
     });
-}
-
-async function upload(eventFormId: string, fieldKey: string, blob: Blob, name: string): Promise<string> {
-    const body = new FormData();
-    body.append("file", blob, name);
-    const res = await fetch(`${apiBaseUrl}/public/apply/${eventFormId}/uploads?field=${encodeURIComponent(fieldKey)}`, {
-        method: "POST",
-        body,
-    });
-    const json = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(json?.message || "Upload failed");
-    return json.data.token as string;
 }
 
 /**
@@ -92,7 +80,7 @@ export function ImageFieldInput({ eventFormId, field, value, onChange }: ImageFi
         }
         setBusy(true);
         try {
-            onChange(await upload(eventFormId, field.key, file, file.name));
+            onChange(await uploadFormFile(eventFormId, field.key, file, file.name));
             setPreview(img.src);
         } catch (e) {
             setError((e as Error).message);
@@ -105,7 +93,7 @@ export function ImageFieldInput({ eventFormId, field, value, onChange }: ImageFi
         setBusy(true);
         setError(null);
         try {
-            onChange(await upload(eventFormId, field.key, blob, "photo.jpg"));
+            onChange(await uploadFormFile(eventFormId, field.key, blob, "photo.jpg"));
             setPreview(url);
             setImage(null);
         } catch (e) {
@@ -128,13 +116,15 @@ export function ImageFieldInput({ eventFormId, field, value, onChange }: ImageFi
                 }}
             />
             {
-                image ? <PhotoCropper image={image} minSide={Math.max(min.w, min.h)} busy={busy} onCancel={() => setImage(null)} onDone={onCropped} /> : value && preview ? <div className="flex items-center gap-3 rounded-lg border p-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- local object URL */}
-                    <img
-                        src={preview}
-                        alt={field.label}
-                        className={field.type === "photo" ? "size-20 rounded-md object-cover" : "h-14 max-w-48 rounded-md border bg-white object-contain"}
-                    />
+                image ? <PhotoCropper image={image} minSide={Math.max(min.w, min.h)} busy={busy} onCancel={() => setImage(null)} onDone={onCropped} /> : value ? <div className="flex items-center gap-3 rounded-lg border p-3">
+                    {
+                        // eslint-disable-next-line @next/next/no-img-element -- local object URL
+                        preview ? <img
+                            src={preview}
+                            alt={field.label}
+                            className={field.type === "photo" ? "size-20 rounded-md object-cover" : "h-14 max-w-48 rounded-md border bg-white object-contain"}
+                        /> : <ImageIcon className="size-8 text-muted-foreground" />
+                    }
                     <div className="flex flex-1 flex-col gap-1">
                         <span className="text-sm font-medium">Uploaded</span>
                         <div className="flex gap-2">

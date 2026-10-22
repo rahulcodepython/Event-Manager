@@ -35,7 +35,7 @@ export function EventNotFound({
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex justify-center pt-4">
-                    <Button render={<Link href={backUrl} />}>
+                    <Button nativeButton={false} render={<Link href={backUrl} />}>
                         <ArrowLeft className="mr-2 size-4" />
                         {backLabel}
                     </Button>

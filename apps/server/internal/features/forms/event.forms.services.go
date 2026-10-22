@@ -22,6 +22,7 @@ var (
     ErrCannotDeleteWithApplicants = errors.New("cannot delete form: applicants have already registered")
     ErrInvalidTemplateID          = errors.New("invalid template id")
     ErrInvalidExpiresAt           = errors.New("expiration date must be in the future")
+    ErrExpiresAfterEvent          = errors.New("the registration deadline must be on or before the event's last day")
     ErrInvalidMaxApplicants       = errors.New("max applicants must be -1 or at least 1")
     ErrCapacityAboveCredit        = errors.New("form capacity cannot exceed the credit's applicant limit")
     ErrInvalidSource              = errors.New("source must be either 'template' or 'scratch'")
@@ -64,6 +65,15 @@ func (s *App) CreateEventFormService(ctx context.Context, eventID string, req Cr
 
     if time.Now().After(req.ExpiresAt) {
         return nil, ErrInvalidExpiresAt
+    }
+    // The default deadline comes from the browser's clock; keep it within
+    // the event's last day in the event's timezone.
+    end, err := s.eventEnd(ctx, eventID)
+    if err != nil {
+        return nil, err
+    }
+    if req.ExpiresAt.After(end) {
+        req.ExpiresAt = end
     }
 
     var ef *EventFormDetails
@@ -136,6 +146,13 @@ func (s *App) UpdateEventFormService(ctx context.Context, eventID string, req Up
     if req.ExpiresAt != nil {
         if time.Now().After(*req.ExpiresAt) {
             return nil, ErrInvalidExpiresAt
+        }
+        end, err := s.eventEnd(ctx, eventID)
+        if err != nil {
+            return nil, err
+        }
+        if req.ExpiresAt.After(end) {
+            return nil, ErrExpiresAfterEvent
         }
     }
 
@@ -243,4 +260,16 @@ func (s *App) checkCapacity(ctx context.Context, eventID string, capacity int) e
         return fmt.Errorf("%w (%d)", ErrCapacityAboveCredit, ent.ApplicantLimit)
     }
     return nil
+}
+
+// eventEnd is the end of the event's last day in its own timezone.
+func (s *App) eventEnd(ctx context.Context, eventID string) (time.Time, error) {
+    var end time.Time
+    err := s.DB.QueryRow(ctx, `
+        SELECT (end_date + 1)::timestamp AT TIME ZONE timezone FROM events WHERE id = $1::uuid
+    `, eventID).Scan(&end)
+    if err != nil {
+        return time.Time{}, postgres.MapPgError(err)
+    }
+    return end, nil
 }

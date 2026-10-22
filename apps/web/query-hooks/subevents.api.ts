@@ -73,9 +73,15 @@ export function useUpdateSubEventMutation(eventId: string) {
 }
 
 export function useDeleteSubEventMutation(eventId: string) {
+    const queryClient = useQueryClient();
     return useSubEventMutation<string, void>(
         eventId,
-        (id) => apiRequest({ url: `/events/${eventId}/sub-events/${id}/`, method: "DELETE" }),
+        async (id) => {
+            await apiRequest({ url: `/events/${eventId}/sub-events/${id}/`, method: "DELETE" });
+            // Drop its cached queries; the page stops fetching them before deleting.
+            queryClient.removeQueries({ queryKey: ["subEvents", "enrolled", id] });
+            queryClient.removeQueries({ queryKey: queryKeys.subEvents.dates(id) });
+        },
         "Sub-event deleted",
     );
 }
@@ -100,14 +106,14 @@ export function useSaveSubEventDaysMutation(eventId: string, subEventId: string)
     );
 }
 
-export function useEnrolledQuery(eventId: string, subEventId: string, params: { search: string, page: number }) {
+export function useEnrolledQuery(eventId: string, subEventId: string, params: { search: string, page: number }, enabled = true) {
     return useQuery<EnrolledList, ApiError>({
         queryKey: queryKeys.subEvents.enrolled(subEventId, params),
         queryFn: () => apiRequest(
             { url: `/events/${eventId}/sub-events/${subEventId}/applicants`, method: "GET", params: { ...params, limit: 25 } },
             EnrolledListSchema,
         ),
-        enabled: Boolean(eventId && subEventId),
+        enabled: enabled && Boolean(eventId && subEventId),
         placeholderData: keepPreviousData,
     });
 }
@@ -119,7 +125,7 @@ export function useAssignMutation(eventId: string, subEventId: string) {
             { url: `/events/${eventId}/sub-events/${subEventId}/applicants`, method: "POST", data: { applicant_ids: ids } },
             AssignResponseSchema,
         ),
-        (res) => res.failed.length ? `${res.added} added, ${res.failed.length} not added` : `${res.added} added`,
+        (res) => res.failed.length ? `${res.added} added, ${res.failed.length} not added: ${res.failed[0].error}` : `${res.added} added`,
     );
 }
 

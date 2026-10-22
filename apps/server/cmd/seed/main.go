@@ -46,12 +46,12 @@ func main() {
             log.Fatalf("[seed] flush before regenerate failed: %v", err)
         }
         fmt.Println("✓ Database flushed.")
-        if err := seedDatabase(ctx, pool, cfg.SeedClientEmail); err != nil {
+        if err := seedDatabase(ctx, pool, cfg.SeedClientEmail, cfg.AppTimezone); err != nil {
             log.Fatalf("[seed] seed failed: %v", err)
         }
         fmt.Println("✓ Database successfully regenerated and seeded.")
     case "seed", "up":
-        if err := seedDatabase(ctx, pool, cfg.SeedClientEmail); err != nil {
+        if err := seedDatabase(ctx, pool, cfg.SeedClientEmail, cfg.AppTimezone); err != nil {
             log.Fatalf("[seed] seed failed: %v", err)
         }
         fmt.Println("✓ Database successfully seeded.")
@@ -135,7 +135,7 @@ func floatPtr(f float64) *float64 {
     return &f
 }
 
-func seedDatabase(ctx context.Context, pool *pgxpool.Pool, ownerEmail string) error {
+func seedDatabase(ctx context.Context, pool *pgxpool.Pool, ownerEmail, timezone string) error {
     tx, err := pool.Begin(ctx)
     if err != nil {
         return fmt.Errorf("begin transaction: %w", err)
@@ -520,13 +520,13 @@ func seedDatabase(ctx context.Context, pool *pgxpool.Pool, ownerEmail string) er
         }
 
         _, err = tx.Exec(ctx, `
-            INSERT INTO events (id, organization_id, credit_id, start_date, end_date, created_at, updated_at)
-            VALUES ($1, $4, $5, $2, $3, now(), now())
+            INSERT INTO events (id, organization_id, credit_id, start_date, end_date, timezone, created_at, updated_at)
+            VALUES ($1, $4, $5, $2, $3, $6, now(), now())
             ON CONFLICT (id) DO UPDATE SET
                 start_date = EXCLUDED.start_date,
                 end_date = EXCLUDED.end_date,
                 updated_at = now();
-        `, ed.ID, ed.StartDate, ed.EndDate, orgID, creditID)
+        `, ed.ID, ed.StartDate, ed.EndDate, orgID, creditID, timezone)
         if err != nil {
             return fmt.Errorf("insert event %s: %w", ed.Name, err)
         }

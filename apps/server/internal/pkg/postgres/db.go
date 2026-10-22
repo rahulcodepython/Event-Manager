@@ -19,6 +19,8 @@ func Connect(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("db: parse config: %w", err)
 	}
+	// CURRENT_DATE, ::date casts and date_trunc follow the app's timezone.
+	poolCfg.ConnConfig.RuntimeParams["timezone"] = cfg.AppTimezone
 
 	if cfg.DBMaxOpenConns > 0 {
 		poolCfg.MaxConns = int32(cfg.DBMaxOpenConns)

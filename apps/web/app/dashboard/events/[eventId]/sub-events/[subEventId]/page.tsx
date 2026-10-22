@@ -33,7 +33,9 @@ export default function SubEventDetailPage() {
     const { data: cardStatus } = useCardStatusQuery(eventId)
     const [search, setSearch] = React.useState("")
     const [page, setPage] = React.useState(1)
-    const { data: enrolled } = useEnrolledQuery(eventId, subEventId, { search, page })
+    // Set while deleting, so the sub-event's own queries stop (they would 404).
+    const [deleting, setDeleting] = React.useState(false)
+    const { data: enrolled } = useEnrolledQuery(eventId, subEventId, { search, page }, !deleting)
     const remove = useDeleteSubEventMutation(eventId)
     const unassign = useUnassignMutation(eventId, subEventId)
 
@@ -106,7 +108,13 @@ export default function SubEventDetailPage() {
                             confirmLabel="Delete"
                             destructive
                             onConfirm={async () => {
-                                await remove.mutateAsync(subEvent.id)
+                                setDeleting(true)
+                                try {
+                                    await remove.mutateAsync(subEvent.id)
+                                } catch (err) {
+                                    setDeleting(false)
+                                    throw err
+                                }
                                 router.push(`/dashboard/events/${eventId}/sub-events`)
                             }}
                         />

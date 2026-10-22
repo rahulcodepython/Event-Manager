@@ -61,7 +61,7 @@ function CategoryRow({ category }: { category: Category }) {
                 </div> : <>
                     <div className="flex min-w-0 flex-col">
                         <span className="truncate text-sm font-medium">{category.name}</span>
-                        <span className="text-xs text-muted-foreground">{category.in_use} uses</span>
+                        <span className="text-xs text-muted-foreground">{category.in_use} {category.in_use === 1 ? "use" : "uses"}</span>
                     </div>
                     <div className="flex items-center gap-1">
                         <Button size="icon-sm" variant="ghost" onClick={() => setEditing(true)} aria-label="Rename">

@@ -326,3 +326,13 @@ export function useWebAuthnLoginVerifyMutation() {
         },
     });
 }
+
+/** Ends this browser's pairing on the server (token, browser binding and passkey). */
+export function useUnpairDeviceMutation() {
+    const queryClient = useQueryClient();
+    return useMutation<void, ApiError, void>({
+        mutationFn: () => apiRequest<void>({ url: "/devices/unpair", method: "POST" }),
+        // Forget the session either way: the pairing is gone or already was.
+        onSettled: () => queryClient.removeQueries({ queryKey: queryKeys.devices.me }),
+    });
+}

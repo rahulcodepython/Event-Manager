@@ -14,6 +14,8 @@ export const EventSchema = z.object({
     venue: z.string().optional().nullable(),
     logo: z.string().optional().nullable(),
     organizer: z.string().optional().nullable(),
+    /** IANA timezone of the event's dates and session hours. */
+    timezone: z.string().default("UTC"),
     credit: z
         .object({
             id: z.string(),
@@ -57,6 +59,7 @@ export const UpdateEventSchema = z.object({
     venue: z.string().optional().nullable(),
     logo: z.string().optional().nullable(),
     organizer: z.string().optional().nullable(),
+    timezone: z.string().optional(),
 });
 export type UpdateEventInput = z.infer<typeof UpdateEventSchema>;
 

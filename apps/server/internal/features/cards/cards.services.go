@@ -48,6 +48,16 @@ func (s *App) ScheduleService(ctx context.Context, eventID string, req ScheduleR
     case req.PublishAt.Before(req.ClosesAt):
         return nil, errorf(ErrInvalidSchedule, "cards cannot be published before the application window closes")
     }
+    // Both dates fall on or before the event's last day (its own timezone).
+    var eventEnd time.Time
+    if err := s.DB.QueryRow(ctx, `
+        SELECT (end_date + 1)::timestamp AT TIME ZONE timezone FROM events WHERE id = $1::uuid
+    `, eventID).Scan(&eventEnd); err != nil {
+        return nil, postgres.MapPgError(err)
+    }
+    if req.ClosesAt.After(eventEnd) || req.PublishAt.After(eventEnd) {
+        return nil, errorf(ErrInvalidSchedule, "applications must close and cards must be emailed by the end of the event's last day")
+    }
     if err := s.requireUnpublished(ctx, eventID); err != nil {
         return nil, err
     }

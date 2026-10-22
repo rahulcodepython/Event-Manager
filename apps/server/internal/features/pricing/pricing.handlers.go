@@ -31,7 +31,12 @@ func (h *App) QuoteHandler(c *fiber.Ctx) error {
     }
     // A coupon that does not apply still returns the full price, with the reason.
     if req.CouponCode != "" {
-        if err := h.ApplyCoupon(c.UserContext(), q, req.CouponCode, ""); err != nil {
+        // A signed-in client also gets the per-client limit checked.
+        orgID := ""
+        if h.OrgOf != nil {
+            orgID = h.OrgOf(c)
+        }
+        if err := h.ApplyCoupon(c.UserContext(), q, req.CouponCode, orgID); err != nil {
             if !errors.Is(err, ErrCoupon) {
                 return utils.ErrInternal(c, "failed to check coupon", err)
             }

@@ -50,7 +50,7 @@ func (h *App) CreateHandler(c *fiber.Ctx) error {
 
     ev, err := h.CreateService(c.UserContext(), middlewares.OrgID(c), *req)
     if err != nil {
-        if errors.Is(err, ErrInvalidDateFormat) || errors.Is(err, ErrInvalidDateRange) || IsCreditError(err) {
+        if errors.Is(err, ErrInvalidDateFormat) || errors.Is(err, ErrInvalidDateRange) || errors.Is(err, ErrInvalidTimezone) || IsCreditError(err) {
             return utils.ErrBadRequest(c, err.Error(), err)
         }
 
@@ -71,7 +71,7 @@ func (h *App) UpdateHandler(c *fiber.Ctx) error {
 
     ev, err := h.UpdateService(c.UserContext(), middlewares.OrgID(c), id, *req)
     if err != nil {
-        if errors.Is(err, ErrInvalidEventID) || errors.Is(err, ErrInvalidDateFormat) || errors.Is(err, ErrInvalidDateRange) || errors.Is(err, ErrEventEnded) || IsCreditError(err) {
+        if errors.Is(err, ErrInvalidEventID) || errors.Is(err, ErrInvalidDateFormat) || errors.Is(err, ErrInvalidDateRange) || errors.Is(err, ErrInvalidTimezone) || errors.Is(err, ErrEventEnded) || IsCreditError(err) {
             return utils.ErrBadRequest(c, err.Error(), err)
         }
         if errors.Is(err, ErrEventNotFound) {

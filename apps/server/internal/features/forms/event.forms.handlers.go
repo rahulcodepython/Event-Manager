@@ -39,7 +39,7 @@ func (h *App) CreateEventFormHandler(c *fiber.Ctx) error {
     if err != nil {
         if errors.Is(err, ErrInvalidEventID) ||
             errors.Is(err, ErrInvalidTemplateID) ||
-            errors.Is(err, ErrInvalidExpiresAt) ||
+            errors.Is(err, ErrInvalidExpiresAt) || errors.Is(err, ErrExpiresAfterEvent) ||
             errors.Is(err, ErrInvalidMaxApplicants) || errors.Is(err, ErrCapacityAboveCredit) ||
             errors.Is(err, ErrInvalidFormName) ||
             errors.Is(err, ErrMissingMandatoryFields) || errors.Is(err, ErrInvalidFieldType) ||
@@ -67,7 +67,7 @@ func (h *App) UpdateEventFormHandler(c *fiber.Ctx) error {
     form, err := h.UpdateEventFormService(c.UserContext(), eventID, req)
     if err != nil {
         if errors.Is(err, ErrInvalidEventID) ||
-            errors.Is(err, ErrInvalidExpiresAt) ||
+            errors.Is(err, ErrInvalidExpiresAt) || errors.Is(err, ErrExpiresAfterEvent) ||
             errors.Is(err, ErrInvalidMaxApplicants) || errors.Is(err, ErrCapacityAboveCredit) ||
             errors.Is(err, ErrInvalidFormName) ||
             errors.Is(err, ErrMissingMandatoryFields) || errors.Is(err, ErrInvalidFieldType) ||
@@ -90,7 +90,7 @@ func (h *App) LockEventFormHandler(c *fiber.Ctx) error {
     form, err := h.LockEventFormService(c.UserContext(), eventID)
     if err != nil {
         if errors.Is(err, ErrInvalidEventID) ||
-            errors.Is(err, ErrInvalidExpiresAt) ||
+            errors.Is(err, ErrInvalidExpiresAt) || errors.Is(err, ErrExpiresAfterEvent) ||
             errors.Is(err, ErrMissingMandatoryFields) || errors.Is(err, ErrInvalidFieldType) {
             return utils.ErrBadRequest(c, err.Error(), err)
         }

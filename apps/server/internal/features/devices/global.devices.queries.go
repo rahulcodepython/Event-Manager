@@ -357,4 +357,20 @@ const (
         DELETE FROM devices
         WHERE id = $1;
     `
+
+    UnpairDeviceQuery = `
+        UPDATE devices
+        SET
+            fingerprint = NULL,
+            actual_name = NULL,
+            token_hash = NULL,
+            webauthn_credential_id = NULL,
+            webauthn_public_key = NULL,
+            webauthn_aaguid = NULL,
+            webauthn_sign_count = 0,
+            webauthn_credential_json = NULL,
+            is_biometric_enrolled = false,
+            updated_at = now()
+        WHERE token_hash = $1;
+    `
 )

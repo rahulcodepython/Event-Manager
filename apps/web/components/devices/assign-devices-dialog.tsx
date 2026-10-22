@@ -146,6 +146,8 @@ export function AssignDevicesDialog({
                                             <Checkbox
                                                 checked={isSelected}
                                                 onCheckedChange={() => handleToggle(device.id)}
+                                                // The row toggles too; stop the click so it does not toggle twice.
+                                                onClick={(e) => e.stopPropagation()}
                                                 className="mt-0.5"
                                             />
                                             <div className="flex-1 min-w-0 space-y-1">

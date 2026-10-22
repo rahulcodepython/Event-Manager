@@ -53,7 +53,7 @@ export function CreditCard({ credit }: { credit: Credit }) {
                 <ul className="flex flex-col gap-1">
                     {
                         credit.features.map((f) => <li key={f.key} className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">{f.name}</span>
+                            <span className="text-muted-foreground">{credit.kind === "trial" && f.key === "duration" ? "Credit valid for" : f.name}</span>
                             <span>{f.label}</span>
                         </li>)
                     }

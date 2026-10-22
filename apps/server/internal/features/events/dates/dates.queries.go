@@ -21,8 +21,11 @@ const (
             AND ($2 = '' OR to_char(ed.date, 'YYYY-MM') = $2);
     `
 
-    // OverrideEventDatesAtomicQuery atomically validates dates, purges existing records,
-    // and inserts the new batch in a single database network round-trip.
+    // OverrideEventDatesAtomicQuery atomically validates dates, removes the
+    // dates missing from the batch and upserts the rest in one round-trip.
+    // Sibling CTEs share one snapshot, so a plain delete-then-insert of the
+    // same date would hit uq_event_dates_scope; dates kept also keep their
+    // id and attendance.
     OverrideEventDatesAtomicQuery = `
         WITH target_event AS (
             SELECT id, start_date, end_date
@@ -30,7 +33,8 @@ const (
             WHERE id = $1
         ),
         incoming_dates AS (
-            SELECT
+            -- One row per date: the upsert cannot touch a row twice.
+            SELECT DISTINCT ON ((d->>'date')::date)
                 (d->>'date')::date AS date,
                 (d->>'start_time')::time AS start_time,
                 (d->>'end_time')::time AS end_time
@@ -52,6 +56,7 @@ const (
             DELETE FROM event_dates
             WHERE event_id = $1
               AND sub_event_id IS NOT DISTINCT FROM NULLIF($3, '')::uuid
+              AND date NOT IN (SELECT date FROM incoming_dates)
               AND (SELECT status FROM validation) = 'valid'
         ),
         inserted AS (
@@ -67,6 +72,11 @@ const (
                 now()
             FROM incoming_dates ind
             WHERE (SELECT status FROM validation) = 'valid'
+            ON CONFLICT (event_id, (COALESCE(sub_event_id, '00000000-0000-0000-0000-000000000000'::uuid)), date) DO UPDATE
+            SET
+                start_time = EXCLUDED.start_time,
+                end_time = EXCLUDED.end_time,
+                updated_at = now()
             RETURNING id, event_id, sub_event_id, date, start_time, end_time, created_at, updated_at
         )
         SELECT jsonb_build_object(

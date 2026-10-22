@@ -15,6 +15,8 @@ type App struct {
     // OnDelete hooks clean up data outside Postgres (e.g. site files) after
     // an event is deleted, by the organizer or by retention.
     OnDelete []func(ctx context.Context, eventID string)
+    // DefaultTimezone is given to events created without one (APP_TIMEZONE).
+    DefaultTimezone string
 }
 
 // NewApp wires together repository, service, and handler for events.

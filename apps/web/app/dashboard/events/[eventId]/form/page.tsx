@@ -120,11 +120,15 @@ export default function EventFormPage() {
     // 2. Active Form handlers
     const handleSaveDesignerFields = async () => {
         if (!eventForm || eventForm.is_locked) return;
-        await updateMutation.mutateAsync({
-            eventId,
-            fields: designerFields,
-        });
-        setDraftFields(null);
+        try {
+            await updateMutation.mutateAsync({
+                eventId,
+                fields: designerFields,
+            });
+            setDraftFields(null);
+        } catch {
+            // The mutation shows the error; keep the unsaved fields.
+        }
     };
 
     const handleSaveSettings = async (settings: {

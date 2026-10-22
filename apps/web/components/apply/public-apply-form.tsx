@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Clock, CreditCard, Loader2, LogOut
 import { useForm, useWatch } from "react-hook-form";
 
 import { ApplyFieldInput } from "./apply-field-input";
+import { formatFieldValue } from "../applicants/applicants-utils";
 import { SubEventPicker } from "./sub-event-picker";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
@@ -292,10 +293,11 @@ export function PublicApplyForm({ eventFormId, config, state, eventName, fixedSu
                                     .filter((f) => !f.is_system)
                                     .map((f) => {
                                         const v = form.getValues(`data.${f.key}` as const);
-                                        const text = f.type === "photo" || f.type === "signature"
-                                            ? (v ? "Uploaded" : "—")
-                                            : Array.isArray(v) ? v.join(", ") : typeof v === "boolean" ? (v ? "Yes" : "No") : (v ?? "—");
-                                        return <ReviewRow key={f.key} label={f.label} value={String(text || "—")} />
+                                        const uploaded = Array.isArray(v) ? v.length : v ? 1 : 0;
+                                        const text = f.type === "photo" || f.type === "signature" || f.type === "file"
+                                            ? (uploaded ? (uploaded > 1 ? `${uploaded} files uploaded` : "Uploaded") : "—")
+                                            : formatFieldValue(f, v as FormFieldValue);
+                                        return <ReviewRow key={f.key} label={f.label} value={text === "-" ? "—" : text} />
                                     })
                             }
                             {

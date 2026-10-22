@@ -11,6 +11,11 @@ const (
             SELECT
                 ef.*,
                 (ef.expires_at < now() OR ce.is_expired OR ce.is_suspended) AS closed,
+                -- Why it is closed: the organizer's deadline, or the event is unavailable.
+                CASE
+                    WHEN ce.is_expired OR ce.is_suspended THEN 'unavailable'
+                    WHEN ef.expires_at < now() THEN 'deadline'
+                END AS closed_reason,
                 ce.has_branding,
                 -- effective capacity: the form's own cap, never above the credit's limit
                 LEAST(ce.applicant_limit, CASE WHEN ef.max_applicants = -1 THEN ce.applicant_limit ELSE ef.max_applicants END) AS capacity,
@@ -24,6 +29,7 @@ const (
             'event_form_id', ef.id,
             'status', ef.status,
             'is_expired', ef.closed,
+            'closed_reason', ef.closed_reason,
             'is_full', ef.current_count >= ef.capacity,
             'max_applicants', ef.capacity,
             'current_applicants', ef.current_count,

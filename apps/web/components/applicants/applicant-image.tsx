@@ -23,3 +23,24 @@ export function ApplicantImage({ eventId, applicantId, fieldKey, type, className
         </a>
     );
 }
+
+/** Links to an applicant's File Upload file(s), served by the API with the session cookie. */
+export function ApplicantFileLinks({ eventId, applicantId, fieldKey, value }: {
+    eventId: string;
+    applicantId: string;
+    fieldKey: string;
+    /** The stored key, or keys for a multi-file field. */
+    value: unknown;
+}) {
+    const count = Array.isArray(value) ? value.length : value ? 1 : 0;
+    const base = `${apiBaseUrl}/events/${eventId}/applicants/${encodeURIComponent(applicantId)}/files/${encodeURIComponent(fieldKey)}`;
+    return (
+        <span className="flex flex-wrap gap-x-2 gap-y-1">
+            {
+                Array.from({ length: count }, (_, i) => <a key={i} href={`${base}?i=${i}`} target="_blank" rel="noreferrer" className="text-xs font-medium text-primary underline-offset-2 hover:underline">
+                    {count > 1 ? `File ${i + 1}` : "Download"}
+                </a>)
+            }
+        </span>
+    );
+}

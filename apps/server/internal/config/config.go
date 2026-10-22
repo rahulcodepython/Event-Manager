@@ -62,6 +62,11 @@ type Config struct {
 	ContactMaxPerHour     int           // contact form messages per IP
 	UploadMaxPerHour      int           // public image uploads per IP
 	UploadPendingTTL      time.Duration // unclaimed uploads are deleted after this
+	FileUploadMaxMB       int           // largest file on a form's File Upload field
+
+	// AppTimezone (IANA) is the database session timezone and the default
+	// timezone of new events.
+	AppTimezone string
 	DevicePINTTL          time.Duration // scanner pairing PIN lifetime
 
 	// Platform admin (admin API only). Single account from the environment;
@@ -194,6 +199,8 @@ func Load() (*Config, error) {
 		ContactMaxPerHour:     getInt("CONTACT_MAX_PER_HOUR", 5),
 		UploadMaxPerHour:      getInt("UPLOAD_MAX_PER_HOUR", 30),
 		UploadPendingTTL:      getDuration("UPLOAD_PENDING_TTL", 24*time.Hour),
+		FileUploadMaxMB:       getInt("FILE_UPLOAD_MAX_MB", 10),
+		AppTimezone:           getOr("APP_TIMEZONE", "Asia/Kolkata"),
 		DevicePINTTL:          getDuration("DEVICE_PIN_TTL", 5*time.Minute),
 
 		AdminUsername:         os.Getenv("ADMIN_USERNAME"),
@@ -246,13 +253,12 @@ func Load() (*Config, error) {
 		SeedClientEmail:   os.Getenv("SEED_CLIENT_EMAIL"),
 	}
 
+	// Only a reverse proxy on this host is trusted by default. Add the
+	// proxy's address (container network, load balancer) in TRUSTED_PROXIES;
+	// trusting whole LAN ranges would let any LAN client pick its own IP.
 	defaultProxies := []string{
 		"127.0.0.1/8",
 		"::1/128",
-		"10.0.0.0/8",     // Kubernetes pod network, AWS VPC, Docker Swarm
-		"172.16.0.0/12",  // Docker standard bridge networks (172.16.0.0 - 172.31.255.255)
-		"192.168.0.0/16", // Local LAN and custom container bridge networks
-		"fc00::/7",       // IPv6 Unique Local Addresses
 	}
 	if envProxies := os.Getenv("TRUSTED_PROXIES"); envProxies != "" {
 		for _, p := range strings.Split(envProxies, ",") {
@@ -263,6 +269,10 @@ func Load() (*Config, error) {
 		}
 	}
 	cfg.TrustedProxies = defaultProxies
+
+	if _, err := time.LoadLocation(cfg.AppTimezone); err != nil {
+		return nil, fmt.Errorf("config: APP_TIMEZONE %q is not a valid IANA timezone", cfg.AppTimezone)
+	}
 
 	if len(missing) > 0 {
 		return nil, fmt.Errorf("config: missing required environment variables: %s", strings.Join(missing, ", "))

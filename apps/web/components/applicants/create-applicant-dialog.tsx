@@ -51,19 +51,12 @@ export function CreateApplicantDialog({
     const createMutation = useCreateApplicantMutation(eventId);
 
     const customFields = React.useMemo(() => {
-        // Photos and signatures are uploaded by applicants on the public form.
-        return formFields.filter((f) => f.type !== "photo" && f.type !== "signature").map(
-            (f) =>
-                ({
-                    id: f.id || f.key,
-                    key: f.key,
-                    label: f.label,
-                    type: f.type as FormFieldType["type"],
-                    required: f.required,
-                    placeholder: f.placeholder,
-                    options: f.options,
-                }) as FormFieldType
-        );
+        // Photos, signatures and files are uploaded by applicants on the public form.
+        // Name, email and phone have their own inputs above.
+        return formFields
+            .filter((f) => f.type !== "photo" && f.type !== "signature" && f.type !== "file")
+            .filter((f) => !(f.is_system && (f.key === "name" || f.key === "email" || f.key === "phone")))
+            .map((f) => ({ ...f, id: f.id || f.key }) as FormFieldType);
     }, [formFields]);
 
     const schema = React.useMemo(
@@ -201,24 +194,9 @@ export function CreateApplicantDialog({
                                 )}
                             />
 
-                            {customFields.map((field) => {
-                                if (
-                                    field.is_system &&
-                                    (field.key === "name" ||
-                                        field.key === "email" ||
-                                        field.key === "phone")
-                                ) {
-                                    return null;
-                                }
-
-                                return (
-                                    <ApplyFieldInput
-                                        key={field.id}
-                                        field={field}
-                                        control={form.control}
-                                    />
-                                );
-                            })}
+                            {
+                                customFields.map((field) => <ApplyFieldInput key={field.id} field={field} control={form.control} />)
+                            }
                         </DialogBody>
 
                         <DialogFooter className="flex items-center justify-between gap-3">

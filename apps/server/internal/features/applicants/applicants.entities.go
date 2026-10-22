@@ -38,6 +38,8 @@ type FormFieldItem struct {
     Required    bool        `json:"required"`
     Placeholder string      `json:"placeholder,omitempty"`
     Options     interface{} `json:"options,omitempty"`
+    IsSystem    bool        `json:"is_system,omitempty"`
+    Validation  interface{} `json:"validation,omitempty"`
 }
 
 type FormSummary struct {

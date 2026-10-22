@@ -24,6 +24,7 @@ export function EventDevicesTable({
                             <th className="py-2.5 px-4">Status</th>
                             <th className="py-2.5 px-4">Fingerprint</th>
                             <th className="py-2.5 px-4">Assigned On</th>
+                            <th className="w-10 py-2.5 px-2"><span className="sr-only">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
